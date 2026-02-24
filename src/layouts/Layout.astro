@@ -15,6 +15,9 @@ const {
     image = "/pokeball.png" 
 } = Astro.props;
 
+const siteUrl = "https://pokepedia.vercel.app";
+const finalImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+
 const currentPath = Astro.url.pathname;
 const currentSearch = Astro.url.search;
 const otherLang = lang === 'es' ? 'en' : 'es';
@@ -27,9 +30,9 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" type="image/png" href="/pokeball.png">
-        <link rel="shortcut icon" href="/pokeball.png">
-        <link rel="apple-touch-icon" href="/pokeball.png">
+        <link rel="icon" type="image/png" href="/pokeball.png?v=1">
+        <link rel="shortcut icon" href="/pokeball.png?v=1">
+        <link rel="apple-touch-icon" href="/pokeball.png?v=1">
         <link rel="manifest" href="/manifest.json">
         <meta name="theme-color" content="#10b981">
 		<meta name="generator" content={Astro.generator} />
@@ -45,8 +48,8 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta property="og:url" content={Astro.url} />
         <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
-        <meta property="og:image:secure_url" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
+        <meta property="og:image" content={finalImageUrl} />
+        <meta property="og:image:secure_url" content={finalImageUrl} />
         <meta property="og:image:alt" content={title} />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
@@ -58,7 +61,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta name="twitter:url" content={Astro.url} />
         <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
+        <meta name="twitter:image" content={finalImageUrl} />
         <meta name="twitter:image:alt" content={title} />
         
         <!-- Structured Data (Schema.org) -->
