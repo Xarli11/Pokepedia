@@ -1,0 +1,254 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getAllMoves } from '../../../services/pokeapi';
+import { typeTranslations, typeColors, formatName, uiTranslations } from '../../../utils/pokemon';
+
+const { lang = 'es' } = Astro.params;
+const moves = await getAllMoves();
+const t = uiTranslations[lang as string] || uiTranslations.es;
+---
+
+<Layout title={lang === 'es' ? 'Movimientos Pokémon | Pokepedia' : 'Pokémon Moves | Pokepedia'} lang={lang}>
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+                {t.moves}
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg">
+                {lang === 'es' 
+                    ? 'Consulta la base de datos técnica de todos los ataques Pokémon.' 
+                    : 'Check the technical database of all Pokémon attacks.'}
+            </p>
+        </div>
+
+        <!-- Filtros Modernos -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-12">
+            <div class="md:col-span-8 relative">
+                <input 
+                    type="text" 
+                    id="move-search" 
+                    placeholder={t.search_move} 
+                    class="w-full pl-14 pr-6 py-5 rounded-[2rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white text-lg shadow-2xl shadow-slate-200/50 dark:shadow-black/40 focus:border-emerald-500 outline-none transition-all"
+                    autocomplete="off"
+                />
+                <svg class="w-6 h-6 absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <!-- Contenedor de Sugerencias -->
+                <div id="search-suggestions" class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto">
+                </div>
+            </div>
+            <div class="md:col-span-4">
+                <select id="type-filter" class="w-full px-8 py-5 rounded-[2rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 shadow-xl shadow-slate-200/50 dark:shadow-black/20 outline-none cursor-pointer focus:border-emerald-400 appearance-none">
+                    <option value="all">{lang === 'es' ? 'Todos los tipos' : 'All types'}</option>
+                    {Object.keys(typeTranslations[lang as string]).map(type => (
+                        <option value={type}>{typeTranslations[lang as string][type]}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-black/50 overflow-hidden transition-colors">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-700">
+                            <th class="px-10 py-6">{lang === 'es' ? 'Ataque' : 'Move'}</th>
+                            <th class="px-10 py-6 text-center">{lang === 'es' ? 'Tipo' : 'Type'}</th>
+                            <th class="px-10 py-6 text-center">{lang === 'es' ? 'Categoría' : 'Cat.'}</th>
+                            <th class="px-10 py-6 text-center">PRIO</th>
+                            <th class="px-10 py-6 text-center">POT</th>
+                            <th class="px-10 py-6 text-center">PRE</th>
+                            <th class="px-10 py-6 text-center">PP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="move-table-body" class="divide-y divide-slate-50 dark:divide-slate-700/50">
+                        {moves.map((move) => (
+                            <tr class="move-row hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-colors cursor-pointer group" data-name={move.name} data-url={move.url}>
+                                <td class="px-10 py-5" onclick={`window.location.href='/${lang}/movimientos/${move.name}'`}>
+                                    <span class="font-bold text-slate-900 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-move-name-url={move.url}>
+                                        {formatName(move.name)}
+                                    </span>
+                                </td>
+                                <td class="px-10 py-5 text-center" onclick={`window.location.href='/${lang}/movimientos/${move.name}'`}>
+                                    <div class="inline-block" data-move-type-url={move.url}>
+                                        <div class="h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full"></div>
+                                    </div>
+                                </td>
+                                <td class="px-10 py-5 text-center" data-move-cat-url={move.url}>-</td>
+                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-400" data-move-prio-url={move.url}>-</td>
+                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-pow-url={move.url}>-</td>
+                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-acc-url={move.url}>-</td>
+                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-pp-url={move.url}>-</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script define:vars={{ lang, typeColors, typeTranslations }}>
+        const searchInput = document.getElementById('move-search');
+        const suggestionsContainer = document.getElementById('search-suggestions');
+        const typeFilter = document.getElementById('type-filter');
+        const rows = document.querySelectorAll('.move-row');
+        const cache = new Map();
+
+        const itemsData = Array.from(rows).map(row => ({
+            name: row.dataset.name,
+            el: row,
+            url: row.dataset.url
+        }));
+
+        const catTranslations = {
+            physical: lang === 'es' ? 'Físico' : 'Physical',
+            special: lang === 'es' ? 'Especial' : 'Special',
+            status: lang === 'es' ? 'Estado' : 'Status'
+        };
+
+        const catColors = {
+            physical: 'bg-orange-500',
+            special: 'bg-indigo-500',
+            status: 'bg-slate-400'
+        };
+
+        async function fetchMoveInfo(url) {
+            if (cache.has(url)) return cache.get(url);
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const name = data.names.find(n => n.language.name === lang)?.name || data.name;
+                const type = data.type.name;
+                const category = data.damage_class?.name || 'status';
+                const power = data.power || '—';
+                const accuracy = data.accuracy ? `${data.accuracy}%` : '—';
+                const pp = data.pp;
+                const priority = data.priority;
+                
+                const result = { name, type, category, power, accuracy, pp, priority };
+                cache.set(url, result);
+                return result;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function updateSuggestions(query) {
+            if (!query || query.length < 2) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+            const queryLower = query.toLowerCase();
+            const matches = itemsData.filter(item => {
+                const translated = (item.el.dataset.translatedName || '').toLowerCase();
+                return item.name.includes(queryLower) || translated.includes(queryLower);
+            }).slice(0, 6);
+
+            if (matches.length === 0) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.classList.remove('hidden');
+
+            for (const item of matches) {
+                const info = await fetchMoveInfo(item.url);
+                if (!info) continue;
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
+                div.innerHTML = `
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-lg shadow-black/10 transition-transform group-hover:scale-110" style="background-color: ${typeColors[info.type]}">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
+                    </div>
+                    <div>
+                        <div class="font-bold text-slate-800 dark:text-white capitalize">${info.name}</div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">${typeTranslations[lang][info.type]}</span>
+                            <span class="w-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full"></span>
+                            <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">${catTranslations[info.category]}</span>
+                        </div>
+                    </div>
+                `;
+                div.onclick = () => {
+                    searchInput.value = info.name;
+                    suggestionsContainer.classList.add('hidden');
+                    filterTable();
+                };
+                suggestionsContainer.appendChild(div);
+            }
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const row = entry.target;
+                    loadRow(row);
+                    observer.unobserve(row);
+                }
+            });
+        }, { rootMargin: '100px' });
+
+        rows.forEach(row => observer.observe(row));
+
+        async function loadRow(row) {
+            const url = row.dataset.url;
+            const info = await fetchMoveInfo(url);
+            if (info) {
+                row.querySelector('[data-move-name-url]').textContent = info.name;
+                row.querySelector('[data-move-type-url]').innerHTML = `
+                    <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm" style="background-color: ${typeColors[info.type]}">
+                        ${typeTranslations[lang][info.type]}
+                    </span>
+                `;
+                row.querySelector('[data-move-cat-url]').innerHTML = `
+                    <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColors[info.category]} shadow-sm">
+                        ${catTranslations[info.category]}
+                    </span>
+                `;
+                
+                const prioEl = row.querySelector('[data-move-prio-url]');
+                prioEl.textContent = info.priority > 0 ? `+${info.priority}` : info.priority < 0 ? info.priority : '0';
+                if (info.priority > 0) prioEl.classList.add('text-emerald-500');
+                if (info.priority < 0) prioEl.classList.add('text-rose-500');
+
+                row.querySelector('[data-move-pow-url]').textContent = info.power;
+                row.querySelector('[data-move-acc-url]').textContent = info.accuracy;
+                row.querySelector('[data-move-pp-url]').textContent = info.pp;
+                
+                row.dataset.translatedName = info.name.toLowerCase();
+                row.dataset.type = info.type;
+            }
+        }
+
+        function filterTable() {
+            const query = searchInput.value.toLowerCase().trim();
+            const type = typeFilter.value;
+
+            rows.forEach(row => {
+                const englishName = row.dataset.name.toLowerCase();
+                const translatedName = row.dataset.translatedName || '';
+                const moveType = row.dataset.type || '';
+
+                const matchesSearch = englishName.includes(query) || translatedName.includes(query);
+                const matchesType = type === 'all' || moveType === type;
+
+                row.style.display = (matchesSearch && matchesType) ? 'table-row' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', () => {
+            filterTable();
+            updateSuggestions(searchInput.value);
+        });
+
+        typeFilter.addEventListener('change', filterTable);
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+    </script>
+</Layout>

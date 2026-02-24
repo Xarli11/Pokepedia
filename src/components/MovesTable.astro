@@ -1,0 +1,194 @@
+---
+import { uiTranslations, methodTranslations, versionTranslations, formatName } from '../utils/pokemon';
+
+interface Props {
+    moves: {
+        move: {
+            name: string;
+            url: string;
+        };
+        version_group_details: {
+            level_learned_at: number;
+            move_learn_method: {
+                name: string;
+            };
+            version_group: {
+                name: string;
+            };
+        }[];
+    }[];
+    lang: string;
+}
+
+const { moves, lang = 'es' } = Astro.props;
+const t = uiTranslations[lang] || uiTranslations.es;
+const mt = methodTranslations[lang] || methodTranslations.es;
+
+const versionGroups = [...new Set(moves.flatMap(m => m.version_group_details.map(d => d.version_group.name)))].sort();
+
+const processedMoves = moves.flatMap(m => 
+    m.version_group_details.map(d => ({
+        name: formatName(m.move.name),
+        url: m.move.url,
+        level: d.level_learned_at,
+        method: d.move_learn_method.name,
+        methodLabel: mt[d.move_learn_method.name] || d.move_learn_method.name,
+        version: d.version_group.name,
+        versionLabel: versionTranslations[d.version_group.name] || d.version_group.name.replace(/-/g, ' ')
+    }))
+);
+
+const movesByVersion = versionGroups.reduce((acc, version) => {
+    acc[version] = processedMoves.filter(m => m.version === version);
+    return acc;
+}, {} as Record<string, any[]>);
+
+const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1];
+---
+
+<div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300" 
+     data-moves={JSON.stringify(movesByVersion)} 
+     data-initial-version={initialVersion}
+     data-lang={lang}>
+    
+    <div class="p-8 md:p-10 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+                <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.moves}</h3>
+                <p class="text-slate-900 dark:text-white font-black text-2xl mt-1">{t.moves_subtitle}</p>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto flex-grow lg:flex-grow-0 lg:min-w-[650px]">
+                <div class="relative">
+                    <input type="text" id="moveSearch" placeholder={t.search_move} class="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all dark:text-white dark:placeholder-slate-500"/>
+                    <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+
+                <select id="methodFilter" class="w-full px-6 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer dark:text-slate-300">
+                    <option value="all">{t.all_methods}</option>
+                    <option value="level-up">{t.by_level}</option>
+                    <option value="machine">MT/MO</option>
+                    <option value="egg">Huevo</option>
+                    <option value="tutor">Tutor</option>
+                </select>
+
+                <select id="versionFilter" class="w-full px-6 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300">
+                    {versionGroups.map(v => (
+                        <option value={v} selected={v === initialVersion}>{versionTranslations[v] || v.replace(/-/g, ' ')}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse" id="movesTable">
+            <thead>
+                <tr class="bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-700">
+                    <th class="px-10 py-6 w-24">Nivel</th>
+                    <th class="px-10 py-6 w-48">Ataque</th>
+                    <th class="px-10 py-6 w-32">Método</th>
+                    <th class="px-10 py-6 w-40">Versión</th>
+                    <th class="px-10 py-6">Efecto</th>
+                </tr>
+            </thead>
+            <tbody id="movesTableBody" class="divide-y divide-slate-50 dark:divide-slate-700/50"></tbody>
+        </table>
+        <div id="noMoves" class="hidden p-20 text-center text-slate-400 dark:text-slate-600 font-bold tracking-tight">{t.no_moves}</div>
+    </div>
+</div>
+
+<script>
+    const moveCache = new Map();
+
+    async function fetchMoveInfo(url, lang) {
+        if (moveCache.has(url)) return moveCache.get(url);
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const localizedName = data.names.find(n => n.language.name === lang)?.name || data.name;
+            const localizedDesc = data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                                data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+            const result = { name: localizedName, description: localizedDesc };
+            moveCache.set(url, result);
+            return result;
+        } catch (e) { return null; }
+    }
+
+    function setupMovesTable() {
+        const container = document.querySelector('.moves-container') as HTMLElement;
+        if (!container) return;
+        
+        const movesByVersion = JSON.parse(container.dataset.moves || '{}');
+        const lang = container.dataset.lang || 'es';
+        let currentVersion = container.dataset.initialVersion || '';
+        
+        const searchInput = document.getElementById('moveSearch') as HTMLInputElement;
+        const methodFilter = document.getElementById('methodFilter') as HTMLSelectElement;
+        const versionFilter = document.getElementById('versionFilter') as HTMLSelectElement;
+        const tableBody = document.getElementById('movesTableBody');
+        const noMoves = document.getElementById('noMoves');
+
+        function renderMoves() {
+            if (!tableBody) return;
+            let moves = [...(movesByVersion[currentVersion] || [])];
+            const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+            const methodValue = methodFilter?.value || 'all';
+
+            moves = moves.filter(m => {
+                const cached = moveCache.get(m.url);
+                return (m.name.toLowerCase().includes(searchTerm) || cached?.name.toLowerCase().includes(searchTerm)) && 
+                       (methodValue === 'all' || m.method === methodValue);
+            });
+
+            moves.sort((a, b) => (parseInt(a.level) || 0) - (parseInt(b.level) || 0));
+
+            tableBody.innerHTML = moves.map(m => {
+                const cached = moveCache.get(m.url);
+                return `
+                    <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
+                        <td class="px-10 py-6 font-black text-emerald-600 dark:text-emerald-400">${m.level === 0 ? '-' : m.level}</td>
+                        <td class="px-10 py-6 font-bold text-slate-900 dark:text-white capitalize" data-move-name="${m.url}">${cached?.name || m.name}</td>
+                        <td class="px-10 py-6">
+                            <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">${m.methodLabel}</span>
+                        </td>
+                        <td class="px-10 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">${m.versionLabel}</td>
+                        <td class="px-10 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc="${m.url}">
+                            ${cached?.description || '<div class="h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded-full"></div>'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            noMoves?.classList.toggle('hidden', moves.length > 0);
+        }
+
+        async function prefetch() {
+            const currentMoves = movesByVersion[currentVersion] || [];
+            await Promise.all(currentMoves.map(async m => {
+                const info = await fetchMoveInfo(m.url, lang);
+                if (info && tableBody) {
+                    const n = tableBody.querySelector(`[data-move-name="${m.url}"]`);
+                    const d = tableBody.querySelector(`[data-move-desc="${m.url}"]`);
+                    if (n) n.textContent = info.name;
+                    if (d) d.textContent = info.description;
+                }
+            }));
+            if (searchInput?.value) renderMoves();
+        }
+
+        searchInput?.addEventListener('input', renderMoves);
+        methodFilter?.addEventListener('change', renderMoves);
+        versionFilter?.addEventListener('change', (e) => {
+            currentVersion = (e.target as HTMLSelectElement).value;
+            renderMoves();
+            prefetch();
+        });
+        
+        renderMoves();
+        prefetch();
+    }
+
+    setupMovesTable();
+    document.addEventListener('astro:after-swap', setupMovesTable);
+</script>

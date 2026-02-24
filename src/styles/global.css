@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --color-emerald-500: #10b981;
+  --color-emerald-400: #34d399;
+}
+
+/* Configuración de Modo Oscuro por Clase para Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  color-scheme: light;
+}
+
+.dark {
+  --bg-main: #0f172a; /* Slate 900: Gris azulado profundo */
+  --bg-card: #1e293b; /* Slate 800: Gris azulado más claro para tarjetas */
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: #1e293b;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+.dark body {
+  color: #f1f5f9;
+}

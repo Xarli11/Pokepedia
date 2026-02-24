@@ -1,0 +1,71 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import PokemonCard from '../../../components/PokemonCard.astro';
+import { getLocalizedName } from '../../../services/pokeapi';
+import { uiTranslations, formatName } from '../../../utils/pokemon';
+
+const { lang, name } = Astro.params;
+
+let abilityData;
+try {
+    const res = await fetch(`https://pokeapi.co/api/v2/ability/${name}`);
+    if (!res.ok) throw new Error();
+    abilityData = await res.json();
+} catch (e) {
+    return Astro.redirect(`/${lang}/habilidades`);
+}
+
+const localizedName = getLocalizedName(abilityData.names, lang as string) || formatName(abilityData.name);
+
+// Fallback robusto para descripción detallada
+const description = abilityData.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                  abilityData.effect_entries.find((e: any) => e.language.name === lang)?.effect.replace(/\f/g, ' ') ||
+                  abilityData.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || 
+                  abilityData.effect_entries.find((e: any) => e.language.name === 'en')?.effect.replace(/\f/g, ' ') ||
+                  "Sin descripción detallada disponible / No detailed description available";
+
+const pokemonPromises = abilityData.pokemon.map(async (p: any) => {
+    const res = await fetch(p.pokemon.url);
+    return res.json();
+});
+const pokemonList = await Promise.all(pokemonPromises);
+
+const t = uiTranslations[lang as string] || uiTranslations.es;
+---
+
+<Layout 
+    title={`${localizedName} | Habilidades | Pokepedia`} 
+    description={description}
+    lang={lang}
+>
+    <div class="max-w-5xl mx-auto">
+        <a href={`/${lang}/habilidades`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
+            <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            {t.back_to_abilities}
+        </a>
+
+        <div class="bg-white dark:bg-slate-800 rounded-[3rem] p-10 md:p-16 border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-black/40 mb-16 transition-colors">
+            <div class="flex items-center gap-4 mb-8">
+                <span class="w-3 h-12 bg-emerald-500 rounded-full"></span>
+                <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">{localizedName}</h1>
+            </div>
+            <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2rem] p-8 md:p-10 border border-emerald-100/50 dark:border-emerald-900/20">
+                <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
+                    "{description}"
+                </p>
+            </div>
+        </div>
+
+        <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-10 px-4 flex items-center gap-4">
+            <span class="w-2 h-8 bg-emerald-500/50 rounded-full"></span>
+            {t.pokemon_with_ability}
+            <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700">{pokemonList.length}</span>
+        </h2>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {pokemonList.map((pokemon) => (
+                <PokemonCard pokemon={pokemon} lang={lang as string} />
+            ))}
+        </div>
+    </div>
+</Layout>
