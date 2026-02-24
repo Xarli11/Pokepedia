@@ -48,6 +48,11 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet" />
         <meta name="author" content="Xarli11" />
         <link rel="canonical" href={Astro.url} />
+        
+        <!-- Multilanguage SEO -->
+        <link rel="alternate" hreflang="es" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
+        <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
+        <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
