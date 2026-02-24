@@ -315,15 +315,15 @@ const gridLevels = [0.25, 0.5, 0.75, 1];
                         <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">Otras Formas</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map(v => (
-                                <div class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-colors group">
+                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all group no-underline">
                                     <img src={v.sprites.other["official-artwork"].front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
-                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight">{v.name.replace(/-/g, ' ')}</span>
+                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{v.name.replace(/-/g, ' ')}</span>
                                     <div class="flex gap-1.5 mt-3">
                                         {v.types.map((t: any) => (
                                             <div class="w-2.5 h-2.5 rounded-full shadow-sm" style={`background-color: ${typeColors[t.type.name]}`}></div>
                                         ))}
                                     </div>
-                                </div>
+                                </a>
                             ))}
                         </div>
                     </div>
