@@ -533,6 +533,18 @@ export function formatLocationName(name: string, lang: string = 'es'): string {
 }
 
 /**
+ * Filtra objetos que no son oficiales o parecen ser datos basura de la PokeAPI.
+ */
+export function isRealItem(name: string): boolean {
+    // Filtrar objetos que empiezan con caracteres extraños o códigos alfanuméricos sospechosos
+    if (name.startsWith('★')) return false;
+    if (/^[a-z]\d+/.test(name)) return false; // ej: m12, c23...
+    if (name.includes('data-span')) return false;
+    if (name.length > 30 && /\d/.test(name)) return false; // Nombres excesivamente largos con números
+    return true;
+}
+
+/**
  * Formatea nombres de Pokémon manejando variedades (G-Max, Megas, etc.)
  */
 export function formatPokemonName(technicalName: string, speciesName: string, lang: string = 'es'): string {

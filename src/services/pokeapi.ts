@@ -176,7 +176,10 @@ export async function getAllItems(): Promise<{ name: string, url: string }[]> {
     const response = await fetch('https://pokeapi.co/api/v2/item?limit=2000');
     if (!response.ok) throw new Error('Error al obtener objetos');
     const data = await response.json();
-    return data.results;
+    
+    // Filtrar objetos "fake" o datos basura
+    const { isRealItem } = await import('../utils/pokemon');
+    return data.results.filter((item: any) => isRealItem(item.name));
 }
 
 /**
@@ -229,7 +232,7 @@ export function getLocalizedName(names: PokemonName[] | undefined, lang: string)
  * Obtiene una lista completa de todos los Pokémon incluyendo variedades relevantes 
  * (Megas, G-Max, Formas Regionales) para el buscador.
  */
-export async function getAllPokemonNames(): Promise<{ name: string, id: number | string }[]> {
+export async function getAllPokemonNames(): Promise<{ name: string, id: number | string, sprite?: string }[]> {
     // 1. Obtener las 1025 especies base
     const response = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025');
     if (!response.ok) throw new Error('Error al obtener lista global de especies');
@@ -237,29 +240,26 @@ export async function getAllPokemonNames(): Promise<{ name: string, id: number |
     
     const baseSpecies = data.results.map((p: any) => {
         const id = parseInt(p.url.split('/').filter(Boolean).pop());
-        return { name: p.name, id: id };
+        return { 
+            name: p.name, 
+            id: id,
+            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+        };
     });
 
     // 2. Obtener variedades importantes (Megas, Gigamax, Regionales)
-    // Limitamos a un rango donde suelen estar las variedades en PokeAPI para no sobrecargar
     const varResponse = await fetch('https://pokeapi.co/api/v2/pokemon?limit=500&offset=1025');
-    if (!varResponse.ok) return baseSpecies; // Fallback a solo base si falla
+    if (!varResponse.ok) return baseSpecies;
     const varData = await varResponse.json();
 
     const varieties = varData.results
-        .filter((p: any) => {
-            const n = p.name.toLowerCase();
-            return n.includes('-mega') || 
-                   n.includes('-gmax') || 
-                   n.includes('-alola') || 
-                   n.includes('-galar') || 
-                   n.includes('-hisui') || 
-                   n.includes('-paldea') ||
-                   n.includes('-primal');
-        })
         .map((p: any) => {
             const id = parseInt(p.url.split('/').filter(Boolean).pop());
-            return { name: p.name, id: id }; 
+            return { 
+                name: p.name, 
+                id: id,
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+            }; 
         });
 
     return [...baseSpecies, ...varieties];

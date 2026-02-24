@@ -103,13 +103,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
                 if (matches.length > 0) {
                     suggestionsList.innerHTML = matches.map(p => {
-                        const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+                        const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
                         const isVariety = p.id > 10000;
                         
                         return `
                         <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
                             <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
-                                <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy">
+                                <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'Forma Especial' : 'Special Form') : '#' + p.id.toString().padStart(4, '0')}</span>
