@@ -12,7 +12,7 @@ const {
     title = "Pokepedia", 
     description = "Tu enciclopedia Pokémon técnica y definitiva.", 
     lang = "es",
-    image = "/favicon.svg" 
+    image = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" 
 } = Astro.props;
 
 const currentPath = Astro.url.pathname;
@@ -39,7 +39,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta property="og:url" content={Astro.url} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={new URL(image, Astro.url)} />
+        <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
         <meta property="og:site_name" content="Pokepedia Research Lab" />
 
         <!-- Twitter -->
@@ -47,7 +47,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta property="twitter:url" content={Astro.url} />
         <meta property="twitter:title" content={title} />
         <meta property="twitter:description" content={description} />
-        <meta property="twitter:image" content={new URL(image, Astro.url)} />
+        <meta property="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
         
         <script is:inline define:vars={{ lang }}>
             const savedTheme = localStorage.getItem('theme');
