@@ -103,7 +103,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
                 if (matches.length > 0) {
                     suggestionsList.innerHTML = matches.map(p => {
-                        const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+                        const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                         const isVariety = p.id > 10000;
                         
                         return `

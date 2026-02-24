@@ -243,7 +243,7 @@ export async function getAllPokemonNames(): Promise<{ name: string, id: number |
         return { 
             name: p.name, 
             id: id,
-            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
         };
     });
 
@@ -258,7 +258,7 @@ export async function getAllPokemonNames(): Promise<{ name: string, id: number |
             return { 
                 name: p.name, 
                 id: id,
-                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
             }; 
         });
 
