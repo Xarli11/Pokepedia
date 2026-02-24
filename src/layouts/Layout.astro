@@ -45,7 +45,8 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta property="og:url" content={Astro.url} />
         <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url)} />
+        <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
+        <meta property="og:image:secure_url" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:site_name" content="Pokepedia Research Lab" />
@@ -55,7 +56,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta property="twitter:url" content={Astro.url} />
         <meta property="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="twitter:description" content={description} />
-        <meta property="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url)} />
+        <meta property="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.site || Astro.url).toString()} />
         
         <!-- Structured Data (Schema.org) -->
         <script type="application/ld+json" is:inline>
