@@ -12,7 +12,7 @@ const {
     title = "Pokepedia", 
     description = "Tu enciclopedia Pokémon técnica y definitiva.", 
     lang = "es",
-    image = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/151.png" 
+    image = "/pokeball.png" 
 } = Astro.props;
 
 const currentPath = Astro.url.pathname;
@@ -27,26 +27,52 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" type="image/png" href="/pokeball.png">
+        <link rel="apple-touch-icon" href="/pokeball.png">
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#10b981">
 		<meta name="generator" content={Astro.generator} />
         
-		<title>{title}</title>
+		<title>{title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`}</title>
         <meta name="description" content={description} />
+        <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet" />
+        <meta name="author" content="Xarli11" />
+        <link rel="canonical" href={Astro.url} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
         <meta property="og:url" content={Astro.url} />
-        <meta property="og:title" content={title} />
+        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
         <meta property="og:site_name" content="Pokepedia Research Lab" />
 
         <!-- Twitter -->
-        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:card" content="summary" />
         <meta property="twitter:url" content={Astro.url} />
-        <meta property="twitter:title" content={title} />
+        <meta property="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="twitter:description" content={description} />
         <meta property="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
+        
+        <!-- Structured Data (Schema.org) -->
+        <script type="application/ld+json" is:inline>
+        {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "Pokepedia",
+          "url": "https://pokepedia.vercel.app/",
+          "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
+          "applicationCategory": "GameApplication",
+          "operatingSystem": "Any",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": "Competitive integration, Smogon Tiers, Technical Stats, Evolutionary Chains, Move & Ability Dex"
+        }
+        </script>
         
         <script is:inline define:vars={{ lang }}>
             const savedTheme = localStorage.getItem('theme');
