@@ -52,21 +52,27 @@ const { pokemonName, lang = 'es' } = Astro.props;
                 const data = await res.json();
                 name = data.names.find(n => n.language.name === lang)?.name || 
                        data.names.find(n => n.language.name === 'es')?.name || 
-                       abilityName;
+                       name;
                 
-                desc = data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text ||
-                       data.effect_entries.find(e => e.language.name === lang)?.short_effect ||
-                       data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text || "";
+                const entry = data.flavor_text_entries.find(f => f.language.name === lang) ||
+                             data.flavor_text_entries.find(f => f.language.name === 'es') ||
+                             data.flavor_text_entries.find(f => f.language.name === 'en');
+                
+                if (entry) {
+                    desc = entry.flavor_text;
+                } else {
+                    const effect = data.effect_entries.find(e => e.language.name === lang) ||
+                                 data.effect_entries.find(e => e.language.name === 'en');
+                    desc = effect ? effect.short_effect : "";
+                }
             }
-        } catch (e) { /* PokéAPI fail, continue to Showdown fallback */ }
+        } catch (e) { 
+            console.error(`Error fetching ability ${slug}:`, e);
+        }
 
-        // 2. FALLBACK TOTAL: Si no hay descripción o falló la API, usar Showdown (incluye habilidades CAP)
-        if (!desc && window.psAbilities && window.psAbilities[psSlug]) {
-            desc = window.psAbilities[psSlug].shortDesc || window.psAbilities[psSlug].desc || "";
-            // Si es una habilidad CAP, le ponemos un aviso sutil
-            if (!desc.includes("(Smogon CAP)")) {
-                // name += " (CAP)"; 
-            }
+        // 2. FALLBACK: Si no hay descripción o falló la API, mostrar mensaje por defecto
+        if (!desc) {
+            desc = "Descripción no disponible en este momento.";
         }
 
         const result = { name, desc: (desc || "Sin descripción disponible.").replace(/\f/g, ' ') };
@@ -81,24 +87,27 @@ const { pokemonName, lang = 'es' } = Astro.props;
         const lang = container.dataset.lang;
 
         try {
-            if (!window.psPokedex || !window.psAbilities) {
-                const [pokedexRes, abilitiesRes] = await Promise.all([
-                    fetch('https://play.pokemonshowdown.com/data/pokedex.json'),
-                    fetch('https://play.pokemonshowdown.com/data/abilities.json')
-                ]);
-                window.psPokedex = await pokedexRes.json();
-                window.psAbilities = await abilitiesRes.json();
+            if (!window.psPokedex) {
+                const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json');
+                if (!res.ok) throw new Error('Failed to fetch Pokedex');
+                window.psPokedex = await res.json();
             }
 
             const data = window.psPokedex[pokemon];
             if (!data) {
-                container.innerHTML = '<p class="text-slate-400 italic">No hay datos competitivos para esta forma.</p>';
+                console.warn(`No competitive data found for: ${pokemon}`);
+                container.innerHTML = '<p class="text-slate-400 italic text-center py-10">Este Pokémon no tiene datos competitivos registrados en el formato actual.</p>';
                 return;
             }
 
             const tier = data.tier || 'Untiered';
-            const rawAbilities = Object.values(data.abilities);
+            const rawAbilities = data.abilities ? Object.values(data.abilities) : [];
             
+            if (rawAbilities.length === 0) {
+                 container.innerHTML = '<p class="text-slate-400 italic text-center py-10">No se han encontrado habilidades competitivas para este Pokémon.</p>';
+                 return;
+            }
+
             const abilitiesInfo = await Promise.all(
                 rawAbilities.map(name => getAbilityInfo(name, lang))
             );
