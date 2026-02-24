@@ -108,7 +108,7 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
     'gen2': { limit: 100, offset: 151, region: 'Johto' },
     'gen3': { limit: 135, offset: 251, region: 'Hoenn' },
     'gen4': { limit: 107, offset: 386, region: 'Sinnoh' },
-    'gen5': { limit: 156, offset: 493, region: 'Unova' },
+    'gen5': { limit: 156, offset: 493, region: 'Teselia' },
     'gen6': { limit: 72, offset: 649, region: 'Kalos' },
     'gen7': { limit: 88, offset: 721, region: 'Alola' },
     'gen8': { limit: 96, offset: 809, region: 'Galar' },

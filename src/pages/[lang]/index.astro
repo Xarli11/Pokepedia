@@ -54,7 +54,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 <select id="gen-selector" class="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-emerald-500 transition-colors">
                     {Object.entries(GENERATIONS).map(([key, value]) => (
                         <option value={key} selected={gen === key} class="dark:bg-slate-800">
-                            {value.region} ({key.replace('gen', 'G')})
+                            {value.region}
                         </option>
                     ))}
                 </select>
