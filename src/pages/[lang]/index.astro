@@ -79,14 +79,22 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         const cards = document.querySelectorAll('.pokemon-card');
         const genSelector = document.getElementById('gen-selector');
 
+        let searchTimeout;
+
         function handleSearch() {
             const query = searchInput.value.toLowerCase().trim();
             
-            cards.forEach(card => {
-                const name = card.getAttribute('data-name').toLowerCase();
-                const id = card.getAttribute('data-id');
-                card.style.display = (name.includes(query) || id.includes(query)) ? 'flex' : 'none';
-            });
+            // Debounce para no colapsar el hilo principal durante el scroll/escritura
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    const name = card.getAttribute('data-name').toLowerCase();
+                    const id = card.getAttribute('data-id');
+                    const isVisible = name.includes(query) || id.includes(query);
+                    card.style.display = isVisible ? 'flex' : 'none';
+                }
+            }, 50);
 
             if (query.length >= 2) {
                 const matches = allPokemon

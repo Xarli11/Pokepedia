@@ -12,10 +12,17 @@ const { pokemon, lang = 'es' } = Astro.props;
 const typesString = pokemon.types.map(t => t.type.name).join(',');
 ---
 
-<a href={`/${lang}/pokemon/${pokemon.name}`} class="group relative bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/60 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-xl hover:shadow-emerald-100/50 dark:hover:shadow-emerald-950/30 transition-all duration-300 flex flex-col items-center overflow-hidden pokemon-card" data-name={pokemon.name} data-id={pokemon.id} data-types={typesString}>
+<a 
+    href={`/${lang}/pokemon/${pokemon.name}`} 
+    class="group relative bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/60 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-xl hover:shadow-emerald-100/50 dark:hover:shadow-emerald-950/30 transition-all duration-300 flex flex-col items-center overflow-hidden pokemon-card" 
+    data-name={pokemon.name} 
+    data-id={pokemon.id} 
+    data-types={typesString}
+    style="content-visibility: auto; contain-intrinsic-size: 200px 300px;"
+>
     <!-- Badge de Tier (Smogon) -->
-    <div class="absolute top-4 left-4 z-20" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
-        <div class="h-4 w-8 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-md"></div>
+    <div class="absolute top-4 left-4 z-20 tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
+        <div class="h-4 w-8 bg-slate-100 dark:bg-slate-900/50 rounded-md"></div>
     </div>
 
     <!-- Efecto de fondo sutil al hover -->
@@ -29,8 +36,11 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         <img 
             src={pokemon.sprites.other["official-artwork"].front_default} 
             alt={pokemon.name} 
+            width="128"
+            height="128"
             class="w-full h-full object-contain"
             loading="lazy"
+            decoding="async"
         />
     </div>
     
@@ -57,42 +67,38 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 </a>
 
 <script is:inline>
-    // Usaremos un objeto global para cachear el Pokedex de Showdown
-    if (!window.psPokedex) {
-        window.psPokedex = null;
-        fetch('https://play.pokemonshowdown.com/data/pokedex.json')
-            .then(res => res.json())
-            .then(data => {
-                window.psPokedex = data;
-                document.dispatchEvent(new CustomEvent('ps-data-loaded'));
-            });
-    }
-
-    function updateTiers() {
-        if (!window.psPokedex) return;
-        const badges = document.querySelectorAll('[data-tier-for]');
-        badges.forEach(badge => {
-            const name = badge.dataset.tierFor;
-            const tier = window.psPokedex[name]?.tier || 'N/A';
-            if (tier !== 'N/A') {
-                const colors = {
-                    'Uber': 'bg-red-500',
-                    'OU': 'bg-emerald-500',
-                    'UU': 'bg-blue-500',
-                    'RU': 'bg-amber-500',
-                    'NU': 'bg-violet-500',
-                    'PU': 'bg-slate-500',
-                    'LC': 'bg-pink-500',
-                    'AG': 'bg-black'
-                };
-                badge.innerHTML = `<span class="${colors[tier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm">${tier}</span>`;
-            } else {
-                badge.innerHTML = '';
+    // Script Global Único para Tiers
+    if (!window.tierScriptInjected) {
+        window.tierScriptInjected = true;
+        
+        async function loadTiers() {
+            if (!window.psPokedex) {
+                const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json');
+                window.psPokedex = await res.json();
             }
-        });
-    }
+            updateTiers();
+        }
 
-    updateTiers();
-    document.addEventListener('ps-data-loaded', updateTiers);
-    document.addEventListener('astro:after-swap', updateTiers);
+        function updateTiers() {
+            if (!window.psPokedex) return;
+            const colors = {
+                'Uber': 'bg-red-500', 'OU': 'bg-emerald-500', 'UU': 'bg-blue-500',
+                'RU': 'bg-amber-500', 'NU': 'bg-violet-500', 'PU': 'bg-slate-500',
+                'LC': 'bg-pink-500', 'AG': 'bg-black'
+            };
+            
+            document.querySelectorAll('.tier-badge[data-tier-for]').forEach(badge => {
+                const name = badge.dataset.tierFor;
+                const tier = window.psPokedex[name]?.tier || 'N/A';
+                if (tier !== 'N/A') {
+                    badge.innerHTML = `<span class="${colors[tier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm">${tier}</span>`;
+                } else {
+                    badge.innerHTML = '';
+                }
+            });
+        }
+
+        loadTiers();
+        document.addEventListener('astro:after-swap', updateTiers);
+    }
 </script>

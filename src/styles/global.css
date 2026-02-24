@@ -24,6 +24,19 @@ body {
   background-color: var(--bg-main);
   color: #1e293b;
   transition: background-color 0.5s ease, color 0.5s ease;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* Optimización para scroll en dispositivos móviles y escritorio */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pokemon-card {
+  will-change: transform, box-shadow;
 }
 
 .dark body {
