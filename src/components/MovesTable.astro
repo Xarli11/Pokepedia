@@ -29,6 +29,7 @@ const versionGroups = [...new Set(moves.flatMap(m => m.version_group_details.map
 const processedMoves = moves.flatMap(m => 
     m.version_group_details.map(d => ({
         name: formatName(m.move.name),
+        slug: m.move.name,
         url: m.move.url,
         level: d.level_learned_at,
         method: d.move_learn_method.name,
@@ -38,8 +39,17 @@ const processedMoves = moves.flatMap(m =>
     }))
 );
 
+// Deduplicar movimientos por versión, nombre y nivel para evitar duplicados visuales
 const movesByVersion = versionGroups.reduce((acc, version) => {
-    acc[version] = processedMoves.filter(m => m.version === version);
+    const versionMoves = processedMoves.filter(m => m.version === version);
+    // Usar un Set de strings para identificar duplicados únicos (move-level-method)
+    const seen = new Set();
+    acc[version] = versionMoves.filter(m => {
+        const key = `${m.slug}-${m.level}-${m.method}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
     return acc;
 }, {} as Record<string, any[]>);
 
@@ -87,8 +97,9 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
                 <tr class="bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-700">
                     <th class="px-10 py-6 w-24">Nivel</th>
                     <th class="px-10 py-6 w-48">Ataque</th>
+                    <th class="px-10 py-6 w-32">Categoría</th>
+                    <th class="px-10 py-6 w-24">Prioridad</th>
                     <th class="px-10 py-6 w-32">Método</th>
-                    <th class="px-10 py-6 w-40">Versión</th>
                     <th class="px-10 py-6">Efecto</th>
                 </tr>
             </thead>
@@ -109,7 +120,9 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
             const localizedName = data.names.find(n => n.language.name === lang)?.name || data.name;
             const localizedDesc = data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
                                 data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
-            const result = { name: localizedName, description: localizedDesc };
+            const category = data.damage_class.name;
+            const priority = data.priority;
+            const result = { name: localizedName, description: localizedDesc, category, priority };
             moveCache.set(url, result);
             return result;
         } catch (e) { return null; }
@@ -137,7 +150,8 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
 
             moves = moves.filter(m => {
                 const cached = moveCache.get(m.url);
-                return (m.name.toLowerCase().includes(searchTerm) || cached?.name.toLowerCase().includes(searchTerm)) && 
+                const searchableName = cached ? cached.name.toLowerCase() : m.name.toLowerCase();
+                return searchableName.includes(searchTerm) && 
                        (methodValue === 'all' || m.method === methodValue);
             });
 
@@ -145,14 +159,31 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
 
             tableBody.innerHTML = moves.map(m => {
                 const cached = moveCache.get(m.url);
+                const displayName = cached ? cached.name : m.name;
+                const category = cached?.category || 'status';
+                const priority = cached?.priority ?? 0;
+
+                const categoryColors = {
+                    physical: 'bg-red-500',
+                    special: 'bg-blue-500',
+                    status: 'bg-slate-400'
+                };
+
                 return `
                     <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
                         <td class="px-10 py-6 font-black text-emerald-600 dark:text-emerald-400">${m.level === 0 ? '-' : m.level}</td>
-                        <td class="px-10 py-6 font-bold text-slate-900 dark:text-white capitalize" data-move-name="${m.url}">${cached?.name || m.name}</td>
+                        <td class="px-10 py-6 font-bold text-slate-900 dark:text-white capitalize" data-move-name="${m.url}">${displayName}</td>
+                        <td class="px-10 py-6">
+                            <span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white ${categoryColors[category] || 'bg-slate-400'} shadow-sm">
+                                ${category}
+                            </span>
+                        </td>
+                        <td class="px-10 py-6 font-mono text-xs ${priority > 0 ? 'text-emerald-500' : priority < 0 ? 'text-red-500' : 'text-slate-400'}">
+                            ${priority > 0 ? '+' : ''}${priority}
+                        </td>
                         <td class="px-10 py-6">
                             <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">${m.methodLabel}</span>
                         </td>
-                        <td class="px-10 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">${m.versionLabel}</td>
                         <td class="px-10 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc="${m.url}">
                             ${cached?.description || '<div class="h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded-full"></div>'}
                         </td>
