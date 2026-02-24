@@ -1,0 +1,21 @@
+{
+  "name": "Pokepedia",
+  "short_name": "Pokepedia",
+  "description": "The Ultimate Technical Pokémon Encyclopedia",
+  "start_url": "/es",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "pokeball.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pokeball.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
