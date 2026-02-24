@@ -80,10 +80,16 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                if (data.pokemon.length === 0) return { hide: true };
+                
+                // Si la habilidad no tiene Pokémon asignados en PokeAPI, probablemente es CAP o dummy
+                // EXCEPCIÓN: Algunas habilidades nuevas pueden tener pocos pokemon pero son oficiales. 
+                // Bajamos el criterio o lo eliminamos si queremos ver todo.
+                // if (data.pokemon.length === 0) return { hide: true };
+
                 const name = data.names.find(n => n.language.name === lang)?.name || 
                              data.names.find(n => n.language.name === 'es')?.name || 
                              data.name;
+                
                 let desc = "";
                 const flavor = data.flavor_text_entries.find(f => f.language.name === lang);
                 if (flavor) desc = flavor.flavor_text;
@@ -96,12 +102,33 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     const enEffect = data.effect_entries.find(e => e.language.name === 'en');
                     desc = enFlavor?.flavor_text || enEffect?.short_effect || "";
                 }
-                if (!desc) return { hide: true };
+                
+                // Si no hay ni inglés, no ocultamos, solo dejamos vacío
                 desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
                 const result = { name, desc, hide: false };
                 cache.set(url, result);
                 return result;
             } catch (e) { return null; }
+        }
+
+        async function loadCard(card) {
+            if (card.dataset.loaded === "true") return;
+            const nameEl = card.querySelector('[data-ability-url]');
+            const descEl = card.querySelector('[data-ability-desc-url]');
+            const url = nameEl.dataset.abilityUrl;
+            
+            const info = await fetchAbilityInfo(url);
+            if (info) {
+                if (info.hide) {
+                    card.remove();
+                    return;
+                }
+                nameEl.textContent = info.name;
+                descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
+                card.dataset.translatedName = info.name.toLowerCase();
+                card.dataset.loaded = "true";
+                applyFilters(false);
+            }
         }
 
         async function updateSuggestions(query) {
@@ -111,8 +138,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
             const queryLower = query.toLowerCase();
             const matches = itemsData.filter(item => {
+                const name = item.name.toLowerCase();
                 const translated = (item.el.dataset.translatedName || '').toLowerCase();
-                return item.name.includes(queryLower) || translated.includes(queryLower);
+                return name.includes(queryLower) || translated.includes(queryLower);
             }).slice(0, 6);
 
             if (matches.length === 0) {
@@ -140,25 +168,35 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 div.onclick = () => {
                     searchInput.value = info.name;
                     suggestionsContainer.classList.add('hidden');
-                    applyFilters();
+                    applyFilters(true);
                 };
                 suggestionsContainer.appendChild(div);
             }
         }
 
-        function applyFilters() {
+        async function applyFilters(forceLoad = true) {
             const query = searchInput.value.toLowerCase().trim();
-            cards.forEach(card => {
-                if (!card.parentElement) return; 
+            for (const card of cards) {
+                if (!card.parentElement) continue;
                 const englishName = card.dataset.name.toLowerCase();
                 const translatedName = card.dataset.translatedName || '';
-                const matches = englishName.includes(query) || translatedName.includes(query);
-                card.style.display = matches ? 'block' : 'none';
-            });
+                const isLoaded = card.dataset.loaded === "true";
+
+                const matchesSearch = englishName.includes(query) || translatedName.includes(query);
+                
+                if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
+                    // Si no coincide con el inglés pero no está cargado, forzamos carga para ver si coincide con el español
+                    await loadCard(card);
+                    const newTranslatedName = card.dataset.translatedName || '';
+                    card.style.display = newTranslatedName.includes(query) ? 'block' : 'none';
+                } else {
+                    card.style.display = matchesSearch ? 'block' : 'none';
+                }
+            }
         }
 
         searchInput.addEventListener('input', () => {
-            applyFilters();
+            applyFilters(true);
             updateSuggestions(searchInput.value);
         });
 
@@ -171,30 +209,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    const card = entry.target;
-                    loadCard(card);
-                    observer.unobserve(card);
+                    loadCard(entry.target);
+                    observer.unobserve(entry.target);
                 }
             });
         }, { rootMargin: '200px' });
 
         cards.forEach(card => observer.observe(card));
-
-        async function loadCard(card) {
-            const nameEl = card.querySelector('[data-ability-url]');
-            const descEl = card.querySelector('[data-ability-desc-url]');
-            const url = nameEl.dataset.abilityUrl;
-            
-            const info = await fetchAbilityInfo(url);
-            if (info) {
-                if (info.hide) {
-                    card.remove();
-                    return;
-                }
-                nameEl.textContent = info.name;
-                descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
-                card.dataset.translatedName = info.name.toLowerCase();
-            }
-        }
     </script>
 </Layout>

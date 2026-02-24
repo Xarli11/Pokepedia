@@ -14,13 +14,25 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Integración Competitiva**: Tiers oficiales de Smogon en tarjetas y Análisis de Meta detallado en la ficha técnica.
 - [x] **UX**: Interruptor de tema tipo "Pill" animado con iconos SVG vectoriales.
 - [x] **Contenido Avanzado**: Soporte para formas Mega, Gigamax y variantes regionales.
+- [x] **Pokémon Aleatorio**: Botón de dados premium con animación.
+- [x] **Gráficos de Radar**: Visualización SVG de estadísticas base.
+
+## ⚙️ Normas de Trabajo y GitFlow
+- **Commits**: Usar siempre **Conventional Commits** (feat, fix, docs, style, refactor, perf, test, chore).
+- **Flujo de Trabajo (GitFlow)**:
+    1. Crear rama `feature/[nombre]` desde `develop`.
+    2. Probar cambios localmente.
+    3. Tras confirmación del usuario, mergear a `develop`.
+    4. Crear rama `release/[versión]` desde `develop`.
+    5. Mergear `release` a `main`.
+    6. Generar **Tag de Release** en `main`.
 
 ## 🛠️ Tareas en Proceso (Sesión Actual)
 - [x] Refinamiento de metadatos técnicos en movimientos (Prioridad y Categorías).
 - [x] Sincronización de traducciones en secciones competitivas.
+- [x] Sistema de sugerencias visuales en todos los buscadores.
+- [x] Guía de localización técnica con nombres oficiales traducidos.
 
 ## 🚀 Próximos Pasos
 - [ ] Implementar sistema de "Favoritos" con LocalStorage.
-- [ ] Añadir sección de "Pokémon Aleatorio" para descubrir nuevas especies.
-- [ ] Gráficos de radar (Radar Charts) para las estadísticas base en la ficha.
 - [ ] Comparador técnico entre dos Pokémon.

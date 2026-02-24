@@ -209,6 +209,40 @@ export const methodTranslations: Record<string, Record<string, string>> = {
 };
 
 export const versionTranslations: Record<string, string> = {
+    'red': 'Rojo',
+    'blue': 'Azul',
+    'yellow': 'Amarillo',
+    'gold': 'Oro',
+    'silver': 'Plata',
+    'crystal': 'Cristal',
+    'ruby': 'Rubí',
+    'sapphire': 'Zafiro',
+    'emerald': 'Esmeralda',
+    'firered': 'Rojo Fuego',
+    'leafgreen': 'Verde Hoja',
+    'diamond': 'Diamante',
+    'pearl': 'Perla',
+    'platinum': 'Platino',
+    'heartgold': 'HeartGold',
+    'soulsilver': 'SoulSilver',
+    'black': 'Negro',
+    'white': 'Blanco',
+    'black-2': 'Negro 2',
+    'white-2': 'Blanco 2',
+    'x': 'X',
+    'y': 'Y',
+    'omega-ruby': 'Rubí Omega',
+    'alpha-sapphire': 'Zafiro Alfa',
+    'sun': 'Sol',
+    'moon': 'Luna',
+    'ultra-sun': 'Ultra Sol',
+    'ultra-moon': 'Ultra Luna',
+    'lets-go-pikachu': 'Let\'s Go Pikachu',
+    'lets-go-eevee': 'Let\'s Go Eevee',
+    'sword': 'Espada',
+    'shield': 'Escudo',
+    'scarlet': 'Escarlata',
+    'violet': 'Púrpura',
     'red-blue': 'Rojo / Azul',
     'yellow': 'Amarillo',
     'gold-silver': 'Oro / Plata',
@@ -249,6 +283,71 @@ export const typeColors: Record<string, string> = {
     dark: '#705746',
     steel: '#B7B7CE',
     fairy: '#D685AD'
+};
+
+export const encounterTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'walk': 'Caminando',
+        'surf': 'Surf',
+        'old-rod': 'Caña Vieja',
+        'good-rod': 'Caña Buena',
+        'super-rod': 'Supercaña',
+        'gift': 'Regalo',
+        'headbutt': 'Golpe Cabeza',
+        'rock-smash': 'Golpe Roca',
+        'sweet-scent': 'Dulce Aroma',
+        'only-one': 'Único',
+        'pokeflute': 'Poké Flauta',
+        'rough-terrain': 'Terreno Abrupto',
+        'sea-foam-islands-surf': 'Islas Espuma (Surf)',
+        'cave-spots': 'Sombras en Cueva',
+        'bridge-spots': 'Sombras en Puente',
+        'super-rod-spots': 'Sombras Supercaña',
+        'surf-spots': 'Sombras en Agua',
+        'grass-spots': 'Hierba Movediza',
+        'dark-grass': 'Hierba Oscura',
+        'yellow-flowers': 'Flores Amarillas',
+        'purple-flowers': 'Flores Moradas',
+        'red-flowers': 'Flores Rojas',
+        'rough-grass': 'Hierba Alta',
+        'gift-egg': 'Huevo Regalo',
+        'location': 'Ubicación',
+        'chance': 'Probabilidad',
+        'method': 'Método',
+        'encounters_title': 'Localización y Encuentros',
+        'more_areas': 'zonas más...'
+    },
+    en: {
+        'walk': 'Walking',
+        'surf': 'Surf',
+        'old-rod': 'Old Rod',
+        'good-rod': 'Good Rod',
+        'super-rod': 'Super Rod',
+        'gift': 'Gift',
+        'headbutt': 'Headbutt',
+        'rock-smash': 'Rock Smash',
+        'sweet-scent': 'Sweet Scent',
+        'only-one': 'Only One',
+        'pokeflute': 'Poké Flute',
+        'rough-terrain': 'Rough Terrain',
+        'sea-foam-islands-surf': 'Sea Foam Islands (Surf)',
+        'cave-spots': 'Cave Spots',
+        'bridge-spots': 'Bridge Spots',
+        'super-rod-spots': 'Super Rod Spots',
+        'surf-spots': 'Surf Spots',
+        'grass-spots': 'Grass Spots',
+        'dark-grass': 'Dark Grass',
+        'yellow-flowers': 'Yellow Flowers',
+        'purple-flowers': 'Purple Flowers',
+        'red-flowers': 'Red Flowers',
+        'rough-grass': 'Rough Grass',
+        'gift-egg': 'Gift Egg',
+        'location': 'Location',
+        'chance': 'Chance',
+        'method': 'Method',
+        'encounters_title': 'Location & Encounters',
+        'more_areas': 'more areas...'
+    }
 };
 
 export const itemTranslations: Record<string, Record<string, string>> = {
@@ -337,6 +436,100 @@ export function formatPokemonNumber(id: number): string {
 
 export function formatName(name: string): string {
     return name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+/**
+ * Traduce nombres de ubicaciones técnicos a algo legible en español, 
+ * manejando el orden correcto de las palabras (Ej: Cerulean City -> Ciudad Celeste).
+ */
+export function formatLocationName(name: string, lang: string = 'es'): string {
+    let n = name.toLowerCase().replace(/-/g, ' ');
+    if (lang !== 'es') return n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    // 1. Mapeo de nombres emblemáticos que cambian por completo
+    const specialLocations: Record<string, string> = {
+        'cerulean city': 'Ciudad Celeste',
+        'pallet town': 'Pueblo Paleta',
+        'vermilion city': 'Ciudad Carmín',
+        'saffron city': 'Ciudad Azafrán',
+        'lavender town': 'Pueblo Lavanda',
+        'celadon city': 'Ciudad Azulona',
+        'fuchsia city': 'Ciudad Fucsia',
+        'cinnabar island': 'Isla Canela',
+        'viridian city': 'Ciudad Verde',
+        'pewter city': 'Ciudad Plateada',
+        'goldenrod city': 'Ciudad Trigal',
+        'ecruteak city': 'Ciudad Iris',
+        'olivine city': 'Ciudad Olivo',
+        'azalea town': 'Pueblo Azalea',
+        'violet city': 'Ciudad Malva',
+        'cherrygrove city': 'Pueblo Cerezo',
+        'new bark town': 'Pueblo Primavera',
+        'lumiose city': 'Ciudad Luminalia',
+        'victory road': 'Calle Victoria',
+        'mt silver': 'Monte Plateado',
+        'mt moon': 'Monte Moon',
+        'seafoam islands': 'Islas Espuma'
+    };
+
+    if (specialLocations[n]) return specialLocations[n];
+
+    // 2. Limpieza de términos técnicos
+    n = n.replace(/\barea\b/gi, '').replace(/\bmain\b/gi, 'Principal').trim();
+
+    // 3. Diccionario de tipos de lugar
+    const terms: Record<string, string> = {
+        'city': 'Ciudad',
+        'town': 'Pueblo',
+        'route': 'Ruta',
+        'cave': 'Cueva',
+        'forest': 'Bosque',
+        'mount': 'Monte',
+        'mt': 'Monte',
+        'island': 'Isla',
+        'path': 'Senda',
+        'lake': 'Lago',
+        'tower': 'Torre',
+        'sea': 'Mar',
+        'woods': 'Bosque',
+        'temple': 'Templo',
+        'ruins': 'Ruinas'
+    };
+
+    // 4. Traducción de nombres específicos
+    const nameTranslations: Record<string, string> = {
+        'pallet': 'Paleta',
+        'cerulean': 'Celeste',
+        'vermilion': 'Carmín',
+        'pewter': 'Plateada',
+        'viridian': 'Verde',
+        'saffron': 'Azafrán',
+        'fuchsia': 'Fucsia',
+        'celadon': 'Azulona',
+        'lavender': 'Lavanda',
+        'cinnabar': 'Canela',
+        'lumiose': 'Luminalia',
+        'victory': 'Victoria',
+        'silver': 'Plateado'
+    };
+
+    // 5. Lógica de transposición y traducción
+    for (const [eng, esp] of Object.entries(terms)) {
+        if (n.includes(eng)) {
+            let specificName = n.replace(eng, '').trim();
+            
+            // Traducir el nombre específico si existe en el mapa
+            if (nameTranslations[specificName]) {
+                specificName = nameTranslations[specificName];
+            }
+
+            const capitalizedName = specificName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            return `${esp} ${capitalizedName}`.trim();
+        }
+    }
+
+    // Fallback normal
+    return n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 /**
