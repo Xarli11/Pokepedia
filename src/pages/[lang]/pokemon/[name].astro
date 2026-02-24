@@ -200,7 +200,7 @@ const gridLevels = [0.25, 0.5, 0.75, 1];
                         </div>
                         
                         <a 
-                            href={`https://poketypes.app/pokemon/${detail.name}`} 
+                            href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${detail.name}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             class="px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.1em] hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-sm flex items-center gap-2 group"
