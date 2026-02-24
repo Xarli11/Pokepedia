@@ -95,11 +95,12 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
         <table class="w-full text-left border-collapse" id="movesTable">
             <thead>
                 <tr class="bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-700">
-                    <th class="px-10 py-6 w-24">Nivel</th>
-                    <th class="px-10 py-6 w-48">Ataque</th>
-                    <th class="px-10 py-6 w-32">Categoría</th>
-                    <th class="px-10 py-6 w-24">Prioridad</th>
-                    <th class="px-10 py-6 w-32">Método</th>
+                    <th class="px-10 py-6 w-20">Nivel</th>
+                    <th class="px-10 py-6 w-40">Ataque</th>
+                    <th class="px-10 py-6 w-28">Categoría</th>
+                    <th class="px-10 py-6 w-20">Prioridad</th>
+                    <th class="px-10 py-6 w-28">Método</th>
+                    <th class="px-10 py-6 w-32">Versión</th>
                     <th class="px-10 py-6">Efecto</th>
                 </tr>
             </thead>
@@ -172,7 +173,7 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
                 return `
                     <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
                         <td class="px-10 py-6 font-black text-emerald-600 dark:text-emerald-400">${m.level === 0 ? '-' : m.level}</td>
-                        <td class="px-10 py-6 font-bold text-slate-900 dark:text-white capitalize" data-move-name="${m.url}">${displayName}</td>
+                        <td class="px-10 py-6 font-bold text-slate-900 dark:text-white capitalize" data-move-url="${m.url}">${displayName}</td>
                         <td class="px-10 py-6">
                             <span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white ${categoryColors[category] || 'bg-slate-400'} shadow-sm">
                                 ${category}
@@ -184,7 +185,8 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
                         <td class="px-10 py-6">
                             <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">${m.methodLabel}</span>
                         </td>
-                        <td class="px-10 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc="${m.url}">
+                        <td class="px-10 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">${m.versionLabel}</td>
+                        <td class="px-10 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc-url="${m.url}">
                             ${cached?.description || '<div class="h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded-full"></div>'}
                         </td>
                     </tr>
@@ -199,10 +201,10 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
             await Promise.all(currentMoves.map(async m => {
                 const info = await fetchMoveInfo(m.url, lang);
                 if (info && tableBody) {
-                    const n = tableBody.querySelector(`[data-move-name="${m.url}"]`);
-                    const d = tableBody.querySelector(`[data-move-desc="${m.url}"]`);
-                    if (n) n.textContent = info.name;
-                    if (d) d.textContent = info.description;
+                    const names = tableBody.querySelectorAll(`[data-move-url="${m.url}"]`);
+                    const descs = tableBody.querySelectorAll(`[data-move-desc-url="${m.url}"]`);
+                    names.forEach(n => { n.textContent = info.name; });
+                    descs.forEach(d => { d.textContent = info.description; });
                 }
             }));
             if (searchInput?.value) renderMoves();
