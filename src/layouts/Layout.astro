@@ -15,7 +15,7 @@ const {
     image = "/pokeball.png" 
 } = Astro.props;
 
-const siteUrl = "https://pokepedia-nu.vercel.app";
+const siteUrl = "https://pokepedia.app";
 const finalImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? '' : '/'}${image}`;
 
 const currentPath = Astro.url.pathname;
