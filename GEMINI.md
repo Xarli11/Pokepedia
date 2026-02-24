@@ -6,6 +6,7 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 ## ✅ Tareas Completadas
 - [x] **Arquitectura**: Astro SSR con adaptador de Node para escalabilidad infinita.
 - [x] **Diseño**: Tema "Verde Esmeralda" con Modo Oscuro Premium (Gris Azulado `slate-800/900`).
+- [x] **SEO & Social**: Configuración de `site` para URLs absolutas y Meta Tags optimizados para Discord (Large Images).
 - [x] **Buscador Global**: Sugerencias en tiempo real para las 1025 especies (filtrando variantes estéticas).
 - [x] **Pokedex**: Detalle con stats coloreadas (Semáforo), habilidades traducidas y evolución recursiva avanzada (maneja casos como Eevee o Inkay).
 - [x] **Sección de Movimientos**: Tabla técnica con filtros, Prioridad, Categorías visuales (Físico/Especial/Estado) y búsqueda en español.
