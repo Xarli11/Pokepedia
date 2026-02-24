@@ -1,0 +1,98 @@
+---
+// src/components/PokemonCard.astro
+import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
+import type { PokemonDetail } from '../services/pokeapi';
+
+interface Props {
+    pokemon: PokemonDetail;
+    lang: string;
+}
+
+const { pokemon, lang = 'es' } = Astro.props;
+const typesString = pokemon.types.map(t => t.type.name).join(',');
+---
+
+<a href={`/${lang}/pokemon/${pokemon.name}`} class="group relative bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/60 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-xl hover:shadow-emerald-100/50 dark:hover:shadow-emerald-950/30 transition-all duration-300 flex flex-col items-center overflow-hidden pokemon-card" data-name={pokemon.name} data-id={pokemon.id} data-types={typesString}>
+    <!-- Badge de Tier (Smogon) -->
+    <div class="absolute top-4 left-4 z-20" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
+        <div class="h-4 w-8 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-md"></div>
+    </div>
+
+    <!-- Efecto de fondo sutil al hover -->
+    <div class="absolute inset-0 bg-gradient-to-br from-slate-50 dark:from-slate-700/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    
+    <span class="relative w-full text-right text-slate-400 dark:text-slate-500 font-bold text-sm mb-1 tracking-wider z-10">
+        {formatPokemonNumber(pokemon.id)}
+    </span>
+    
+    <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center drop-shadow-sm group-hover:drop-shadow-md transition-all duration-300 group-hover:-translate-y-2 z-10">
+        <img 
+            src={pokemon.sprites.other["official-artwork"].front_default} 
+            alt={pokemon.name} 
+            class="w-full h-full object-contain"
+            loading="lazy"
+        />
+    </div>
+    
+    <h2 class="relative mt-2 text-lg font-extrabold text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+        {pokemon.name.replace(/-/g, ' ')}
+    </h2>
+    
+    <div class="relative flex gap-1.5 mt-2 z-10">
+        {pokemon.types.map((t) => {
+            const typeName = t.type.name;
+            const bgColor = typeColors[typeName] || '#777';
+            const label = typeTranslations[lang][typeName] || typeName;
+            
+            return (
+                <span 
+                    class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"
+                    style={`background-color: ${bgColor}; box-shadow: 0 1px 2px ${bgColor}66;`}
+                >
+                    {label}
+                </span>
+            );
+        })}
+    </div>
+</a>
+
+<script is:inline>
+    // Usaremos un objeto global para cachear el Pokedex de Showdown
+    if (!window.psPokedex) {
+        window.psPokedex = null;
+        fetch('https://play.pokemonshowdown.com/data/pokedex.json')
+            .then(res => res.json())
+            .then(data => {
+                window.psPokedex = data;
+                document.dispatchEvent(new CustomEvent('ps-data-loaded'));
+            });
+    }
+
+    function updateTiers() {
+        if (!window.psPokedex) return;
+        const badges = document.querySelectorAll('[data-tier-for]');
+        badges.forEach(badge => {
+            const name = badge.dataset.tierFor;
+            const tier = window.psPokedex[name]?.tier || 'N/A';
+            if (tier !== 'N/A') {
+                const colors = {
+                    'Uber': 'bg-red-500',
+                    'OU': 'bg-emerald-500',
+                    'UU': 'bg-blue-500',
+                    'RU': 'bg-amber-500',
+                    'NU': 'bg-violet-500',
+                    'PU': 'bg-slate-500',
+                    'LC': 'bg-pink-500',
+                    'AG': 'bg-black'
+                };
+                badge.innerHTML = `<span class="${colors[tier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm">${tier}</span>`;
+            } else {
+                badge.innerHTML = '';
+            }
+        });
+    }
+
+    updateTiers();
+    document.addEventListener('ps-data-loaded', updateTiers);
+    document.addEventListener('astro:after-swap', updateTiers);
+</script>

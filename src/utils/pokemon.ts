@@ -1,0 +1,562 @@
+// src/utils/pokemon.ts
+
+export const typeTranslations: Record<string, Record<string, string>> = {
+    es: {
+        normal: 'Normal',
+        fire: 'Fuego',
+        water: 'Agua',
+        electric: 'Eléctrico',
+        grass: 'Planta',
+        ice: 'Hielo',
+        fighting: 'Lucha',
+        poison: 'Veneno',
+        ground: 'Tierra',
+        flying: 'Volador',
+        psychic: 'Psíquico',
+        bug: 'Bicho',
+        rock: 'Roca',
+        ghost: 'Fantasma',
+        dragon: 'Dragón',
+        dark: 'Siniestro',
+        steel: 'Acero',
+        fairy: 'Hada'
+    },
+    en: {
+        normal: 'Normal',
+        fire: 'Fire',
+        water: 'Water',
+        electric: 'Electric',
+        grass: 'Grass',
+        ice: 'Ice',
+        fighting: 'Fighting',
+        poison: 'Poison',
+        ground: 'Ground',
+        flying: 'Flying',
+        psychic: 'Psychic',
+        bug: 'Bug',
+        rock: 'Rock',
+        ghost: 'Ghost',
+        dragon: 'Dragon',
+        dark: 'Dark',
+        steel: 'Steel',
+        fairy: 'Fairy'
+    }
+};
+
+export const uiTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'search_placeholder': 'Busca por nombre, número o tipo...',
+        'back_to_pokedex': 'Volver a la Pokedex',
+        'basic_info': 'Información Básica',
+        'height': 'Altura',
+        'weight': 'Peso',
+        'abilities': 'Habilidades',
+        'hidden': 'Oculta',
+        'base_stats': 'Estadísticas Base',
+        'moves': 'Movimientos',
+        'moves_subtitle': 'Ataques aprendidos',
+        'search_move': 'Buscar ataque...',
+        'all_methods': 'Todos los métodos',
+        'by_level': 'Por nivel',
+        'level': 'Nivel',
+        'move': 'Movimiento',
+        'method': 'Método',
+        'no_moves': 'No se encontraron movimientos con esos filtros.',
+        'hp': 'PS',
+        'attack': 'Ataque',
+        'defense': 'Defensa',
+        'special-attack': 'At. Esp.',
+        'special-defense': 'Def. Esp.',
+        'speed': 'Velocidad',
+        'desc_hero': 'Descubre todos los',
+        'desc_subtitle': 'La enciclopedia definitiva con datos competitivos, stats base, habilidades ocultas y sets de movimientos.',
+        'evolution_chain': 'Cadena Evolutiva',
+        'evolves_at': 'Nivel',
+        'evolves_with': 'Con',
+        'evolves_by': 'Por',
+        'evolves_to': 'Evoluciona a',
+        'condition_rain': 'Lluvia',
+        'condition_day': 'Día',
+        'condition_night': 'Noche',
+        'condition_upside_down': 'Consola del revés',
+        'condition_affection': 'Afecto',
+        'condition_beauty': 'Belleza',
+        'condition_happiness': 'Amistad',
+        'condition_party_type': 'Tipo en equipo',
+        'condition_party_species': 'Pokémon en equipo',
+        'condition_location': 'Cerca de',
+        'condition_stats': 'Stats',
+        'loc_route': 'Ruta',
+        'loc_city': 'Ciudad',
+        'loc_town': 'Pueblo',
+        'loc_cave': 'Cueva',
+        'loc_forest': 'Bosque',
+        'loc_mountain': 'Montaña',
+        'loc_tower': 'Torre',
+        'back_to_moves': 'Volver a Movimientos',
+        'back_to_abilities': 'Volver a Habilidades',
+        'back_to_items': 'Volver a Objetos',
+        'items': 'Objetos',
+        'items_subtitle': 'Herramientas y consumibles útiles.',
+        'search_item': 'Buscar objeto...',
+        'category': 'Categoría',
+        'cost': 'Coste',
+        'power': 'Potencia',
+        'accuracy': 'Precisión',
+        'physical': 'Físico',
+        'special': 'Especial',
+        'status': 'Estado',
+        'pokemon_with_ability': 'Pokémon con esta habilidad',
+        'pokemon_with_move': 'Pokémon que aprenden este ataque'
+    },
+    en: {
+        'search_placeholder': 'Search by name, number or type...',
+        'back_to_pokedex': 'Back to Pokedex',
+        'basic_info': 'Basic Information',
+        'height': 'Height',
+        'weight': 'Weight',
+        'abilities': 'Abilities',
+        'hidden': 'Hidden',
+        'base_stats': 'Base Stats',
+        'moves': 'Moves',
+        'moves_subtitle': 'Learned moves',
+        'search_move': 'Search move...',
+        'all_methods': 'All methods',
+        'by_level': 'By level',
+        'level': 'Level',
+        'move': 'Move',
+        'method': 'Method',
+        'no_moves': 'No moves found with those filters.',
+        'hp': 'HP',
+        'attack': 'Attack',
+        'defense': 'Defense',
+        'special-attack': 'Sp. Atk.',
+        'special-defense': 'Sp. Def.',
+        'speed': 'Speed',
+        'desc_hero': 'Discover all',
+        'desc_subtitle': 'The ultimate encyclopedia with competitive data, base stats, hidden abilities, and move sets.',
+        'evolution_chain': 'Evolution Chain',
+        'evolves_at': 'Level',
+        'evolves_with': 'With',
+        'evolves_by': 'By',
+        'evolves_to': 'Evolves to',
+        'condition_rain': 'Rain',
+        'condition_day': 'Daytime',
+        'condition_night': 'Nighttime',
+        'condition_upside_down': 'Upside down',
+        'condition_affection': 'Affection',
+        'condition_beauty': 'Beauty',
+        'condition_happiness': 'Friendship',
+        'condition_party_type': 'Type in party',
+        'condition_party_species': 'Pokémon in party',
+        'condition_location': 'Near',
+        'condition_stats': 'Stats',
+        'loc_route': 'Route',
+        'loc_city': 'City',
+        'loc_town': 'Town',
+        'loc_cave': 'Cave',
+        'loc_forest': 'Forest',
+        'loc_mountain': 'Mountain',
+        'loc_tower': 'Tower',
+        'back_to_moves': 'Back to Moves',
+        'back_to_abilities': 'Back to Abilities',
+        'back_to_items': 'Back to Items',
+        'items': 'Items',
+        'items_subtitle': 'Useful tools and consumables.',
+        'search_item': 'Search item...',
+        'category': 'Category',
+        'cost': 'Cost',
+        'power': 'Power',
+        'accuracy': 'Accuracy',
+        'physical': 'Physical',
+        'special': 'Special',
+        'status': 'Status',
+        'pokemon_with_ability': 'Pokémon with this ability',
+        'pokemon_with_move': 'Pokémon that learn this move'
+    }
+};
+
+export const evolutionTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'level-up': 'Subir nivel',
+        'trade': 'Intercambio',
+        'use-item': 'Usar objeto',
+        'shed': 'Nincada',
+        'other': 'Especial'
+    },
+    en: {
+        'level-up': 'Level Up',
+        'trade': 'Trade',
+        'use-item': 'Use Item',
+        'shed': 'Shed',
+        'other': 'Special'
+    }
+};
+
+export const methodTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'level-up': 'Nivel',
+        'machine': 'MT/MO',
+        'egg': 'Huevo',
+        'tutor': 'Tutor'
+    },
+    en: {
+        'level-up': 'Level',
+        'machine': 'TM/HM',
+        'egg': 'Egg',
+        'tutor': 'Tutor'
+    }
+};
+
+export const versionTranslations: Record<string, string> = {
+    'red': 'Rojo',
+    'blue': 'Azul',
+    'yellow': 'Amarillo',
+    'gold': 'Oro',
+    'silver': 'Plata',
+    'crystal': 'Cristal',
+    'ruby': 'Rubí',
+    'sapphire': 'Zafiro',
+    'emerald': 'Esmeralda',
+    'firered': 'Rojo Fuego',
+    'leafgreen': 'Verde Hoja',
+    'diamond': 'Diamante',
+    'pearl': 'Perla',
+    'platinum': 'Platino',
+    'heartgold': 'HeartGold',
+    'soulsilver': 'SoulSilver',
+    'black': 'Negro',
+    'white': 'Blanco',
+    'black-2': 'Negro 2',
+    'white-2': 'Blanco 2',
+    'x': 'X',
+    'y': 'Y',
+    'omega-ruby': 'Rubí Omega',
+    'alpha-sapphire': 'Zafiro Alfa',
+    'sun': 'Sol',
+    'moon': 'Luna',
+    'ultra-sun': 'Ultra Sol',
+    'ultra-moon': 'Ultra Luna',
+    'lets-go-pikachu': 'Let\'s Go Pikachu',
+    'lets-go-eevee': 'Let\'s Go Eevee',
+    'sword': 'Espada',
+    'shield': 'Escudo',
+    'scarlet': 'Escarlata',
+    'violet': 'Púrpura',
+    'red-blue': 'Rojo / Azul',
+    'yellow': 'Amarillo',
+    'gold-silver': 'Oro / Plata',
+    'crystal': 'Cristal',
+    'ruby-sapphire': 'Rubí / Zafiro',
+    'emerald': 'Esmeralda',
+    'firered-leafgreen': 'Rojo Fuego / Verde Hoja',
+    'diamond-pearl': 'Diamante / Perla',
+    'platinum': 'Platino',
+    'heartgold-soulsilver': 'HeartGold / SoulSilver',
+    'black-white': 'Negro / Blanco',
+    'black-2-white-2': 'Negro 2 / Blanco 2',
+    'x-y': 'X / Y',
+    'omega-ruby-alpha-sapphire': 'Rubí Omega / Zafiro Alfa',
+    'sun-moon': 'Sol / Luna',
+    'ultra-sun-ultra-moon': 'Ultra Sol / Ultra Luna',
+    'lets-go-pikachu-lets-go-eevee': 'Let\'s Go Pikachu / Eevee',
+    'sword-shield': 'Espada / Escudo',
+    'scarlet-violet': 'Escarlata / Púrpura'
+};
+
+export const typeColors: Record<string, string> = {
+    normal: '#A8A77A',
+    fire: '#EE8130',
+    water: '#6390F0',
+    electric: '#F7D02C',
+    grass: '#7AC74C',
+    ice: '#96D9D6',
+    fighting: '#C22E28',
+    poison: '#A33EA1',
+    ground: '#E2BF65',
+    flying: '#A98FF3',
+    psychic: '#F95587',
+    bug: '#A6B91A',
+    rock: '#B6A136',
+    ghost: '#735797',
+    dragon: '#6F35FC',
+    dark: '#705746',
+    steel: '#B7B7CE',
+    fairy: '#D685AD'
+};
+
+export const encounterTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'walk': 'Caminando',
+        'surf': 'Surf',
+        'old-rod': 'Caña Vieja',
+        'good-rod': 'Caña Buena',
+        'super-rod': 'Supercaña',
+        'gift': 'Regalo',
+        'headbutt': 'Golpe Cabeza',
+        'rock-smash': 'Golpe Roca',
+        'sweet-scent': 'Dulce Aroma',
+        'only-one': 'Único',
+        'pokeflute': 'Poké Flauta',
+        'rough-terrain': 'Terreno Abrupto',
+        'sea-foam-islands-surf': 'Islas Espuma (Surf)',
+        'cave-spots': 'Sombras en Cueva',
+        'bridge-spots': 'Sombras en Puente',
+        'super-rod-spots': 'Sombras Supercaña',
+        'surf-spots': 'Sombras en Agua',
+        'grass-spots': 'Hierba Movediza',
+        'dark-grass': 'Hierba Oscura',
+        'yellow-flowers': 'Flores Amarillas',
+        'purple-flowers': 'Flores Moradas',
+        'red-flowers': 'Flores Rojas',
+        'rough-grass': 'Hierba Alta',
+        'gift-egg': 'Huevo Regalo',
+        'location': 'Ubicación',
+        'chance': 'Probabilidad',
+        'method': 'Método',
+        'encounters_title': 'Localización y Encuentros',
+        'more_areas': 'zonas más...'
+    },
+    en: {
+        'walk': 'Walking',
+        'surf': 'Surf',
+        'old-rod': 'Old Rod',
+        'good-rod': 'Good Rod',
+        'super-rod': 'Super Rod',
+        'gift': 'Gift',
+        'headbutt': 'Headbutt',
+        'rock-smash': 'Rock Smash',
+        'sweet-scent': 'Sweet Scent',
+        'only-one': 'Only One',
+        'pokeflute': 'Poké Flute',
+        'rough-terrain': 'Rough Terrain',
+        'sea-foam-islands-surf': 'Sea Foam Islands (Surf)',
+        'cave-spots': 'Cave Spots',
+        'bridge-spots': 'Bridge Spots',
+        'super-rod-spots': 'Super Rod Spots',
+        'surf-spots': 'Surf Spots',
+        'grass-spots': 'Grass Spots',
+        'dark-grass': 'Dark Grass',
+        'yellow-flowers': 'Yellow Flowers',
+        'purple-flowers': 'Purple Flowers',
+        'red-flowers': 'Red Flowers',
+        'rough-grass': 'Rough Grass',
+        'gift-egg': 'Gift Egg',
+        'location': 'Location',
+        'chance': 'Chance',
+        'method': 'Method',
+        'encounters_title': 'Location & Encounters',
+        'more_areas': 'more areas...'
+    }
+};
+
+export const itemTranslations: Record<string, Record<string, string>> = {
+    es: {
+        'countable': 'Contable',
+        'consumable': 'Consumible',
+        'usable-in-battle': 'Uso en combate',
+        'holdable': 'Equipable',
+        'holdable-active': 'Equipable (Activo)',
+        'underground': 'Subsuelo',
+        'all-machines': 'Todas las MT/MO',
+        'machines': 'MT / MO',
+        'pokeballs': 'Poké Balls',
+        'standard-balls': 'Poké Balls',
+        'special-balls': 'Bolas Especiales',
+        'apricorn-balls': 'Bolas de Bonguri',
+        'medicine': 'Medicina',
+        'evolution': 'Evolución',
+        'berries': 'Bayas',
+        'held-items': 'Objetos Equipables',
+        'choice': 'Elección',
+        'effort-training': 'Entrenamiento Esfuerzo',
+        'bad-held-items': 'Objetos Perjudiciales',
+        'training': 'Entrenamiento',
+        'plates': 'Tablas',
+        'species-specific': 'Específicos de Especie',
+        'type-enhancement': 'Potenciadores de Tipo',
+        'collectibles': 'Coleccionables',
+        'evolution-stones': 'Piedras Evolutivas',
+        'unused': 'Sin uso',
+        'plot-adventure': 'Historia/Aventura',
+        'stat-boosts': 'Mejora de Stats'
+    },
+    en: {
+        'countable': 'Countable',
+        'consumable': 'Consumable',
+        'usable-in-battle': 'Usable in battle',
+        'holdable': 'Holdable',
+        'holdable-active': 'Holdable (Active)',
+        'underground': 'Underground',
+        'all-machines': 'All Machines',
+        'standard-balls': 'Standard Balls',
+        'special-balls': 'Special Balls',
+        'apricorn-balls': 'Apricorn Balls',
+        'medicine': 'Medicine',
+        'evolution': 'Evolution',
+        'berries': 'Berries',
+        'held-items': 'Held Items',
+        'choice': 'Choice',
+        'effort-training': 'Effort Training',
+        'bad-held-items': 'Bad Held Items',
+        'training': 'Training',
+        'plates': 'Plates',
+        'species-specific': 'Species Specific',
+        'type-enhancement': 'Type Enhancement',
+        'collectibles': 'Collectibles',
+        'evolution-stones': 'Evolution Stones',
+        'unused': 'Unused',
+        'plot-adventure': 'Plot/Adventure',
+        'stat-boosts': 'Stat Boosts'
+    }
+};
+
+/**
+ * Normaliza las categorías técnicas de PokeAPI a categorías de usuario.
+ */
+export function getItemSuperCategory(rawCat: string): string {
+    const categories: Record<string, string[]> = {
+        'berries': ['berries', 'baking-only', 'picky-healing', 'type-protection', 'in-a-pinch'],
+        'medicine': ['medicine', 'healing', 'status-cures', 'revival', 'vitamins', 'pp-recovery'],
+        'pokeballs': ['standard-balls', 'special-balls', 'apricorn-balls'],
+        'held-items': ['held-items', 'choice', 'plates', 'type-enhancement', 'effort-training', 'bad-held-items'],
+        'evolution': ['evolution', 'evolution-stones', 'mega-stones', 'z-crystals'],
+        'machines': ['all-machines']
+    };
+
+    for (const [superCat, list] of Object.entries(categories)) {
+        if (list.includes(rawCat)) return superCat;
+    }
+    return rawCat;
+}
+
+export function formatPokemonNumber(id: number): string {
+    return `#${id.toString().padStart(4, '0')}`;
+}
+
+export function formatName(name: string): string {
+    return name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+/**
+ * Traduce nombres de ubicaciones técnicos a algo legible en español, 
+ * manejando el orden correcto de las palabras (Ej: Cerulean City -> Ciudad Celeste).
+ */
+export function formatLocationName(name: string, lang: string = 'es'): string {
+    let n = name.toLowerCase().replace(/-/g, ' ');
+    if (lang !== 'es') return n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    // 1. Mapeo de nombres emblemáticos que cambian por completo
+    const specialLocations: Record<string, string> = {
+        'cerulean city': 'Ciudad Celeste',
+        'pallet town': 'Pueblo Paleta',
+        'vermilion city': 'Ciudad Carmín',
+        'saffron city': 'Ciudad Azafrán',
+        'lavender town': 'Pueblo Lavanda',
+        'celadon city': 'Ciudad Azulona',
+        'fuchsia city': 'Ciudad Fucsia',
+        'cinnabar island': 'Isla Canela',
+        'viridian city': 'Ciudad Verde',
+        'pewter city': 'Ciudad Plateada',
+        'goldenrod city': 'Ciudad Trigal',
+        'ecruteak city': 'Ciudad Iris',
+        'olivine city': 'Ciudad Olivo',
+        'azalea town': 'Pueblo Azalea',
+        'violet city': 'Ciudad Malva',
+        'cherrygrove city': 'Pueblo Cerezo',
+        'new bark town': 'Pueblo Primavera',
+        'lumiose city': 'Ciudad Luminalia',
+        'victory road': 'Calle Victoria',
+        'mt silver': 'Monte Plateado',
+        'mt moon': 'Monte Moon',
+        'seafoam islands': 'Islas Espuma'
+    };
+
+    if (specialLocations[n]) return specialLocations[n];
+
+    // 2. Limpieza de términos técnicos
+    n = n.replace(/\barea\b/gi, '').replace(/\bmain\b/gi, 'Principal').trim();
+
+    // 3. Diccionario de tipos de lugar
+    const terms: Record<string, string> = {
+        'city': 'Ciudad',
+        'town': 'Pueblo',
+        'route': 'Ruta',
+        'cave': 'Cueva',
+        'forest': 'Bosque',
+        'mount': 'Monte',
+        'mt': 'Monte',
+        'island': 'Isla',
+        'path': 'Senda',
+        'lake': 'Lago',
+        'tower': 'Torre',
+        'sea': 'Mar',
+        'woods': 'Bosque',
+        'temple': 'Templo',
+        'ruins': 'Ruinas'
+    };
+
+    // 4. Traducción de nombres específicos
+    const nameTranslations: Record<string, string> = {
+        'pallet': 'Paleta',
+        'cerulean': 'Celeste',
+        'vermilion': 'Carmín',
+        'pewter': 'Plateada',
+        'viridian': 'Verde',
+        'saffron': 'Azafrán',
+        'fuchsia': 'Fucsia',
+        'celadon': 'Azulona',
+        'lavender': 'Lavanda',
+        'cinnabar': 'Canela',
+        'lumiose': 'Luminalia',
+        'victory': 'Victoria',
+        'silver': 'Plateado'
+    };
+
+    // 5. Lógica de transposición y traducción
+    for (const [eng, esp] of Object.entries(terms)) {
+        if (n.includes(eng)) {
+            let specificName = n.replace(eng, '').trim();
+            
+            // Traducir el nombre específico si existe en el mapa
+            if (nameTranslations[specificName]) {
+                specificName = nameTranslations[specificName];
+            }
+
+            const capitalizedName = specificName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            return `${esp} ${capitalizedName}`.trim();
+        }
+    }
+
+    // Fallback normal
+    return n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Formatea nombres de Pokémon manejando variedades (G-Max, Megas, etc.)
+ */
+export function formatPokemonName(technicalName: string, speciesName: string, lang: string = 'es'): string {
+    const name = technicalName.toLowerCase();
+    const species = speciesName.toLowerCase();
+    
+    if (name === species) return formatName(species);
+
+    const suffix = name.replace(species, '').replace(/-/g, ' ').trim();
+    if (!suffix) return formatName(species);
+
+    const suffixMap: Record<string, string> = {
+        'gmax': lang === 'es' ? 'Gigamax' : 'G-Max',
+        'mega': 'Mega',
+        'alola': 'Alola',
+        'galar': 'Galar',
+        'hisui': 'Hisui',
+        'paldea': 'Paldea',
+        'mega x': 'Mega X',
+        'mega y': 'Mega Y',
+        'primal': lang === 'es' ? 'Primigenio' : 'Primal',
+        'origin': lang === 'es' ? 'Origen' : 'Origin'
+    };
+
+    const prettySuffix = suffixMap[suffix.toLowerCase()] || suffix.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return `${formatName(species)} (${prettySuffix})`;
+}

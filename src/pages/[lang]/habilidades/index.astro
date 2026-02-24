@@ -1,0 +1,220 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getAllAbilities } from '../../../services/pokeapi';
+import { uiTranslations, formatName } from '../../../utils/pokemon';
+
+const { lang = 'es' } = Astro.params;
+// Limitamos a 307 que son las habilidades oficiales hasta Gen 9 (evitando CAP y entries de debug)
+const abilities = await getAllAbilities();
+const t = uiTranslations[lang as string] || uiTranslations.es;
+---
+
+<Layout title={lang === 'es' ? 'Habilidades Pokémon | Pokepedia' : 'Pokémon Abilities | Pokepedia'} lang={lang}>
+    <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+                {lang === 'es' ? 'Habilidades' : 'Abilities'}
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">
+                {lang === 'es' 
+                    ? 'Efectos especiales y talentos únicos en combate.' 
+                    : 'Special effects and unique talents in battle.'}
+            </p>
+        </div>
+
+        <div class="relative max-w-2xl mx-auto mb-16 group">
+            <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                <svg class="w-6 h-6 text-slate-400 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <input 
+                type="text" 
+                id="ability-search" 
+                placeholder={lang === 'es' ? 'Buscar habilidad por nombre...' : 'Search ability by name...'} 
+                class="w-full pl-16 pr-8 py-6 rounded-[2.5rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white text-xl shadow-2xl shadow-slate-200/50 dark:shadow-black/40 focus:border-emerald-500 outline-none transition-all"
+                autocomplete="off"
+            />
+            <!-- Contenedor de Sugerencias -->
+            <div id="search-suggestions" class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto">
+            </div>
+        </div>
+
+        <div id="ability-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {abilities.map((ability) => (
+                <a 
+                    href={`/${lang}/habilidades/${ability.name}`}
+                    class="ability-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
+                    data-name={ability.name}
+                >
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-2xl font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-ability-url={ability.url}>
+                            {formatName(ability.name)}
+                        </h3>
+                        <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium" data-ability-desc-url={ability.url}>
+                            <span class="inline-block h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded"></span>
+                        </p>
+                    </div>
+                </a>
+            ))}
+        </div>
+    </div>
+
+    <script define:vars={{ lang }}>
+        const searchInput = document.getElementById('ability-search');
+        const suggestionsContainer = document.getElementById('search-suggestions');
+        const cards = document.querySelectorAll('.ability-card');
+        const cache = new Map();
+
+        const itemsData = Array.from(cards).map(card => ({
+            name: card.dataset.name,
+            el: card,
+            url: card.querySelector('[data-ability-url]').dataset.abilityUrl
+        }));
+
+        async function fetchAbilityInfo(url) {
+            if (cache.has(url)) return cache.get(url);
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                // Si la habilidad no tiene Pokémon asignados en PokeAPI, probablemente es CAP o dummy
+                // EXCEPCIÓN: Algunas habilidades nuevas pueden tener pocos pokemon pero son oficiales. 
+                // Bajamos el criterio o lo eliminamos si queremos ver todo.
+                // if (data.pokemon.length === 0) return { hide: true };
+
+                const name = data.names.find(n => n.language.name === lang)?.name || 
+                             data.names.find(n => n.language.name === 'es')?.name || 
+                             data.name;
+                
+                let desc = "";
+                const flavor = data.flavor_text_entries.find(f => f.language.name === lang);
+                if (flavor) desc = flavor.flavor_text;
+                if (!desc) {
+                    const effect = data.effect_entries.find(e => e.language.name === lang);
+                    desc = effect?.short_effect || effect?.effect || "";
+                }
+                if (!desc) {
+                    const enFlavor = data.flavor_text_entries.find(f => f.language.name === 'en');
+                    const enEffect = data.effect_entries.find(e => e.language.name === 'en');
+                    desc = enFlavor?.flavor_text || enEffect?.short_effect || "";
+                }
+                
+                // Si no hay ni inglés, no ocultamos, solo dejamos vacío
+                desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
+                const result = { name, desc, hide: false };
+                cache.set(url, result);
+                return result;
+            } catch (e) { return null; }
+        }
+
+        async function loadCard(card) {
+            if (card.dataset.loaded === "true") return;
+            const nameEl = card.querySelector('[data-ability-url]');
+            const descEl = card.querySelector('[data-ability-desc-url]');
+            const url = nameEl.dataset.abilityUrl;
+            
+            const info = await fetchAbilityInfo(url);
+            if (info) {
+                if (info.hide) {
+                    card.remove();
+                    return;
+                }
+                nameEl.textContent = info.name;
+                descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
+                card.dataset.translatedName = info.name.toLowerCase();
+                card.dataset.loaded = "true";
+                applyFilters(false);
+            }
+        }
+
+        async function updateSuggestions(query) {
+            if (!query || query.length < 2) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+            const queryLower = query.toLowerCase();
+            const matches = itemsData.filter(item => {
+                const name = item.name.toLowerCase();
+                const translated = (item.el.dataset.translatedName || '').toLowerCase();
+                return name.includes(queryLower) || translated.includes(queryLower);
+            }).slice(0, 6);
+
+            if (matches.length === 0) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.classList.remove('hidden');
+
+            for (const item of matches) {
+                const info = await fetchAbilityInfo(item.url);
+                if (!info || info.hide) continue;
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
+                div.innerHTML = `
+                    <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center p-1 text-emerald-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
+                    </div>
+                    <div>
+                        <div class="font-bold text-slate-800 dark:text-white capitalize">${info.name}</div>
+                        <div class="text-xs text-slate-400 font-medium truncate max-w-[200px]">${info.desc}</div>
+                    </div>
+                `;
+                div.onclick = () => {
+                    searchInput.value = info.name;
+                    suggestionsContainer.classList.add('hidden');
+                    applyFilters(true);
+                };
+                suggestionsContainer.appendChild(div);
+            }
+        }
+
+        async function applyFilters(forceLoad = true) {
+            const query = searchInput.value.toLowerCase().trim();
+            for (const card of cards) {
+                if (!card.parentElement) continue;
+                const englishName = card.dataset.name.toLowerCase();
+                const translatedName = card.dataset.translatedName || '';
+                const isLoaded = card.dataset.loaded === "true";
+
+                const matchesSearch = englishName.includes(query) || translatedName.includes(query);
+                
+                if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
+                    // Si no coincide con el inglés pero no está cargado, forzamos carga para ver si coincide con el español
+                    await loadCard(card);
+                    const newTranslatedName = card.dataset.translatedName || '';
+                    card.style.display = newTranslatedName.includes(query) ? 'block' : 'none';
+                } else {
+                    card.style.display = matchesSearch ? 'block' : 'none';
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            applyFilters(true);
+            updateSuggestions(searchInput.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    loadCard(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { rootMargin: '200px' });
+
+        cards.forEach(card => observer.observe(card));
+    </script>
+</Layout>

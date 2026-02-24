@@ -1,0 +1,176 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import PokemonCard from '../../../components/PokemonCard.astro';
+import { getLocalizedName } from '../../../services/pokeapi';
+import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+
+const { lang, name } = Astro.params;
+
+let itemData;
+try {
+    const res = await fetch(`https://pokeapi.co/api/v2/item/${name}`);
+    if (!res.ok) throw new Error();
+    itemData = await res.json();
+} catch (e) {
+    return Astro.redirect(`/${lang}/objetos`);
+}
+
+const localizedName = getLocalizedName(itemData.names, lang as string) || formatName(itemData.name);
+const i18nItems = itemTranslations[lang as string] || itemTranslations.es;
+
+// Fallback robusto para descripción
+const getDesc = () => {
+    const entries = itemData.flavor_text_entries || [];
+    const effects = itemData.effect_entries || [];
+    let entry = entries.find((f: any) => f.language.name === lang);
+    if (entry) return entry.text || entry.flavor_text;
+    entry = effects.find((e: any) => e.language.name === lang);
+    if (entry) return entry.short_effect || entry.effect;
+    entry = entries.find((f: any) => f.language.name === 'en');
+    if (entry) return entry.text || entry.flavor_text;
+    entry = effects.find((e: any) => e.language.name === 'en');
+    if (entry) return entry.short_effect || entry.effect;
+    return "Sin descripción detallada disponible / No detailed description available";
+};
+
+const description = getDesc().replace(/\f/g, ' ').replace(/\n/g, ' ');
+const categoryKey = itemData.category?.name;
+const superCategoryKey = getItemSuperCategory(categoryKey || '');
+const categoryName = i18nItems[superCategoryKey] || i18nItems[categoryKey] || formatName(categoryKey || '---');
+
+// Lógica especial para MTs
+let moveDetail = null;
+if (categoryKey === 'all-machines' && itemData.machines && itemData.machines.length > 0) {
+    try {
+        const machineRes = await fetch(itemData.machines[0].machine.url);
+        const machineData = await machineRes.json();
+        const moveRes = await fetch(machineData.move.url);
+        const moveData = await moveRes.json();
+        moveDetail = {
+            name: getLocalizedName(moveData.names, lang as string) || formatName(moveData.name),
+            url: `/${lang}/movimientos/${moveData.name}`
+        };
+    } catch (e) {
+        console.error("Error fetching move for machine", e);
+    }
+}
+
+// Obtener detalles de Pokémon que pueden llevar este objeto
+const heldByPokemon = await Promise.all(
+    (itemData.held_by_pokemon || []).slice(0, 15).map(async (h: any) => {
+        const res = await fetch(h.pokemon.url);
+        return res.json();
+    })
+);
+
+const t = uiTranslations[lang as string] || uiTranslations.es;
+---
+
+<Layout 
+    title={`${localizedName} | Objetos | Pokepedia`} 
+    description={description}
+    lang={lang}
+>
+    <div class="max-w-5xl mx-auto">
+        <a href={`/${lang}/objetos`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
+            <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            {t.back_to_items}
+        </a>
+
+        <div class="bg-white dark:bg-slate-800 rounded-[3rem] p-10 md:p-16 border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-black/40 mb-16 transition-colors overflow-hidden relative">
+            <div class="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
+            
+            <div class="relative z-10">
+                <div class="flex flex-col md:flex-row items-center gap-12 mb-12">
+                    <div class="w-48 h-48 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center p-8 border border-slate-100 dark:border-slate-800 shadow-inner">
+                        <img 
+                            src={itemData.sprites.default} 
+                            alt={localizedName} 
+                            class="w-32 h-32 pixelated transform hover:scale-110 transition-transform duration-500"
+                        />
+                    </div>
+                    
+                    <div class="text-center md:text-left flex-grow">
+                        <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-6">
+                            <span class="px-4 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-widest rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                                {categoryName}
+                            </span>
+                            {itemData.cost > 0 && (
+                                <span class="px-4 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-full border border-amber-200 dark:border-amber-800/50">
+                                    {itemData.cost} ₽
+                                </span>
+                            )}
+                        </div>
+                        <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-4">{localizedName}</h1>
+                        
+                        {moveDetail && (
+                            <a href={moveDetail.url} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
+                                <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
+                                {lang === 'es' ? 'Enseña:' : 'Teaches:'} {moveDetail.name}
+                            </a>
+                        )}
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2rem] p-8 md:p-10 border border-emerald-100/50 dark:border-emerald-900/20 mb-12">
+                    <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
+                        "{description}"
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {itemData.attributes && itemData.attributes.length > 0 && (
+                        <div>
+                            <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">{lang === 'es' ? 'Propiedades' : 'Properties'}</h3>
+                            <div class="flex flex-wrap gap-2">
+                                {itemData.attributes.map((attr: any) => (
+                                    <span class="px-4 py-2 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-xl border border-slate-200 dark:border-slate-800">
+                                        {i18nItems[attr.name] || formatName(attr.name)}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {itemData.fling_power && (
+                        <div>
+                            <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">
+                                {lang === 'es' ? 'Potencia al Lanzar' : 'Fling Power'}
+                            </h3>
+                            <div class="flex items-center gap-4">
+                                <div class="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-lg font-black rounded-xl border border-amber-100 dark:border-amber-900/30">
+                                    {itemData.fling_power} <span class="text-xs uppercase ml-1">{t.power}</span>
+                                </div>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[150px] leading-tight">
+                                    {lang === 'es' 
+                                        ? 'Potencia del movimiento "Lanzamiento" con este objeto.' 
+                                        : 'Power of the move "Fling" when using this item.'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        {heldByPokemon.length > 0 && (
+            <div class="mt-20">
+                <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-10 px-4 flex items-center gap-4">
+                    <span class="w-2 h-8 bg-emerald-500/50 rounded-full"></span>
+                    {lang === 'es' ? 'Pokémon que pueden llevarlo' : 'Pokémon that can hold it'}
+                    <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700">{itemData.held_by_pokemon.length}</span>
+                </h2>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {heldByPokemon.map((pokemon) => (
+                        <PokemonCard pokemon={pokemon} lang={lang as string} />
+                    ))}
+                </div>
+            </div>
+        )}
+    </div>
+</Layout>
+
+<style>
+    .pixelated { image-rendering: pixelated; }
+</style>

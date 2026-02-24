@@ -1,0 +1,257 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getAllItems } from '../../../services/pokeapi';
+import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+
+const { lang = 'es' } = Astro.params;
+const items = await getAllItems();
+const t = uiTranslations[lang as string] || uiTranslations.es;
+const i18nItems = itemTranslations[lang as string] || itemTranslations.es;
+
+// Super-categorías para el filtro amigable
+const mainCategories = [
+    'pokeballs', 'medicine', 'berries', 
+    'held-items', 'evolution', 'machines', 'stat-boosts'
+];
+---
+
+<Layout title={lang === 'es' ? 'Objetos Pokémon | Pokepedia' : 'Pokémon Items | Pokepedia'} lang={lang}>
+    <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+                {t.items}
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">
+                {t.items_subtitle}
+            </p>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-6 mb-16">
+            <div class="relative flex-grow group">
+                <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                    <svg class="w-6 h-6 text-slate-400 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input 
+                    type="text" 
+                    id="item-search" 
+                    placeholder={t.search_item} 
+                    class="w-full pl-16 pr-8 py-5 rounded-3xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white text-lg shadow-xl shadow-slate-200/50 dark:shadow-black/40 focus:border-emerald-500 outline-none transition-all"
+                    autocomplete="off"
+                />
+                <!-- Contenedor de Sugerencias -->
+                <div id="search-suggestions" class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-50 hidden overflow-hidden max-h-[400px] overflow-y-auto">
+                </div>
+            </div>
+            
+            <select 
+                id="category-filter"
+                class="px-8 py-5 rounded-3xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white font-bold shadow-xl shadow-slate-200/50 dark:shadow-black/40 focus:border-emerald-500 outline-none transition-all cursor-pointer appearance-none"
+            >
+                <option value="all">{lang === 'es' ? 'Todas las categorías' : 'All categories'}</option>
+                {mainCategories.map(cat => (
+                    <option value={cat}>{i18nItems[cat] || formatName(cat)}</option>
+                ))}
+            </select>
+        </div>
+
+        <div id="item-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {items.map((item) => (
+                <a 
+                    href={`/${lang}/objetos/${item.name}`}
+                    class="item-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
+                    data-name={item.name}
+                    data-super-category="unknown"
+                    data-loaded="false"
+                >
+                    <div class="flex items-center gap-6 mb-6">
+                        <div class="w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-2 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30 transition-colors border border-slate-100 dark:border-slate-800">
+                            <img src="" alt="" class="w-10 h-10 pixelated opacity-0 transition-opacity duration-300" data-item-img-url={item.url} />
+                            <div class="w-8 h-8 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-full absolute" data-item-loader></div>
+                        </div>
+                        <div class="flex-grow">
+                            <h3 class="text-2xl font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-item-url={item.url}>
+                                {formatName(item.name)}
+                            </h3>
+                            <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1" data-item-category-url={item.url}>---</span>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium" data-item-desc-url={item.url}>
+                            <span class="inline-block h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded"></span>
+                            <span class="inline-block h-4 w-2/3 bg-slate-100 dark:bg-slate-700 animate-pulse rounded mt-2"></span>
+                        </p>
+                    </div>
+                </a>
+            ))}
+        </div>
+    </div>
+
+    <style>
+        .pixelated { image-rendering: pixelated; }
+    </style>
+
+    <script define:vars={{ lang, i18nItems }}>
+        const searchInput = document.getElementById('item-search');
+        const suggestionsContainer = document.getElementById('search-suggestions');
+        const categoryFilter = document.getElementById('category-filter');
+        const cards = document.querySelectorAll('.item-card');
+        const cache = new Map();
+
+        const SUPER_CAT_MAP = {
+            'berries': ['berries', 'baking-only', 'picky-healing', 'type-protection', 'in-a-pinch'],
+            'medicine': ['medicine', 'healing', 'status-cures', 'revival', 'vitamins', 'pp-recovery'],
+            'pokeballs': ['standard-balls', 'special-balls', 'apricorn-balls'],
+            'held-items': ['held-items', 'choice', 'plates', 'type-enhancement', 'effort-training', 'bad-held-items'],
+            'evolution': ['evolution', 'evolution-stones', 'mega-stones', 'z-crystals'],
+            'machines': ['all-machines']
+        };
+
+        function getSuperCategory(rawCat) {
+            for (const [superCat, list] of Object.entries(SUPER_CAT_MAP)) {
+                if (list.includes(rawCat)) return superCat;
+            }
+            return rawCat;
+        }
+
+        async function fetchItemInfo(url) {
+            if (cache.has(url)) return cache.get(url);
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const name = data.names.find(n => n.language.name === lang)?.name || 
+                             data.names.find(n => n.language.name === 'es')?.name || 
+                             data.name;
+                const rawCategory = data.category?.name || "other";
+                const superCategory = getSuperCategory(rawCategory);
+                const category = i18nItems[rawCategory] || i18nItems[superCategory] || (rawCategory.replace(/-/g, ' '));
+                let desc = "";
+                const flavor = data.flavor_text_entries?.find(f => f.language.name === lang) || 
+                               data.flavor_text_entries?.find(f => f.language.name === 'en');
+                if (flavor) desc = flavor.text || flavor.flavor_text || "";
+                if (!desc && data.effect_entries) {
+                    const effect = data.effect_entries.find(e => e.language.name === lang) ||
+                                   data.effect_entries.find(e => e.language.name === 'en');
+                    desc = effect?.short_effect || effect?.effect || "";
+                }
+                desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
+                const sprite = data.sprites?.default;
+                const result = { name, desc, sprite, category, rawCategory, superCategory };
+                cache.set(url, result);
+                return result;
+            } catch (e) { return null; }
+        }
+
+        async function updateSuggestions(query) {
+            if (!query || query.length < 2) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            const queryLower = query.toLowerCase();
+            const matches = Array.from(cards).filter(card => {
+                const name = card.dataset.name.toLowerCase();
+                const translated = (card.dataset.translatedName || '').toLowerCase();
+                return name.includes(queryLower) || translated.includes(queryLower);
+            }).slice(0, 6);
+
+            if (matches.length === 0) {
+                suggestionsContainer.classList.add('hidden');
+                return;
+            }
+
+            suggestionsContainer.innerHTML = '';
+            suggestionsContainer.classList.remove('hidden');
+
+            for (const card of matches) {
+                const url = card.querySelector('[data-item-url]').dataset.itemUrl;
+                const info = await fetchItemInfo(url);
+                if (!info) continue;
+
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
+                div.innerHTML = `
+                    <div class="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center p-1 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors">
+                        <img src="${info.sprite || ''}" class="w-8 h-8 pixelated ${!info.sprite ? 'hidden' : ''}">
+                    </div>
+                    <div>
+                        <div class="font-bold text-slate-800 dark:text-white capitalize">${info.name}</div>
+                        <div class="text-xs text-slate-400 font-medium uppercase tracking-wider">${info.category}</div>
+                    </div>
+                `;
+                div.onclick = () => {
+                    searchInput.value = info.name;
+                    suggestionsContainer.classList.add('hidden');
+                    applyFilters(true);
+                };
+                suggestionsContainer.appendChild(div);
+            }
+        }
+
+        async function loadCard(card) {
+            if (card.dataset.loaded === 'true') return;
+            const url = card.querySelector('[data-item-url]').dataset.itemUrl;
+            const info = await fetchItemInfo(url);
+            if (info) {
+                card.querySelector('[data-item-url]').textContent = info.name;
+                card.querySelector('[data-item-desc-url]').textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
+                card.querySelector('[data-item-category-url]').textContent = info.category;
+                card.dataset.superCategory = info.superCategory;
+                card.dataset.loaded = "true";
+                card.dataset.translatedName = info.name.toLowerCase();
+                const imgEl = card.querySelector('[data-item-img-url]');
+                const loaderEl = card.querySelector('[data-item-loader]');
+                if (info.sprite) {
+                    imgEl.src = info.sprite;
+                    imgEl.classList.remove('opacity-0');
+                    if (loaderEl) loaderEl.remove();
+                } else if (loaderEl) {
+                    loaderEl.remove();
+                }
+                applyFilters(false); 
+            }
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    loadCard(entry.target);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { rootMargin: '300px' });
+
+        cards.forEach(card => observer.observe(card));
+
+        async function applyFilters(forceLoad = true) {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedSuperCat = categoryFilter.value;
+            for (const card of cards) {
+                const name = card.dataset.name.toLowerCase();
+                const translated = (card.dataset.translatedName || '').toLowerCase();
+                const superCat = card.dataset.superCategory;
+                const matchesSearch = name.includes(query) || translated.includes(query);
+                const matchesCategory = selectedSuperCat === 'all' || superCat === selectedSuperCat;
+                if (selectedSuperCat !== 'all' && superCat === 'unknown' && matchesSearch && forceLoad) {
+                    await loadCard(card);
+                    const newSuperCat = card.dataset.superCategory;
+                    card.style.display = (matchesSearch && (selectedSuperCat === 'all' || newSuperCat === selectedSuperCat)) ? 'block' : 'none';
+                } else {
+                    card.style.display = (matchesSearch && matchesCategory) ? 'block' : 'none';
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            applyFilters(true);
+            updateSuggestions(searchInput.value);
+        });
+
+        categoryFilter.addEventListener('change', () => applyFilters(true));
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                suggestionsContainer.classList.add('hidden');
+            }
+        });
+    </script>
+</Layout>
