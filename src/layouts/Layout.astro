@@ -31,11 +31,23 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 <html lang={lang} prefix="og: https://ogp.me/ns#">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         
+        <!-- Google tag (gtag.js) -->
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-J7Z6HJMYWD');
+        </script>
+
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
         <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
         <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
+        <link rel="dns-prefetch" href="https://pokeapi.co">
+        <link rel="dns-prefetch" href="https://play.pokemonshowdown.com">
         
         <link rel="icon" type="image/png" href="/pokeball.png?v=1">
         <link rel="shortcut icon" href="/pokeball.png?v=1">
@@ -55,53 +67,146 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
         <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
 
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={Astro.url} />
+        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={finalImageUrl} />
+        <meta property="og:image:secure_url" content={finalImageUrl} />
+        <meta property="og:image:alt" content={title} />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Pokepedia Research Lab" />
+
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={Astro.url} />
+        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={finalImageUrl} />
+        <meta name="twitter:image:alt" content={title} />
+        
+        <!-- Structured Data (Schema.org) -->
+        <script type="application/ld+json" is:inline>
+        {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "Pokepedia",
+          "url": "https://pokepedia.app",
+          "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
+          "applicationCategory": "GameApplication",
+          "operatingSystem": "Any",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": "Competitive integration, Smogon Tiers, Technical Stats, Evolutionary Chains, Move & Ability Dex"
+        }
+        </script>
+        
         <script is:inline define:vars={{ lang }}>
             const savedTheme = localStorage.getItem('theme');
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             const theme = savedTheme || systemTheme;
             if (theme === 'dark') document.documentElement.classList.add('dark');
         </script>
+        
+        <Analytics />
+        <SpeedInsights />
 	</head>
-	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col overflow-x-hidden">
-        <header class="sticky top-0 z-[100] w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-all duration-300">
+	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500">
+        <header class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
             <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-                <!-- Logo -->
-                <a href={`/${lang}`} class="flex items-center gap-3 group no-underline shrink-0">
-                    <div class="relative w-10 h-10 flex items-center justify-center">
-                        <div class="absolute inset-0 bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45"></div>
-                        <svg class="relative w-5 h-5 text-emerald-500 dark:text-emerald-400 z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
+                <!-- Logo Research Lab Edition -->
+                <a href={`/${lang}`} class="flex items-center gap-4 group no-underline">
+                    <div class="relative w-12 h-12 flex items-center justify-center">
+                        <!-- Hexágono de Fondo -->
+                        <div class="absolute inset-0 bg-slate-900 dark:bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700 shadow-[0_0_15px_rgba(16,185,129,0.2)]"></div>
+                        
+                        <!-- Poké-Core SVG -->
+                        <svg class="relative w-6 h-6 text-emerald-500 dark:text-emerald-400 z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M2 12h20"/>
+                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                            <path d="M12 2a10 10 0 0 1 10 10" class="opacity-30 group-hover:opacity-100 group-hover:animate-pulse transition-opacity"/>
                         </svg>
                     </div>
+
                     <div class="flex flex-col">
                         <div class="flex items-baseline gap-0.5">
-                            <span class="text-xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
-                            <span class="text-xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
+                            <span class="text-3xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
+                            <span class="text-3xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span class="text-[9px] font-mono font-bold text-slate-400 dark:text-slate-500 tracking-[0.2em] uppercase">
+                                {lang === 'es' ? '[ ESTADO_DEX: ACTIVO • GEN_IX ]' : '[ DEX_STATUS: ACTIVE • GEN_IX ]'}
+                            </span>
                         </div>
                     </div>
                 </a>
                 
-                <div class="flex items-center gap-3">
-                    <button id="theme-switch" class="relative inline-flex h-8 w-12 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer">
-                        <div class="absolute left-1 h-6 w-6 rounded-full bg-white dark:bg-slate-700 shadow-sm transform transition-all duration-300 flex items-center justify-center dark:translate-x-4">
-                            <svg class="h-3 w-3 text-amber-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a3 3 0 100 6 3 3 0 000-6z" /></svg>
-                            <svg class="h-3 w-3 text-emerald-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                        </div>
-                    </button>
-                    <a href={otherLangPath} class="h-8 px-3 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {otherLang}
-                    </a>
+                <div class="flex items-center gap-6">
+                    <nav class="hidden md:flex gap-8 text-sm font-bold text-slate-600 dark:text-slate-400">
+                        <a href={`/${lang}`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Pokedex</a>
+                        <a href={`/${lang}/movimientos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Movimientos</a>
+                        <a href={`/${lang}/habilidades`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Habilidades</a>
+                        <a href={`/${lang}/objetos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">{lang === 'es' ? 'Objetos' : 'Items'}</a>
+                    </nav>
+
+                    <div class="flex items-center gap-4 border-l border-slate-200 dark:border-slate-800 pl-6">
+                        <!-- SWITCH CON ICONOS SVG VISIBLES -->
+                        <button 
+                            id="theme-switch"
+                            class="relative inline-flex h-9 w-16 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer shadow-inner group"
+                            aria-label="Toggle Theme"
+                        >
+                            <div class="absolute left-1 h-7 w-7 rounded-full bg-white dark:bg-slate-700 shadow-lg transform transition-all duration-300 flex items-center justify-center z-10 dark:translate-x-7">
+                                <!-- Icono Sol -->
+                                <svg class="h-4 w-4 text-amber-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a3 3 0 100 6 3 3 0 000-6z" />
+                                </svg>
+                                <!-- Icono Luna -->
+                                <svg class="h-4 w-4 text-emerald-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            </div>
+                        </button>
+
+                        <!-- Pokémon Aleatorio -->
+                        <button 
+                            id="random-pokemon-btn"
+                            class="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group"
+                            title={lang === 'es' ? 'Pokémon Aleatorio' : 'Random Pokémon'}
+                        >
+                            <svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+                            </svg>
+                        </button>
+
+                        <a href={otherLangPath} class="h-9 px-4 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500">
+                            {otherLang}
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <main class="container mx-auto px-4 py-6 flex-grow">
+        <main class="container mx-auto px-4 py-12 flex-grow">
 		    <slot />
         </main>
 
         <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-16 mt-auto">
             <div class="container mx-auto px-4 text-center">
-                <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">© 2026 Pokepedia</p>
+                <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">
+                    © 2026 Pokepedia <span class="text-emerald-500 mx-2">•</span> Data up to Gen 9
+                </p>
+                <p class="mt-4 text-slate-500 dark:text-slate-400 text-sm">
+                    Created by <span class="text-emerald-600 dark:text-emerald-400 font-black underline decoration-emerald-500/20 underline-offset-8">Xarli11</span>
+                </p>
             </div>
         </footer>
 
@@ -114,10 +219,31 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
                     localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 };
             }
+
+            function initRandom() {
+                const btn = document.getElementById('random-pokemon-btn');
+                if (!btn) return;
+                btn.onclick = async () => {
+                    btn.disabled = true;
+                    btn.classList.add('animate-pulse', 'opacity-50');
+                    const randomId = Math.floor(Math.random() * 1025) + 1;
+                    try {
+                        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+                        const data = await res.json();
+                        window.location.href = `/${lang}/pokemon/${data.name}`;
+                    } catch (e) {
+                        btn.disabled = false;
+                        btn.classList.remove('animate-pulse', 'opacity-50');
+                    }
+                };
+            }
+
             initTheme();
-            document.addEventListener('astro:after-swap', initTheme);
+            initRandom();
+            document.addEventListener('astro:after-swap', () => {
+                initTheme();
+                initRandom();
+            });
         </script>
-        <Analytics />
-        <SpeedInsights />
 	</body>
 </html>
