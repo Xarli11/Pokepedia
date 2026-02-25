@@ -47,23 +47,17 @@ if (Astro.locals.cacheControl) {
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
 
-          console.log("🔍 [Pokepedia] Inicializando GA4 con ID: G-J7Z6HJMYWD");
-
-          gtag('config', 'G-J7Z6HJMYWD', {
-            'debug_mode': true,
-            'send_page_view': true,
-            'cookie_flags': 'SameSite=None;Secure'
-          });
-
-          // Rastrear navegación SPA de Astro
-          document.addEventListener('astro:after-swap', () => {
-            console.log("🚀 [Pokepedia] Cambio de página detectado:", window.location.pathname);
+          const initGA = () => {
             gtag('config', 'G-J7Z6HJMYWD', {
               'page_path': window.location.pathname,
               'debug_mode': true,
-              'send_page_view': true
+              'send_page_view': true,
+              'cookie_flags': 'SameSite=None;Secure'
             });
-          });
+          };
+
+          initGA();
+          document.addEventListener('astro:after-swap', initGA);
         </script>
 
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
@@ -130,11 +124,19 @@ if (Astro.locals.cacheControl) {
         }
         </script>
         
-        <script is:inline define:vars={{ lang }}>
-            const savedTheme = localStorage.getItem('theme');
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            const theme = savedTheme || systemTheme;
-            if (theme === 'dark') document.documentElement.classList.add('dark');
+        <script is:inline>
+            const applyTheme = () => {
+                const savedTheme = localStorage.getItem('theme');
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                const theme = savedTheme || systemTheme;
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            };
+            applyTheme();
+            document.addEventListener('astro:after-swap', applyTheme);
         </script>
         
         <Analytics />

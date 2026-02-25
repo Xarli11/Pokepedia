@@ -9,7 +9,7 @@ export default defineConfig({
   output: 'server',
   adapter: vercel(),
   prefetch: {
-    prefetchAll: true,
+    prefetchAll: false,
     defaultStrategy: 'hover'
   },
   integrations: [sitemap({
