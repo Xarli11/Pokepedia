@@ -46,15 +46,7 @@ if (Astro.locals.cacheControl) {
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
 
-          console.log("GA4 Debug: Initializing with ID G-J7Z6HJMYWD");
-          gtag('config', 'G-J7Z6HJMYWD', { 'debug_mode': true });
-          
-          // Evento de prueba manual
-          gtag('event', 'debug_test', {
-            'event_category': 'testing',
-            'event_label': 'manual_trigger'
-          });
-          console.log("GA4 Debug: Manual test event sent");
+          gtag('config', 'G-J7Z6HJMYWD');
         </script>
 
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
