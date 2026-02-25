@@ -107,10 +107,13 @@ const statLabels = lang === 'es'
     : ['HP', 'ATK', 'DEF', 'SP.ATK', 'SP.DEF', 'SPD'];
 
 const gridLevels = [0.25, 0.5, 0.75, 1];
+const seoTitle = lang === 'es' 
+    ? `${localizedName}: Stats, Tier Smogon y Estrategia | Pokepedia`
+    : `${localizedName}: Stats, Smogon Tier & Strategy | Pokepedia`;
 ---
 
 <Layout 
-    title={`${localizedName} | Pokepedia`} 
+    title={seoTitle} 
     description={description}
     image={detail.sprites.other["official-artwork"].front_default}
     lang={lang}
