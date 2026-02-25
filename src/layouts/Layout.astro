@@ -40,12 +40,13 @@ if (Astro.locals.cacheControl) {
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         
         <!-- Google tag (gtag.js) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
-        <script>
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
 
+          console.log("GA4 Debug: Initializing with ID G-J7Z6HJMYWD");
           gtag('config', 'G-J7Z6HJMYWD', { 'debug_mode': true });
         </script>
 
