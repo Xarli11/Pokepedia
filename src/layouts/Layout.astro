@@ -26,6 +26,11 @@ const currentSearch = Astro.url.search;
 const otherLang = lang === 'es' ? 'en' : 'es';
 let otherLangPath = currentPath.replace(`/${lang}`, `/${otherLang}`) + currentSearch;
 if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPath;
+
+// Aplicar caché si está disponible en locals
+if (Astro.locals.cacheControl) {
+    Astro.response.headers.set('Cache-Control', Astro.locals.cacheControl);
+}
 ---
 
 <!doctype html>
