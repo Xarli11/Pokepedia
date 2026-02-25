@@ -76,12 +76,12 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta name="twitter:image:alt" content={title} />
         
         <!-- Structured Data (Schema.org) -->
-        <script type="application/ld+json" is:inline define:vars={{ siteUrl }}>
+        <script type="application/ld+json" is:inline>
         {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           "name": "Pokepedia",
-          "url": siteUrl,
+          "url": "https://pokepedia.app",
           "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
           "applicationCategory": "GameApplication",
           "operatingSystem": "Any",
