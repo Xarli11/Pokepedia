@@ -32,6 +32,17 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        
+        <!-- Google tag (gtag.js) -->
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-J7Z6HJMYWD');
+        </script>
+
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
         <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
         <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
