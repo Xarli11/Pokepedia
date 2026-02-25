@@ -39,28 +39,6 @@ if (Astro.locals.cacheControl) {
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         
-        <!-- Google tag (gtag.js) -->
-        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
-        <script is:inline>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-
-          gtag('config', 'G-J7Z6HJMYWD', {
-            'send_page_view': true,
-            'debug_mode': true
-          });
-
-          // Rastrear cambios de página en Astro
-          document.addEventListener('astro:after-swap', () => {
-            gtag('config', 'G-J7Z6HJMYWD', {
-              'page_path': window.location.pathname,
-              'send_page_view': true,
-              'debug_mode': true
-            });
-          });
-        </script>
-
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
         <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
         <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
@@ -279,6 +257,29 @@ if (Astro.locals.cacheControl) {
                 initTheme();
                 initRandom();
             });
+        </script>
+
+        <!-- Google Analytics 4 (GA4) Integration -->
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          // Configuración inicial
+          gtag('config', 'G-J7Z6HJMYWD', {
+            'debug_mode': true,
+            'send_page_view': true
+          });
+
+          // Soporte para transiciones de Astro (SPA-like navigation)
+          document.addEventListener('astro:after-swap', () => {
+            gtag('config', 'G-J7Z6HJMYWD', {
+              'page_path': window.location.pathname,
+              'debug_mode': true,
+              'send_page_view': true
+            });
+          });
         </script>
 	</body>
 </html>
