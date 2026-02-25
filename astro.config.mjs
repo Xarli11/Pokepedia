@@ -8,13 +8,8 @@ export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
   adapter: vercel(),
-  prefetch: {
-    prefetchAll: false,
-    defaultStrategy: 'hover'
-  },
   integrations: [sitemap({
     serialize(item) {
-      // Priorizar el idioma español para Google
       if (item.url.includes('/es')) {
         item.priority = 0.9;
       }
