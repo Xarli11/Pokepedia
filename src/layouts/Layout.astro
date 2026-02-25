@@ -47,14 +47,16 @@ if (Astro.locals.cacheControl) {
           gtag('js', new Date());
 
           gtag('config', 'G-J7Z6HJMYWD', {
-            'send_page_view': true
+            'send_page_view': true,
+            'debug_mode': true
           });
 
           // Rastrear cambios de página en Astro
           document.addEventListener('astro:after-swap', () => {
             gtag('config', 'G-J7Z6HJMYWD', {
               'page_path': window.location.pathname,
-              'send_page_view': true
+              'send_page_view': true,
+              'debug_mode': true
             });
           });
         </script>
