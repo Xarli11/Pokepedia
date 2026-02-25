@@ -208,26 +208,26 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
             await Promise.all(currentMoves.map(async m => {
                 const info = await fetchMoveInfo(m.url, lang);
                 if (info && tableBody) {
-                    const names = tableBody.querySelectorAll(\`[data-move-url="${m.url}"]\`);
-                    const descs = tableBody.querySelectorAll(\`[data-move-desc-url="${m.url}"]\`);
-                    const cats = tableBody.querySelectorAll(\`[data-move-cat-url="${m.url}"]\`);
-                    const priorities = tableBody.querySelectorAll(\`[data-move-priority-url="${m.url}"]\`);
+                    const names = tableBody.querySelectorAll(`[data-move-url="${m.url}"]`);
+                    const descs = tableBody.querySelectorAll(`[data-move-desc-url="${m.url}"]`);
+                    const cats = tableBody.querySelectorAll(`[data-move-cat-url="${m.url}"]`);
+                    const priorities = tableBody.querySelectorAll(`[data-move-priority-url="${m.url}"]`);
 
                     names.forEach(n => { n.textContent = info.name; });
                     descs.forEach(d => { d.textContent = info.description; });
                     
                     cats.forEach(c => { 
                         c.textContent = info.category;
-                        c.className = \`category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm \${
+                        c.className = `category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm ${
                             info.category === 'physical' ? 'bg-red-500' : 
                             info.category === 'special' ? 'bg-blue-500' : 'bg-slate-400'
-                        }\`;
+                        }`;
                     });
 
                     priorities.forEach(p => {
                         const prio = info.priority;
-                        p.textContent = \`\${prio > 0 ? '+' : ''}\${prio}\`;
-                        p.className = \`px-4 py-6 font-mono text-xs \${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}\`;
+                        p.textContent = `${prio > 0 ? '+' : ''}${prio}`;
+                        p.className = `px-4 py-6 font-mono text-xs ${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}`;
                     });
                 }
             }));
