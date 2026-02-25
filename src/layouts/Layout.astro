@@ -31,8 +31,18 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 <html lang={lang} prefix="og: https://ogp.me/ns#">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         
+        <!-- Google tag (gtag.js) -->
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-J7Z6HJMYWD');
+        </script>
+
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
         <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
         <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
@@ -104,12 +114,12 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
             if (theme === 'dark') document.documentElement.classList.add('dark');
         </script>
 	</head>
-	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500 overflow-x-hidden">
-        <header class="sticky top-0 z-[100] w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transition-all duration-300">
+	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500">
+        <header class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
             <div class="container mx-auto px-4 py-3 flex items-center justify-between">
                 <!-- Logo Research Lab Edition -->
                 <a href={`/${lang}`} class="flex items-center gap-2 sm:gap-4 group no-underline shrink-0">
-                    <div class="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center overflow-hidden rounded-xl">
+                    <div class="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
                         <!-- Hexágono de Fondo -->
                         <div class="absolute inset-0 bg-slate-100 dark:bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700 shadow-[0_0_15px_rgba(16,185,129,0.1)]"></div>
                         
@@ -231,15 +241,6 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
                 initTheme();
                 initRandom();
             });
-        </script>
-        
-        <!-- Scripts y Analytics al final -->
-        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
-        <script is:inline>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'G-J7Z6HJMYWD');
         </script>
         <Analytics />
         <SpeedInsights />
