@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import Analytics from '@vercel/analytics/astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
 
 interface Props {
 	title?: string;
@@ -53,27 +55,6 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
         <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
 
-        <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={Astro.url} />
-        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
-        <meta property="og:description" content={description} />
-        <meta property="og:image" content={finalImageUrl} />
-        <meta property="og:image:secure_url" content={finalImageUrl} />
-        <meta property="og:image:alt" content={title} />
-        <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:site_name" content="Pokepedia Research Lab" />
-
-        <!-- Twitter -->
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={Astro.url} />
-        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={finalImageUrl} />
-        <meta name="twitter:image:alt" content={title} />
-        
         <script is:inline define:vars={{ lang }}>
             const savedTheme = localStorage.getItem('theme');
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -81,55 +62,47 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
             if (theme === 'dark') document.documentElement.classList.add('dark');
         </script>
 	</head>
-	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500 overflow-x-hidden">
-        <header class="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-            <div class="container mx-auto px-4 py-4 flex items-center justify-between">
-                <!-- Logo Research Lab Edition -->
-                <a href={`/${lang}`} class="flex items-center gap-3 group no-underline shrink-0">
-                    <div class="w-10 h-10 flex items-center justify-center bg-emerald-500/10 rounded-xl border-2 border-emerald-500">
-                        <svg class="w-6 h-6 text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M2 12h20"/>
-                            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col overflow-x-hidden">
+        <header class="sticky top-0 z-[100] w-full bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 transform-gpu">
+            <div class="container mx-auto px-4 py-3 flex items-center justify-between" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
+                <!-- Logo Restaurado pero sin sombras conflictivas -->
+                <a href={`/${lang}`} class="flex items-center gap-2 sm:gap-4 group no-underline shrink-0">
+                    <div class="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                        <div class="absolute inset-0 bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700"></div>
+                        <svg class="relative w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 dark:text-emerald-400 z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
                         </svg>
                     </div>
 
                     <div class="flex flex-col">
                         <div class="flex items-baseline gap-0.5">
-                            <span class="text-xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
-                            <span class="text-xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
+                            <span class="text-xl sm:text-3xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
+                            <span class="text-xl sm:text-3xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
                         </div>
                     </div>
                 </a>
                 
-                <div class="flex items-center gap-2">
-                    <button 
-                        id="theme-switch"
-                        class="relative inline-flex h-8 w-12 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer"
-                        aria-label="Toggle Theme"
-                    >
-                        <div class="absolute left-1 h-6 w-6 rounded-full bg-white dark:bg-slate-700 shadow-sm transform transition-all duration-300 flex items-center justify-center dark:translate-x-4">
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <button id="theme-switch" class="relative inline-flex h-8 w-12 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer shadow-inner">
+                        <div class="absolute left-1 h-6 w-6 rounded-full bg-white dark:bg-slate-700 shadow-lg transform transition-all duration-300 flex items-center justify-center z-10 dark:translate-x-4">
                             <svg class="h-3 w-3 text-amber-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a3 3 0 100 6 3 3 0 000-6z" /></svg>
                             <svg class="h-3 w-3 text-emerald-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
                         </div>
                     </button>
-
-                    <a href={otherLangPath} class="h-8 px-3 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-500 transition-colors">
+                    <a href={otherLangPath} class="h-8 px-3 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500 hover:text-white">
                         {otherLang}
                     </a>
                 </div>
             </div>
         </header>
 
-        <main class="container mx-auto px-4 py-8 flex-grow">
+        <main class="container mx-auto px-4 py-8 flex-grow transform-gpu">
 		    <slot />
         </main>
 
         <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-16 mt-auto">
             <div class="container mx-auto px-4 text-center">
-                <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">
-                    © 2026 Pokepedia
-                </p>
+                <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">© 2026 Pokepedia</p>
             </div>
         </footer>
 
@@ -142,31 +115,10 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
                     localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 };
             }
-
-            function initRandom() {
-                const btn = document.getElementById('random-pokemon-btn');
-                if (!btn) return;
-                btn.onclick = async () => {
-                    btn.disabled = true;
-                    btn.classList.add('animate-pulse', 'opacity-50');
-                    const randomId = Math.floor(Math.random() * 1025) + 1;
-                    try {
-                        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-                        const data = await res.json();
-                        window.location.href = `/${lang}/pokemon/${data.name}`;
-                    } catch (e) {
-                        btn.disabled = false;
-                        btn.classList.remove('animate-pulse', 'opacity-50');
-                    }
-                };
-            }
-
             initTheme();
-            initRandom();
-            document.addEventListener('astro:after-swap', () => {
-                initTheme();
-                initRandom();
-            });
+            document.addEventListener('astro:after-swap', initTheme);
         </script>
+        <Analytics />
+        <SpeedInsights />
 	</body>
 </html>

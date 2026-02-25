@@ -5,7 +5,6 @@
   --color-emerald-400: #34d399;
 }
 
-/* Configuración de Modo Oscuro por Clase para Tailwind v4 */
 @variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -15,22 +14,31 @@
 }
 
 .dark {
-  --bg-main: #0f172a; /* Slate 900: Gris azulado profundo */
-  --bg-card: #1e293b; /* Slate 800: Gris azulado más claro para tarjetas */
+  --bg-main: #020617; /* Slate 950 */
+  --bg-card: #1e293b; 
   color-scheme: dark;
+}
+
+/* Forzar el color de fondo en el HTML para evitar huecos negros en iOS */
+html {
+  background-color: #f8fafc;
+}
+
+.dark html {
+  background-color: #020617;
 }
 
 body {
   background-color: var(--bg-main);
   color: #1e293b;
-  transition: background-color 0.5s ease, color 0.5s ease;
+  /* Eliminada la transición del body para evitar parpadeos negros en Safari */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
-/* Optimización para scroll en dispositivos móviles y escritorio */
 * {
   -webkit-tap-highlight-color: transparent;
 }
