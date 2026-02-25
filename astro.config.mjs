@@ -8,7 +8,15 @@ export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
   adapter: vercel(),
-  integrations: [sitemap()],
+  integrations: [sitemap({
+    serialize(item) {
+      // Priorizar el idioma español para Google
+      if (item.url.includes('/es')) {
+        item.priority = 0.9;
+      }
+      return item;
+    },
+  })],
   vite: {
     plugins: [tailwindcss()]
   }
