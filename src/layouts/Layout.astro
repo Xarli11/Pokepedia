@@ -1,7 +1,5 @@
 ---
 import '../styles/global.css';
-import Analytics from '@vercel/analytics/astro';
-import SpeedInsights from '@vercel/speed-insights/astro';
 
 interface Props {
 	title?: string;
@@ -36,8 +34,6 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <link rel="preconnect" href="https://pokeapi.co" crossorigin>
         <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
         <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
-        <link rel="dns-prefetch" href="https://pokeapi.co">
-        <link rel="dns-prefetch" href="https://play.pokemonshowdown.com">
         
         <link rel="icon" type="image/png" href="/pokeball.png?v=1">
         <link rel="shortcut icon" href="/pokeball.png?v=1">
@@ -78,25 +74,6 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta name="twitter:image" content={finalImageUrl} />
         <meta name="twitter:image:alt" content={title} />
         
-        <!-- Structured Data (Schema.org) -->
-        <script type="application/ld+json" is:inline>
-        {
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          "name": "Pokepedia",
-          "url": "https://pokepedia.app",
-          "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
-          "applicationCategory": "GameApplication",
-          "operatingSystem": "Any",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "featureList": "Competitive integration, Smogon Tiers, Technical Stats, Evolutionary Chains, Move & Ability Dex"
-        }
-        </script>
-        
         <script is:inline define:vars={{ lang }}>
             const savedTheme = localStorage.getItem('theme');
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -105,11 +82,11 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         </script>
 	</head>
 	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500 overflow-x-hidden">
-        <header class="sticky top-0 z-50 w-full bg-white/98 dark:bg-slate-950/98 border-b border-slate-200 dark:border-slate-800 transition-all duration-300">
-            <div class="container mx-auto px-4 py-3 flex items-center justify-between" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
-                <!-- Logo Simple (Sin hexágonos absolutos para evitar bugs de GPU) -->
+        <header class="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+            <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+                <!-- Logo Research Lab Edition -->
                 <a href={`/${lang}`} class="flex items-center gap-3 group no-underline shrink-0">
-                    <div class="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-emerald-500/10 rounded-xl border-2 border-emerald-500">
+                    <div class="w-10 h-10 flex items-center justify-center bg-emerald-500/10 rounded-xl border-2 border-emerald-500">
                         <svg class="w-6 h-6 text-emerald-500 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M2 12h20"/>
@@ -119,33 +96,27 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 
                     <div class="flex flex-col">
                         <div class="flex items-baseline gap-0.5">
-                            <span class="text-xl sm:text-2xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
-                            <span class="text-xl sm:text-2xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
+                            <span class="text-xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
+                            <span class="text-xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
                         </div>
                     </div>
                 </a>
                 
-                <div class="flex items-center gap-2 sm:gap-4">
-                    <div class="flex items-center gap-2 border-slate-200 dark:border-slate-800">
-                        <button 
-                            id="theme-switch"
-                            class="relative inline-flex h-8 w-12 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer"
-                            aria-label="Toggle Theme"
-                        >
-                            <div class="absolute left-1 h-6 w-6 rounded-full bg-white dark:bg-slate-700 shadow-sm transform transition-all duration-300 flex items-center justify-center dark:translate-x-4">
-                                <svg class="h-3 w-3 text-amber-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a3 3 0 100 6 3 3 0 000-6z" /></svg>
-                                <svg class="h-3 w-3 text-emerald-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                            </div>
-                        </button>
+                <div class="flex items-center gap-2">
+                    <button 
+                        id="theme-switch"
+                        class="relative inline-flex h-8 w-12 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors cursor-pointer"
+                        aria-label="Toggle Theme"
+                    >
+                        <div class="absolute left-1 h-6 w-6 rounded-full bg-white dark:bg-slate-700 shadow-sm transform transition-all duration-300 flex items-center justify-center dark:translate-x-4">
+                            <svg class="h-3 w-3 text-amber-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a3 3 0 100 6 3 3 0 000-6z" /></svg>
+                            <svg class="h-3 w-3 text-emerald-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                        </div>
+                    </button>
 
-                        <button id="random-pokemon-btn" class="h-8 w-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 transition-colors">
-                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>
-                        </button>
-
-                        <a href={otherLangPath} class="h-8 px-3 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-500 transition-colors">
-                            {otherLang}
-                        </a>
-                    </div>
+                    <a href={otherLangPath} class="h-8 px-3 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-500 transition-colors">
+                        {otherLang}
+                    </a>
                 </div>
             </div>
         </header>
@@ -157,7 +128,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-16 mt-auto">
             <div class="container mx-auto px-4 text-center">
                 <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">
-                    © 2026 Pokepedia <span class="text-emerald-500 mx-2">•</span> Data up to Gen 9
+                    © 2026 Pokepedia
                 </p>
             </div>
         </footer>
@@ -197,16 +168,5 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
                 initRandom();
             });
         </script>
-        
-        <!-- Scripts y Analytics al final -->
-        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
-        <script is:inline>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'G-J7Z6HJMYWD');
-        </script>
-        <Analytics />
-        <SpeedInsights />
 	</body>
 </html>

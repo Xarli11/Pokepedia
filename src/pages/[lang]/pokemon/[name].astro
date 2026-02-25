@@ -18,7 +18,6 @@ try {
 
 const { detail, species } = pokemonData;
 
-// Obtener variedades (Formas alternativas como Megas, G-Max)
 const varieties = await Promise.all(
     species.varieties
         .filter((v: any) => !v.is_default)
@@ -28,7 +27,6 @@ const varieties = await Promise.all(
         })
 );
 
-// Obtener cadena evolutiva y traducciones en paralelo
 const [evolutionChain, abilitiesWithTranslation] = await Promise.all([
     getEvolutionChain(species.evolution_chain.url),
     Promise.all(
@@ -55,11 +53,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = getLocalizedName(species.names, lang as string) || species.name;
 let localizedName = speciesName;
 
-// Si el nombre del detalle no es el mismo que el de la especie, es una variedad
 if (detail.name !== species.name) {
     const suffix = detail.name.replace(species.name, '').replace(/-/g, ' ').trim();
     if (suffix) {
-        // Formatear sufijos comunes
         const suffixMap: Record<string, string> = {
             'gmax': lang === 'es' ? 'Gigamax' : 'G-Max',
             'mega': 'Mega',
@@ -68,7 +64,9 @@ if (detail.name !== species.name) {
             'hisui': 'Hisui',
             'paldea': 'Paldea',
             'mega x': 'Mega X',
-            'mega y': 'Mega Y'
+            'mega y': 'Mega Y',
+            'primal': lang === 'es' ? 'Primigenio' : 'Primal',
+            'origin': lang === 'es' ? 'Origen' : 'Origin'
         };
         const prettySuffix = suffixMap[suffix.toLowerCase()] || formatName(suffix);
         localizedName = `${speciesName} (${prettySuffix})`;
@@ -89,10 +87,9 @@ const getStatColor = (baseStat: number) => {
 
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
-// Lógica para el gráfico de radar (SVG)
 const statsValues = detail.stats.map(s => s.base_stat);
 const angleStep = (Math.PI * 2) / 6;
-const radius = 80; // Reducido un poco para dejar espacio a etiquetas
+const radius = 80;
 const center = 125;
 
 const points = statsValues.map((stat, i) => {
@@ -118,31 +115,29 @@ const seoTitle = lang === 'es'
 >
     <div class="max-w-5xl mx-auto">
         <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
-            <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             {t.back_to_pokedex}
         </a>
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-12">
-            <!-- Columna Izquierda: Imagen y Info Básica -->
             <div class="md:col-span-5 flex flex-col items-center">
-                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8 transition-colors duration-300 group/image">
+                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8 transition-colors duration-300">
                     <img 
                         id="pokemon-image"
                         src={detail.sprites.other["official-artwork"].front_default} 
                         data-default={detail.sprites.other["official-artwork"].front_default}
                         data-shiny={detail.sprites.other["official-artwork"].front_shiny}
                         alt={localizedName}
-                        class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500"
+                        class="w-full h-full object-contain transition-all duration-500"
                     />
                     <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(detail.id)}</span>
                     
-                    <!-- Interruptor Shiny -->
                     <button 
                         id="shiny-toggle"
-                        class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-amber-500 transition-all hover:scale-110 group/shiny"
+                        class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-amber-500 transition-all"
                         title={lang === 'es' ? 'Ver forma Variocolor' : 'View Shiny version'}
                     >
-                        <svg class="w-6 h-6 group-[.active]:fill-amber-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                         </svg>
                     </button>
@@ -185,7 +180,6 @@ const seoTitle = lang === 'es'
                 </div>
             </div>
 
-            <!-- Columna Derecha: Nombre, Lore y Stats -->
             <div class="md:col-span-7 space-y-12">
                 <div>
                     <div class="flex flex-wrap items-center gap-4 mb-6">
@@ -199,19 +193,6 @@ const seoTitle = lang === 'es'
                                 </span>
                             ))}
                         </div>
-                        
-                        <a 
-                            href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${detail.name}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.1em] hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-sm flex items-center gap-2 group"
-                        >
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                {lang === 'es' ? 'Tabla de Efectividad' : 'Effectiveness Table'}
-                            </span>
-                            <svg class="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                        </a>
                     </div>
                     <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
                     <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">
@@ -219,7 +200,6 @@ const seoTitle = lang === 'es'
                     </p>
                 </div>
 
-                <!-- Stats -->
                 <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300 mb-12">
                     <div class="flex justify-between items-center mb-10">
                         <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.base_stats}</h3>
@@ -230,10 +210,8 @@ const seoTitle = lang === 'es'
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-                        <!-- Radar Chart -->
                         <div class="lg:col-span-5 relative flex justify-center">
-                            <svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">
-                                <!-- Grid -->
+                            <svg viewBox="0 0 250 250" class="w-full max-w-[280px] overflow-visible">
                                 {gridLevels.map(level => (
                                     <polygon 
                                         points={Array.from({length: 6}).map((_, i) => {
@@ -246,47 +224,20 @@ const seoTitle = lang === 'es'
                                         stroke-width="1"
                                     />
                                 ))}
-                                <!-- Axis -->
-                                {Array.from({length: 6}).map((_, i) => (
-                                    <line 
-                                        x1={center} y1={center}
-                                        x2={center + radius * Math.sin(i * angleStep)}
-                                        y2={center - radius * Math.cos(i * angleStep)}
-                                        class="stroke-slate-200 dark:stroke-slate-800"
-                                        stroke-width="1"
-                                    />
-                                ))}
-                                <!-- Labels -->
                                 {statLabels.map((label, i) => {
-                                    const r = radius + 25; // Distancia de la etiqueta
+                                    const r = radius + 25;
                                     const x = center + r * Math.sin(i * angleStep);
                                     const y = center - r * Math.cos(i * angleStep);
                                     return (
-                                        <text 
-                                            x={x} y={y} 
-                                            text-anchor="middle" 
-                                            dominant-baseline="middle"
-                                            class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter"
-                                        >
+                                        <text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">
                                             {label}
                                         </text>
                                     );
                                 })}
-                                <!-- Area -->
-                                <polygon 
-                                    points={points}
-                                    class="fill-emerald-500/20 stroke-emerald-500"
-                                    stroke-width="3"
-                                    stroke-linejoin="round"
-                                />
-                                <!-- Points -->
-                                {points.split(' ').map(p => (
-                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
-                                ))}
+                                <polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" />
                             </svg>
                         </div>
 
-                        <!-- Stats Bars -->
                         <div class="lg:col-span-7 space-y-4">
                             {detail.stats.map(s => {
                             const percentage = (s.base_stat / 255) * 100;
@@ -298,10 +249,7 @@ const seoTitle = lang === 'es'
                                         <span class="text-slate-900 dark:text-white">{s.base_stat}</span>
                                     </div>
                                     <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                        <div 
-                                            class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`}
-                                            style={`width: ${percentage}%`}
-                                        ></div>
+                                        <div class={`h-full rounded-full bg-gradient-to-r ${colorClass}`} style={`width: ${percentage}%`}></div>
                                     </div>
                                 </div>
                             );
@@ -309,39 +257,12 @@ const seoTitle = lang === 'es'
                         </div>
                     </div>
                 </div>
-
-                <!-- Formas Alternativas (Megas, G-Max) -->
-                {varieties.length > 0 && (
-                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">{t.other_forms}</h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                            {varieties.map(v => (
-                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all group no-underline">
-                                    <img src={v.sprites.other["official-artwork"].front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
-                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{v.name.replace(/-/g, ' ')}</span>
-                                    <div class="flex gap-1.5 mt-3">
-                                        {v.types.map((t: any) => (
-                                            <div class="w-2.5 h-2.5 rounded-full shadow-sm" style={`background-color: ${typeColors[t.type.name]}`}></div>
-                                        ))}
-                                    </div>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
 
-        <!-- Cadena Evolutiva -->
         <EvolutionChain chain={evolutionChain} lang={lang as string} />
-
-        <!-- Guía de Localización -->
         <LocationGuide pokemonId={detail.id} lang={lang as string} />
-
-        <!-- Análisis Competitivo -->
         <CompetitiveSets pokemonName={detail.name} lang={lang as string} />
-
-        <!-- Tabla de Movimientos -->
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 
