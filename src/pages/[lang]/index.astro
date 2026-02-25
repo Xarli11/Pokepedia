@@ -50,7 +50,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         
         <div class="flex flex-wrap gap-4 justify-center mt-10">
              <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-2.5 flex gap-4 items-center shadow-sm transition-colors">
-                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-r border-slate-100 dark:border-slate-700 pr-4">Región</span>
+                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-r border-slate-100 dark:border-slate-700 pr-4">{t.region}</span>
                 <select id="gen-selector" class="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-emerald-500 transition-colors">
                     {Object.entries(GENERATIONS).map(([key, value]) => (
                         <option value={key} selected={gen === key} class="dark:bg-slate-800">
@@ -112,10 +112,10 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                                 <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
                             </div>
                             <div class="flex flex-col">
-                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'Forma Especial' : 'Special Form') : '#' + p.id.toString().padStart(4, '0')}</span>
+                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? uiTranslations[lang].special_form : '#' + p.id.toString().padStart(4, '0')}</span>
                                 <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Ver Ficha →</span>
+                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
                         </a>
                     `}).join('');
                     suggestionsContainer.classList.remove('hidden');

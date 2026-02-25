@@ -102,9 +102,7 @@ const points = statsValues.map((stat, i) => {
     return `${x},${y}`;
 }).join(' ');
 
-const statLabels = lang === 'es' 
-    ? ['PS', 'ATQ', 'DEF', 'AT.ESP', 'DF.ESP', 'VEL']
-    : ['HP', 'ATK', 'DEF', 'SP.ATK', 'SP.DEF', 'SPD'];
+const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 
 const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es' 
@@ -226,7 +224,7 @@ const seoTitle = lang === 'es'
                     <div class="flex justify-between items-center mb-10">
                         <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.base_stats}</h3>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total</span>
+                            <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.total}</span>
                             <span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span>
                         </div>
                     </div>
@@ -315,7 +313,7 @@ const seoTitle = lang === 'es'
                 <!-- Formas Alternativas (Megas, G-Max) -->
                 {varieties.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">Otras Formas</h3>
+                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map(v => (
                                 <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all group no-underline">
