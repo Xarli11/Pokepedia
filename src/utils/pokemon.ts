@@ -126,7 +126,8 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_no_abilities': 'No se han encontrado habilidades competitivas para este Pokémon.',
         'comp_error': 'Error al conectar con los servidores competitivos.',
         'comp_smogon_link': 'Abrir Estrategia en Smogon',
-        'comp_meta_desc': 'Este Pokémon se sitúa en {tier}. Sus habilidades más efectivas para el juego competitivo son: {abilities}.'
+        'comp_meta_desc': 'Este Pokémon se sitúa en {tier}. Sus habilidades más efectivas para el juego competitivo son: {abilities}.',
+        'support_project': '¿Te gusta Pokepedia? Invítame a un café'
     },
     en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -210,7 +211,8 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_no_abilities': 'No competitive abilities found for this Pokémon.',
         'comp_error': 'Error connecting to competitive servers.',
         'comp_smogon_link': 'Open Smogon Strategy',
-        'comp_meta_desc': 'This Pokémon is ranked in {tier}. Its most effective abilities for competitive play are: {abilities}.'
+        'comp_meta_desc': 'This Pokémon is ranked in {tier}. Its most effective abilities for competitive play are: {abilities}.',
+        'support_project': 'Enjoying Pokepedia? Buy me a coffee'
     }
 };
 
