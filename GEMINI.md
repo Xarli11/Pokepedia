@@ -29,6 +29,7 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
     6. Mergear `release` a `main`.
     7. Generar **Tag de Release** en `main`.
     8. **Hacer PUSH de todo** (ramas y tags) al finalizar cada fase.
+    9. **NUNCA eliminar ninguna rama**, ya sea local o remota. Se deben conservar todas para el historial del proyecto.
 
 ## 🛠️ Tareas en Proceso (Sesión Actual)
 - [x] Refinamiento de metadatos técnicos en movimientos (Prioridad y Categorías).

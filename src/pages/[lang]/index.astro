@@ -42,7 +42,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         </div>
 
         <!-- Resultados Autocomplete -->
-        <div id="search-suggestions" class="hidden absolute top-full left-0 right-0 mt-4 bg-white dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-700 shadow-2xl overflow-hidden z-50 max-h-[450px] overflow-y-auto backdrop-blur-xl transition-all">
+        <div id="search-suggestions" class="hidden absolute top-full left-0 right-0 mt-4 bg-white/95 dark:bg-slate-800/95 rounded-[2rem] border border-slate-100 dark:border-slate-700 shadow-2xl overflow-hidden z-[100] max-h-[450px] overflow-y-auto backdrop-blur-xl transition-all">
             <div id="suggestions-list" class="divide-y divide-slate-50 dark:divide-slate-700/50">
                 <!-- JS -->
             </div>
@@ -166,6 +166,11 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         searchInput.addEventListener('input', handleSearch);
+        searchInput.addEventListener('focus', () => {
+            if (normalize(searchInput.value).length >= 2) {
+                suggestionsContainer.classList.remove('hidden');
+            }
+        });
 
         // Tecla Enter para ir al primer resultado
         searchInput.addEventListener('keydown', (e) => {
