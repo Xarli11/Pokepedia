@@ -18,15 +18,17 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Pokémon Aleatorio**: Botón de dados premium con animación.
 - [x] **Gráficos de Radar**: Visualización SVG de estadísticas base.
 
-## ⚙️ Normas de Trabajo y GitFlow
+## ⚙️ Normas de Trabajo y GitFlow (OBLIGATORIO SIN EXCEPCIÓN)
 - **Commits**: Usar siempre **Conventional Commits** (feat, fix, docs, style, refactor, perf, test, chore).
-- **Flujo de Trabajo (GitFlow)**:
+- **Flujo de Trabajo (GitFlow ESTRICTO)**: Siempre, siempre, siempre se debe seguir este flujo para cualquier modificación:
     1. Crear rama `feature/[nombre]` desde `develop`.
     2. Probar cambios localmente.
-    3. Tras confirmación del usuario, mergear a `develop`.
-    4. Crear rama `release/[versión]` desde `develop`.
-    5. Mergear `release` a `main`.
-    6. Generar **Tag de Release** en `main`.
+    3. **Hacer PUSH de la rama feature**.
+    4. Tras mi confirmación explícita, mergear a `develop`.
+    5. Crear rama `release/[versión]` desde `develop`.
+    6. Mergear `release` a `main`.
+    7. Generar **Tag de Release** en `main`.
+    8. **Hacer PUSH de todo** (ramas y tags) al finalizar cada fase.
 
 ## 🛠️ Tareas en Proceso (Sesión Actual)
 - [x] Refinamiento de metadatos técnicos en movimientos (Prioridad y Categorías).
