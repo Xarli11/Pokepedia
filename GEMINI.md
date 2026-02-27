@@ -6,6 +6,7 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 ## ✅ Tareas Completadas
 - [x] **Arquitectura**: Astro SSR con adaptador de Node para escalabilidad infinita.
 - [x] **Diseño**: Tema "Verde Esmeralda" con Modo Oscuro Premium (Gris Azulado `slate-800/900`).
+- [x] **SEO & Social**: Configuración de `site` para URLs absolutas y Meta Tags optimizados para Discord (Large Images).
 - [x] **Buscador Global**: Sugerencias en tiempo real para las 1025 especies (filtrando variantes estéticas).
 - [x] **Pokedex**: Detalle con stats coloreadas (Semáforo), habilidades traducidas y evolución recursiva avanzada (maneja casos como Eevee o Inkay).
 - [x] **Sección de Movimientos**: Tabla técnica con filtros, Prioridad, Categorías visuales (Físico/Especial/Estado) y búsqueda en español.
@@ -17,15 +18,17 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Pokémon Aleatorio**: Botón de dados premium con animación.
 - [x] **Gráficos de Radar**: Visualización SVG de estadísticas base.
 
-## ⚙️ Normas de Trabajo y GitFlow
+## ⚙️ Normas de Trabajo y GitFlow (OBLIGATORIO SIN EXCEPCIÓN)
 - **Commits**: Usar siempre **Conventional Commits** (feat, fix, docs, style, refactor, perf, test, chore).
-- **Flujo de Trabajo (GitFlow)**:
+- **Flujo de Trabajo (GitFlow ESTRICTO)**: Siempre, siempre, siempre se debe seguir este flujo para cualquier modificación:
     1. Crear rama `feature/[nombre]` desde `develop`.
     2. Probar cambios localmente.
-    3. Tras confirmación del usuario, mergear a `develop`.
-    4. Crear rama `release/[versión]` desde `develop`.
-    5. Mergear `release` a `main`.
-    6. Generar **Tag de Release** en `main`.
+    3. **Hacer PUSH de la rama feature**.
+    4. Tras mi confirmación explícita, mergear a `develop`.
+    5. Crear rama `release/[versión]` desde `develop`.
+    6. Mergear `release` a `main`.
+    7. Generar **Tag de Release** en `main`.
+    8. **Hacer PUSH de todo** (ramas y tags) al finalizar cada fase.
 
 ## 🛠️ Tareas en Proceso (Sesión Actual)
 - [x] Refinamiento de metadatos técnicos en movimientos (Prioridad y Categorías).

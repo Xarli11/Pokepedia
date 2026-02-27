@@ -50,11 +50,11 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         
         <div class="flex flex-wrap gap-4 justify-center mt-10">
              <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-2.5 flex gap-4 items-center shadow-sm transition-colors">
-                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-r border-slate-100 dark:border-slate-700 pr-4">Región</span>
+                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-r border-slate-100 dark:border-slate-700 pr-4">{t.region}</span>
                 <select id="gen-selector" class="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-emerald-500 transition-colors">
                     {Object.entries(GENERATIONS).map(([key, value]) => (
                         <option value={key} selected={gen === key} class="dark:bg-slate-800">
-                            {value.region} ({key.replace('gen', 'G')})
+                            {value.region}
                         </option>
                     ))}
                 </select>
@@ -63,6 +63,14 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     </div>
 
     <!-- Grid -->
+    <div id="no-results" class="hidden text-center py-20">
+        <div class="inline-flex items-center justify-center w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
+            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">{lang === 'es' ? 'No se encontraron Pokémon' : 'No Pokémon found'}</h3>
+        <p class="text-slate-500 dark:text-slate-400">{lang === 'es' ? 'Intenta buscar en las sugerencias o cambiar de región.' : 'Try searching in suggestions or change region.'}</p>
+    </div>
+
     <div id="pokemon-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         {pokemonList.map((pokemon) => (
             <PokemonCard 
@@ -72,42 +80,80 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         ))}
     </div>
 
-    <script define:vars={{ allPokemon, lang }}>
+    <script define:vars={{ allPokemon, lang, uiTranslations }}>
         const searchInput = document.getElementById('global-search');
         const suggestionsContainer = document.getElementById('search-suggestions');
         const suggestionsList = document.getElementById('suggestions-list');
+        const grid = document.getElementById('pokemon-grid');
+        const noResults = document.getElementById('no-results');
         const cards = document.querySelectorAll('.pokemon-card');
         const genSelector = document.getElementById('gen-selector');
 
-        function handleSearch() {
-            const query = searchInput.value.toLowerCase().trim();
-            
-            cards.forEach(card => {
-                const name = card.getAttribute('data-name').toLowerCase();
-                const id = card.getAttribute('data-id');
-                card.style.display = (name.includes(query) || id.includes(query)) ? 'flex' : 'none';
-            });
+        const t = uiTranslations[lang] || uiTranslations.es;
 
+        let searchTimeout;
+
+        function normalize(str) {
+            return str.toLowerCase().replace(/-/g, ' ').trim();
+        }
+
+        function handleSearch() {
+            const query = normalize(searchInput.value);
+            
+            // 1. Filtrar Cuadrícula Local (Generación actual)
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                let visibleCount = 0;
+                for (let i = 0; i < cards.length; i++) {
+                    const card = cards[i];
+                    const name = normalize(card.getAttribute('data-name'));
+                    const id = card.getAttribute('data-id');
+                    const isVisible = query === '' || name.includes(query) || id.includes(query);
+                    card.style.display = isVisible ? 'flex' : 'none';
+                    if (isVisible) visibleCount++;
+                }
+                
+                // Mostrar mensaje de "sin resultados" solo si la cuadrícula está vacía y hay una búsqueda
+                if (visibleCount === 0 && query.length > 0) {
+                    grid.classList.add('hidden');
+                    noResults.classList.remove('hidden');
+                } else {
+                    grid.classList.remove('hidden');
+                    noResults.classList.add('hidden');
+                }
+            }, 50);
+
+            // 2. Sugerencias Globales (Todos los Pokémon)
             if (query.length >= 2) {
                 const matches = allPokemon
-                    .filter(p => p.name.includes(query) || p.id.toString().includes(query))
+                    .filter(p => normalize(p.name).includes(query) || p.id.toString().includes(query))
+                    .sort((a, b) => {
+                        // Priorizar coincidencias exactas o al inicio
+                        const aName = normalize(a.name);
+                        const bName = normalize(b.name);
+                        if (aName === query) return -1;
+                        if (bName === query) return 1;
+                        if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+                        if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
+                        return 0;
+                    })
                     .slice(0, 10);
 
                 if (matches.length > 0) {
                     suggestionsList.innerHTML = matches.map(p => {
-                        const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+                        const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                         const isVariety = p.id > 10000;
                         
                         return `
                         <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
                             <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
-                                <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy">
+                                <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
                             </div>
                             <div class="flex flex-col">
-                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'Forma Especial' : 'Special Form') : '#' + p.id.toString().padStart(4, '0')}</span>
+                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? t.special_form : '#' + p.id.toString().padStart(4, '0')}</span>
                                 <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">Ver Ficha →</span>
+                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
                         </a>
                     `}).join('');
                     suggestionsContainer.classList.remove('hidden');
@@ -120,6 +166,16 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         searchInput.addEventListener('input', handleSearch);
+
+        // Tecla Enter para ir al primer resultado
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const firstResult = suggestionsList.querySelector('a');
+                if (firstResult) {
+                    window.location.href = firstResult.href;
+                }
+            }
+        });
 
         document.addEventListener('click', (e) => {
             if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {

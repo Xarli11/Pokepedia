@@ -107,7 +107,27 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'special': 'Especial',
         'status': 'Estado',
         'pokemon_with_ability': 'Pokémon con esta habilidad',
-        'pokemon_with_move': 'Pokémon que aprenden este ataque'
+        'pokemon_with_move': 'Pokémon que aprenden este ataque',
+        'other_forms': 'Otras Formas',
+        'total': 'Total',
+        'stat_hp': 'PS',
+        'stat_atk': 'ATQ',
+        'stat_def': 'DEF',
+        'stat_spatk': 'AT.ESP',
+        'stat_spdef': 'DF.ESP',
+        'stat_spd': 'VEL',
+        'region': 'Región',
+        'special_form': 'Forma Especial',
+        'comp_analysis': 'Análisis Estratégico',
+        'comp_usage': 'Clasificación de Uso',
+        'comp_meta': 'Resumen de Meta',
+        'comp_effects': 'Efectos Competitivos',
+        'comp_no_data': 'Este Pokémon no tiene datos competitivos registrados en el formato actual.',
+        'comp_no_abilities': 'No se han encontrado habilidades competitivas para este Pokémon.',
+        'comp_error': 'Error al conectar con los servidores competitivos.',
+        'comp_smogon_link': 'Abrir Estrategia en Smogon',
+        'comp_meta_desc': 'Este Pokémon se sitúa en {tier}. Sus habilidades más efectivas para el juego competitivo son: {abilities}.',
+        'support_project': '¿Te gusta Pokepedia? Invítame a un café'
     },
     en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -172,7 +192,27 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'special': 'Special',
         'status': 'Status',
         'pokemon_with_ability': 'Pokémon with this ability',
-        'pokemon_with_move': 'Pokémon that learn this move'
+        'pokemon_with_move': 'Pokémon that learn this move',
+        'other_forms': 'Other Forms',
+        'total': 'Total',
+        'stat_hp': 'HP',
+        'stat_atk': 'ATK',
+        'stat_def': 'DEF',
+        'stat_spatk': 'SP.ATK',
+        'stat_spdef': 'SP.DEF',
+        'stat_spd': 'SPD',
+        'region': 'Region',
+        'special_form': 'Special Form',
+        'comp_analysis': 'Strategic Analysis',
+        'comp_usage': 'Usage Classification',
+        'comp_meta': 'Meta Summary',
+        'comp_effects': 'Competitive Effects',
+        'comp_no_data': 'No competitive data found for this Pokémon in the current format.',
+        'comp_no_abilities': 'No competitive abilities found for this Pokémon.',
+        'comp_error': 'Error connecting to competitive servers.',
+        'comp_smogon_link': 'Open Smogon Strategy',
+        'comp_meta_desc': 'This Pokémon is ranked in {tier}. Its most effective abilities for competitive play are: {abilities}.',
+        'support_project': 'Enjoying Pokepedia? Buy me a coffee'
     }
 };
 
@@ -533,6 +573,18 @@ export function formatLocationName(name: string, lang: string = 'es'): string {
 }
 
 /**
+ * Filtra objetos que no son oficiales o parecen ser datos basura de la PokeAPI.
+ */
+export function isRealItem(name: string): boolean {
+    // Filtrar objetos que empiezan con caracteres extraños o códigos alfanuméricos sospechosos
+    if (name.startsWith('★')) return false;
+    if (/^[a-z]\d+/.test(name)) return false; // ej: m12, c23...
+    if (name.includes('data-span')) return false;
+    if (name.length > 30 && /\d/.test(name)) return false; // Nombres excesivamente largos con números
+    return true;
+}
+
+/**
  * Formatea nombres de Pokémon manejando variedades (G-Max, Megas, etc.)
  */
 export function formatPokemonName(technicalName: string, speciesName: string, lang: string = 'es'): string {
@@ -559,4 +611,123 @@ export function formatPokemonName(technicalName: string, speciesName: string, la
 
     const prettySuffix = suffixMap[suffix.toLowerCase()] || suffix.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     return `${formatName(species)} (${prettySuffix})`;
+}
+
+/**
+ * Mapea el nombre técnico de PokeAPI al nombre que espera PokeTypes.
+ * Esta función asegura el 100% de compatibilidad entre ambos sistemas.
+ */
+export function getPoketypesName(name: string): string {
+    const n = name.toLowerCase();
+    
+    // 1. Mapeo de Excepciones Directas (Nombres que cambian totalmente o tienen sufijos únicos)
+    const specialMappings: Record<string, string> = {
+        'zacian-hero': 'zacian',
+        'zamazenta-hero': 'zamazenta',
+        'zygarde': 'zygarde-50',
+        'zygarde-10-power-construct': 'zygarde-10',
+        'zygarde-50-power-construct': 'zygarde-50',
+        'zygarde-complete': 'zygarde-complete',
+        'darmanitan-standard': 'darmanitan',
+        'darmanitan-zen': 'darmanitan-zen',
+        'darmanitan-galar-standard': 'darmanitan-galar',
+        'darmanitan-galar-zen': 'darmanitan-galar-zen',
+        'mimikyu-disguised': 'mimikyu',
+        'mimikyu-busted': 'mimikyu-busted',
+        'aegislash-shield': 'aegislash',
+        'aegislash-blade': 'aegislash-blade',
+        'keldeo-ordinary': 'keldeo',
+        'keldeo-resolute': 'keldeo-resolute',
+        'meloetta-aria': 'meloetta',
+        'meloetta-pirouette': 'meloetta-pirouette',
+        'toxtricity-amped': 'toxtricity',
+        'toxtricity-low-key': 'toxtricity',
+        'toxtricity-amped-gmax': 'toxtricity-gmax',
+        'toxtricity-low-key-gmax': 'toxtricity-gmax',
+        'wishiwashi-solo': 'wishiwashi',
+        'wishiwashi-school': 'wishiwashi-school',
+        'deoxys-normal': 'deoxys',
+        'deoxys-attack': 'deoxys-attack',
+        'deoxys-defense': 'deoxys-defense',
+        'deoxys-speed': 'deoxys-speed',
+        'giratina-altered': 'giratina',
+        'giratina-origin': 'giratina-origin',
+        'shaymin-land': 'shaymin',
+        'shaymin-sky': 'shaymin-sky',
+        'basculin-red-striped': 'basculin',
+        'basculin-blue-striped': 'basculin-blue-striped',
+        'basculin-white-striped': 'basculin-white-striped',
+        'basculegion-male': 'basculegion-male',
+        'basculegion-female': 'basculegion-female',
+        'enamorus-incarnate': 'enamorus',
+        'enamorus-therian': 'enamorus-therian',
+        'thundurus-incarnate': 'thundurus',
+        'thundurus-therian': 'thundurus-therian',
+        'tornadus-incarnate': 'tornadus',
+        'tornadus-therian': 'tornadus-therian',
+        'landorus-incarnate': 'landorus',
+        'landorus-therian': 'landorus-therian',
+        'pumpkaboo-average': 'pumpkaboo',
+        'pumpkaboo-small': 'pumpkaboo',
+        'pumpkaboo-large': 'pumpkaboo',
+        'pumpkaboo-super': 'pumpkaboo',
+        'gourgeist-average': 'gourgeist',
+        'gourgeist-small': 'gourgeist',
+        'gourgeist-large': 'gourgeist',
+        'gourgeist-super': 'gourgeist',
+        'oricorio-baile': 'oricorio',
+        'oricorio-pom-pom': 'oricorio-pom-pom',
+        'oricorio-pau': 'oricorio-pau',
+        'oricorio-sensu': 'oricorio-sensu',
+        'lycanroc-midday': 'lycanroc',
+        'lycanroc-midnight': 'lycanroc-midnight',
+        'lycanroc-dusk': 'lycanroc-dusk',
+        'rockruff-own-tempo': 'rockruff',
+        'urshifu-single-strike': 'urshifu',
+        'urshifu-rapid-strike': 'urshifu-rapid-strike',
+        'urshifu-single-strike-gmax': 'urshifu-gmax',
+        'urshifu-rapid-strike-gmax': 'urshifu-rapid-strike-gmax',
+        'calyrex-ice': 'calyrex-ice',
+        'calyrex-shadow': 'calyrex-shadow',
+        'maushold-family-of-four': 'maushold',
+        'maushold-family-of-three': 'maushold',
+        'dudunsparce-two-segment': 'dudunsparce',
+        'dudunsparce-three-segment': 'dudunsparce',
+        'palafin-zero': 'palafin',
+        'palafin-hero': 'palafin-hero',
+        'gimmighoul-chest': 'gimmighoul',
+        'gimmighoul-roaming': 'gimmighoul',
+        'poltchageist-counterfeit': 'poltchageist',
+        'poltchageist-artisan': 'poltchageist',
+        'sinistcha-unremarkable': 'sinistcha',
+        'sinistcha-masterpiece': 'sinistcha',
+        'squawkabilly-green-plumage': 'squawkabilly',
+        'squawkabilly-blue-plumage': 'squawkabilly-blue-plumage',
+        'squawkabilly-yellow-plumage': 'squawkabilly-yellow-plumage',
+        'squawkabilly-white-plumage': 'squawkabilly-white-plumage',
+        'tatsugiri-curly': 'tatsugiri',
+        'tatsugiri-droopy': 'tatsugiri-droopy',
+        'tatsugiri-stretchy': 'tatsugiri-stretchy',
+        'minior-red-meteor': 'minior',
+        'minior-red': 'minior'
+    };
+
+    if (specialMappings[n]) return specialMappings[n];
+
+    // 2. Limpieza de sufijos cosméticos o de estado que no alteran tipos/stats en PokeTypes
+    const genericSuffixes = [
+        '-spring', '-summer', '-autumn', '-winter', // Sawsbuck/Deerling
+        '-gulping', '-gorging', // Cramorant
+        '-hangry', // Morpeko
+        '-meteor' // Minior
+    ];
+
+    for (const suffix of genericSuffixes) {
+        if (n.endsWith(suffix)) return n.replace(suffix, '');
+    }
+
+    // 3. Manejo de formas regionales (Asegurar que mantenemos el sufijo regional)
+    // Ej: rattata-alola -> rattata-alola (PokeTypes lo encontrará por apiName)
+    
+    return n;
 }

@@ -8,17 +8,16 @@
 export async function getPokemonTier(pokemonName: string): Promise<string> {
     try {
         // Formatear nombre para Showdown (ej: mr-mime -> mrmime)
-        const formatName = pokemonName.toLowerCase().replace(/[^a-z0-0]/g, '');
+        const formatName = pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        // Simulación de consulta a datos de Showdown (en una implementación real podríamos scrapear o usar un JSON de data.pokemonshowdown.com)
-        // Por ahora, usaremos un fetch a un recurso confiable de la comunidad
+        // Consultar el pokedex.json oficial de Showdown
         const response = await fetch(`https://play.pokemonshowdown.com/data/pokedex.json`);
-        if (!response.ok) return 'N/A';
+        if (!response.ok) return 'Untiered';
         const data = await response.json();
         
-        return data[formatName]?.tier || 'N/A';
+        return data[formatName]?.tier || 'Untiered';
     } catch (e) {
-        return 'N/A';
+        return 'Untiered';
     }
 }
 
@@ -39,17 +38,9 @@ export const TIER_DEFINITIONS: Record<string, { label: string, desc: string, col
 };
 
 /**
- * Obtiene los sets recomendados (stats de uso) de Showdown.
+ * Obtiene los sets recomendados de Showdown.
+ * @deprecated Los endpoints JSON de sets han sido restringidos por Showdown.
  */
 export async function getPokemonSets(pokemonName: string) {
-    try {
-        const formatName = pokemonName.toLowerCase().replace(/[^a-z0-0]/g, '');
-        // Usamos el endpoint de datos de formatos de Showdown
-        const response = await fetch(`https://play.pokemonshowdown.com/data/formats-data.json`);
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data[formatName] || null;
-    } catch (e) {
-        return null;
-    }
+    return null;
 }

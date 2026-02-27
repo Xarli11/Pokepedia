@@ -1,5 +1,8 @@
 ---
 import '../styles/global.css';
+import Analytics from '@vercel/analytics/astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
+import { uiTranslations } from '../utils/pokemon';
 
 interface Props {
 	title?: string;
@@ -15,21 +18,46 @@ const {
     image = "/pokeball.png" 
 } = Astro.props;
 
+const siteUrl = "https://pokepedia.app";
+const finalImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+
 const currentPath = Astro.url.pathname;
 const currentSearch = Astro.url.search;
 const otherLang = lang === 'es' ? 'en' : 'es';
 let otherLangPath = currentPath.replace(`/${lang}`, `/${otherLang}`) + currentSearch;
 if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPath;
+
+// Aplicar caché si está disponible en locals
+if (Astro.locals.cacheControl) {
+    Astro.response.headers.set('Cache-Control', Astro.locals.cacheControl);
+}
 ---
 
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} prefix="og: https://ogp.me/ns#">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<link rel="icon" href="/favicon.ico" type="image/x-icon">
-        <link rel="icon" type="image/png" href="/pokeball.png">
-        <link rel="apple-touch-icon" href="/pokeball.png">
+        
+        <!-- Google tag (gtag.js) -->
+        <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-J7Z6HJMYWD');
+        </script>
+
+        <link rel="preconnect" href="https://pokeapi.co" crossorigin>
+        <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+        <link rel="preconnect" href="https://play.pokemonshowdown.com" crossorigin>
+        <link rel="dns-prefetch" href="https://pokeapi.co">
+        <link rel="dns-prefetch" href="https://play.pokemonshowdown.com">
+        
+        <link rel="icon" type="image/png" href="/pokeball.png?v=1">
+        <link rel="shortcut icon" href="/pokeball.png?v=1">
+        <link rel="apple-touch-icon" href="/pokeball.png?v=1">
         <link rel="manifest" href="/manifest.json">
         <meta name="theme-color" content="#10b981">
 		<meta name="generator" content={Astro.generator} />
@@ -39,21 +67,32 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
         <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet" />
         <meta name="author" content="Xarli11" />
         <link rel="canonical" href={Astro.url} />
+        
+        <!-- Multilanguage SEO -->
+        <link rel="alternate" hreflang="es" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
+        <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
+        <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
         <meta property="og:url" content={Astro.url} />
         <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
+        <meta property="og:image" content={finalImageUrl} />
+        <meta property="og:image:secure_url" content={finalImageUrl} />
+        <meta property="og:image:alt" content={title} />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:site_name" content="Pokepedia Research Lab" />
 
         <!-- Twitter -->
-        <meta property="twitter:card" content="summary" />
-        <meta property="twitter:url" content={Astro.url} />
-        <meta property="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
-        <meta property="twitter:description" content={description} />
-        <meta property="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.url)} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={Astro.url} />
+        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={finalImageUrl} />
+        <meta name="twitter:image:alt" content={title} />
         
         <!-- Structured Data (Schema.org) -->
         <script type="application/ld+json" is:inline>
@@ -61,7 +100,7 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
           "@context": "https://schema.org",
           "@type": "WebApplication",
           "name": "Pokepedia",
-          "url": "https://pokepedia.vercel.app/",
+          "url": "https://pokepedia.app",
           "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
           "applicationCategory": "GameApplication",
           "operatingSystem": "Any",
@@ -80,6 +119,9 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
             const theme = savedTheme || systemTheme;
             if (theme === 'dark') document.documentElement.classList.add('dark');
         </script>
+        
+        <Analytics />
+        <SpeedInsights />
 	</head>
 	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500">
         <header class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
@@ -165,6 +207,23 @@ if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPa
 
         <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-16 mt-auto">
             <div class="container mx-auto px-4 text-center">
+                <div class="mb-8">
+                    <a 
+                        href="https://buymeacoffee.com/xarli11" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 text-amber-600 dark:text-amber-400 font-bold text-sm hover:scale-105 transition-all group"
+                    >
+                        <svg class="w-5 h-5 group-hover:rotate-12 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                            <line x1="6" y1="1" x2="6" y2="4"></line>
+                            <line x1="10" y1="1" x2="10" y2="4"></line>
+                            <line x1="14" y1="1" x2="14" y2="4"></line>
+                        </svg>
+                        {uiTranslations[lang]?.support_project || uiTranslations.es.support_project}
+                    </a>
+                </div>
                 <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">
                     © 2026 Pokepedia <span class="text-emerald-500 mx-2">•</span> Data up to Gen 9
                 </p>
