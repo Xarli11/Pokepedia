@@ -612,3 +612,122 @@ export function formatPokemonName(technicalName: string, speciesName: string, la
     const prettySuffix = suffixMap[suffix.toLowerCase()] || suffix.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     return `${formatName(species)} (${prettySuffix})`;
 }
+
+/**
+ * Mapea el nombre técnico de PokeAPI al nombre que espera PokeTypes.
+ * Esta función asegura el 100% de compatibilidad entre ambos sistemas.
+ */
+export function getPoketypesName(name: string): string {
+    const n = name.toLowerCase();
+    
+    // 1. Mapeo de Excepciones Directas (Nombres que cambian totalmente o tienen sufijos únicos)
+    const specialMappings: Record<string, string> = {
+        'zacian-hero': 'zacian',
+        'zamazenta-hero': 'zamazenta',
+        'zygarde': 'zygarde-50',
+        'zygarde-10-power-construct': 'zygarde-10',
+        'zygarde-50-power-construct': 'zygarde-50',
+        'zygarde-complete': 'zygarde-complete',
+        'darmanitan-standard': 'darmanitan',
+        'darmanitan-zen': 'darmanitan-zen',
+        'darmanitan-galar-standard': 'darmanitan-galar',
+        'darmanitan-galar-zen': 'darmanitan-galar-zen',
+        'mimikyu-disguised': 'mimikyu',
+        'mimikyu-busted': 'mimikyu-busted',
+        'aegislash-shield': 'aegislash',
+        'aegislash-blade': 'aegislash-blade',
+        'keldeo-ordinary': 'keldeo',
+        'keldeo-resolute': 'keldeo-resolute',
+        'meloetta-aria': 'meloetta',
+        'meloetta-pirouette': 'meloetta-pirouette',
+        'toxtricity-amped': 'toxtricity',
+        'toxtricity-low-key': 'toxtricity',
+        'toxtricity-amped-gmax': 'toxtricity-gmax',
+        'toxtricity-low-key-gmax': 'toxtricity-gmax',
+        'wishiwashi-solo': 'wishiwashi',
+        'wishiwashi-school': 'wishiwashi-school',
+        'deoxys-normal': 'deoxys',
+        'deoxys-attack': 'deoxys-attack',
+        'deoxys-defense': 'deoxys-defense',
+        'deoxys-speed': 'deoxys-speed',
+        'giratina-altered': 'giratina',
+        'giratina-origin': 'giratina-origin',
+        'shaymin-land': 'shaymin',
+        'shaymin-sky': 'shaymin-sky',
+        'basculin-red-striped': 'basculin',
+        'basculin-blue-striped': 'basculin-blue-striped',
+        'basculin-white-striped': 'basculin-white-striped',
+        'basculegion-male': 'basculegion-male',
+        'basculegion-female': 'basculegion-female',
+        'enamorus-incarnate': 'enamorus',
+        'enamorus-therian': 'enamorus-therian',
+        'thundurus-incarnate': 'thundurus',
+        'thundurus-therian': 'thundurus-therian',
+        'tornadus-incarnate': 'tornadus',
+        'tornadus-therian': 'tornadus-therian',
+        'landorus-incarnate': 'landorus',
+        'landorus-therian': 'landorus-therian',
+        'pumpkaboo-average': 'pumpkaboo',
+        'pumpkaboo-small': 'pumpkaboo',
+        'pumpkaboo-large': 'pumpkaboo',
+        'pumpkaboo-super': 'pumpkaboo',
+        'gourgeist-average': 'gourgeist',
+        'gourgeist-small': 'gourgeist',
+        'gourgeist-large': 'gourgeist',
+        'gourgeist-super': 'gourgeist',
+        'oricorio-baile': 'oricorio',
+        'oricorio-pom-pom': 'oricorio-pom-pom',
+        'oricorio-pau': 'oricorio-pau',
+        'oricorio-sensu': 'oricorio-sensu',
+        'lycanroc-midday': 'lycanroc',
+        'lycanroc-midnight': 'lycanroc-midnight',
+        'lycanroc-dusk': 'lycanroc-dusk',
+        'rockruff-own-tempo': 'rockruff',
+        'urshifu-single-strike': 'urshifu',
+        'urshifu-rapid-strike': 'urshifu-rapid-strike',
+        'urshifu-single-strike-gmax': 'urshifu-gmax',
+        'urshifu-rapid-strike-gmax': 'urshifu-rapid-strike-gmax',
+        'calyrex-ice': 'calyrex-ice',
+        'calyrex-shadow': 'calyrex-shadow',
+        'maushold-family-of-four': 'maushold',
+        'maushold-family-of-three': 'maushold',
+        'dudunsparce-two-segment': 'dudunsparce',
+        'dudunsparce-three-segment': 'dudunsparce',
+        'palafin-zero': 'palafin',
+        'palafin-hero': 'palafin-hero',
+        'gimmighoul-chest': 'gimmighoul',
+        'gimmighoul-roaming': 'gimmighoul',
+        'poltchageist-counterfeit': 'poltchageist',
+        'poltchageist-artisan': 'poltchageist',
+        'sinistcha-unremarkable': 'sinistcha',
+        'sinistcha-masterpiece': 'sinistcha',
+        'squawkabilly-green-plumage': 'squawkabilly',
+        'squawkabilly-blue-plumage': 'squawkabilly-blue-plumage',
+        'squawkabilly-yellow-plumage': 'squawkabilly-yellow-plumage',
+        'squawkabilly-white-plumage': 'squawkabilly-white-plumage',
+        'tatsugiri-curly': 'tatsugiri',
+        'tatsugiri-droopy': 'tatsugiri-droopy',
+        'tatsugiri-stretchy': 'tatsugiri-stretchy',
+        'minior-red-meteor': 'minior',
+        'minior-red': 'minior'
+    };
+
+    if (specialMappings[n]) return specialMappings[n];
+
+    // 2. Limpieza de sufijos cosméticos o de estado que no alteran tipos/stats en PokeTypes
+    const genericSuffixes = [
+        '-spring', '-summer', '-autumn', '-winter', // Sawsbuck/Deerling
+        '-gulping', '-gorging', // Cramorant
+        '-hangry', // Morpeko
+        '-meteor' // Minior
+    ];
+
+    for (const suffix of genericSuffixes) {
+        if (n.endsWith(suffix)) return n.replace(suffix, '');
+    }
+
+    // 3. Manejo de formas regionales (Asegurar que mantenemos el sufijo regional)
+    // Ej: rattata-alola -> rattata-alola (PokeTypes lo encontrará por apiName)
+    
+    return n;
+}
