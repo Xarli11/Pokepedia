@@ -63,6 +63,14 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     </div>
 
     <!-- Grid -->
+    <div id="no-results" class="hidden text-center py-20">
+        <div class="inline-flex items-center justify-center w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
+            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h3 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">{lang === 'es' ? 'No se encontraron Pokémon' : 'No Pokémon found'}</h3>
+        <p class="text-slate-500 dark:text-slate-400">{lang === 'es' ? 'Intenta buscar en las sugerencias o cambiar de región.' : 'Try searching in suggestions or change region.'}</p>
+    </div>
+
     <div id="pokemon-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
         {pokemonList.map((pokemon) => (
             <PokemonCard 
@@ -76,29 +84,57 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         const searchInput = document.getElementById('global-search');
         const suggestionsContainer = document.getElementById('search-suggestions');
         const suggestionsList = document.getElementById('suggestions-list');
+        const grid = document.getElementById('pokemon-grid');
+        const noResults = document.getElementById('no-results');
         const cards = document.querySelectorAll('.pokemon-card');
         const genSelector = document.getElementById('gen-selector');
 
         let searchTimeout;
 
+        function normalize(str) {
+            return str.toLowerCase().replace(/-/g, ' ').trim();
+        }
+
         function handleSearch() {
-            const query = searchInput.value.toLowerCase().trim();
+            const query = normalize(searchInput.value);
             
-            // Debounce para no colapsar el hilo principal durante el scroll/escritura
+            // 1. Filtrar Cuadrícula Local (Generación actual)
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
+                let visibleCount = 0;
                 for (let i = 0; i < cards.length; i++) {
                     const card = cards[i];
-                    const name = card.getAttribute('data-name').toLowerCase();
+                    const name = normalize(card.getAttribute('data-name'));
                     const id = card.getAttribute('data-id');
-                    const isVisible = name.includes(query) || id.includes(query);
+                    const isVisible = query === '' || name.includes(query) || id.includes(query);
                     card.style.display = isVisible ? 'flex' : 'none';
+                    if (isVisible) visibleCount++;
+                }
+                
+                // Mostrar mensaje de "sin resultados" solo si la cuadrícula está vacía y hay una búsqueda
+                if (visibleCount === 0 && query.length > 0) {
+                    grid.classList.add('hidden');
+                    noResults.classList.remove('hidden');
+                } else {
+                    grid.classList.remove('hidden');
+                    noResults.classList.add('hidden');
                 }
             }, 50);
 
+            // 2. Sugerencias Globales (Todos los Pokémon)
             if (query.length >= 2) {
                 const matches = allPokemon
-                    .filter(p => p.name.includes(query) || p.id.toString().includes(query))
+                    .filter(p => normalize(p.name).includes(query) || p.id.toString().includes(query))
+                    .sort((a, b) => {
+                        // Priorizar coincidencias exactas o al inicio
+                        const aName = normalize(a.name);
+                        const bName = normalize(b.name);
+                        if (aName === query) return -1;
+                        if (bName === query) return 1;
+                        if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+                        if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
+                        return 0;
+                    })
                     .slice(0, 10);
 
                 if (matches.length > 0) {
@@ -128,6 +164,16 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         searchInput.addEventListener('input', handleSearch);
+
+        // Tecla Enter para ir al primer resultado
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const firstResult = suggestionsList.querySelector('a');
+                if (firstResult) {
+                    window.location.href = firstResult.href;
+                }
+            }
+        });
 
         document.addEventListener('click', (e) => {
             if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {

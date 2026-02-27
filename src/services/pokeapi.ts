@@ -233,34 +233,45 @@ export function getLocalizedName(names: PokemonName[] | undefined, lang: string)
  * (Megas, G-Max, Formas Regionales) para el buscador.
  */
 export async function getAllPokemonNames(): Promise<{ name: string, id: number | string, sprite?: string }[]> {
-    // 1. Obtener las 1025 especies base
-    const response = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025');
-    if (!response.ok) throw new Error('Error al obtener lista global de especies');
-    const data = await response.json();
-    
-    const baseSpecies = data.results.map((p: any) => {
-        const id = parseInt(p.url.split('/').filter(Boolean).pop());
-        return { 
-            name: p.name, 
-            id: id,
-            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-        };
-    });
-
-    // 2. Obtener variedades importantes (Megas, Gigamax, Regionales)
-    const varResponse = await fetch('https://pokeapi.co/api/v2/pokemon?limit=500&offset=1025');
-    if (!varResponse.ok) return baseSpecies;
-    const varData = await varResponse.json();
-
-    const varieties = varData.results
-        .map((p: any) => {
+    try {
+        // 1. Obtener todas las especies (usamos un límite alto para cubrir futuras expansiones)
+        const response = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=2000');
+        if (!response.ok) throw new Error('Error al obtener lista global de especies');
+        const data = await response.json();
+        
+        const baseSpecies = data.results.map((p: any) => {
             const id = parseInt(p.url.split('/').filter(Boolean).pop());
             return { 
                 name: p.name, 
                 id: id,
                 sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-            }; 
+            };
         });
 
-    return [...baseSpecies, ...varieties];
+        // 2. Obtener variedades importantes (Megas, Gigamax, Regionales)
+        // El offset 10000 es donde suelen empezar las variedades en PokeAPI
+        const varResponse = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000&offset=1025');
+        if (!varResponse.ok) return baseSpecies;
+        const varData = await varResponse.json();
+
+        const varieties = varData.results
+            .map((p: any) => {
+                const id = parseInt(p.url.split('/').filter(Boolean).pop());
+                // Solo incluimos variedades que tengan IDs de variedad (normalmente > 10000)
+                // para evitar duplicados de la lista de especies base
+                if (id < 10000) return null;
+                
+                return { 
+                    name: p.name, 
+                    id: id,
+                    sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
+                }; 
+            })
+            .filter(Boolean);
+
+        return [...baseSpecies, ...varieties];
+    } catch (error) {
+        console.error('Error in getAllPokemonNames:', error);
+        return [];
+    }
 }
