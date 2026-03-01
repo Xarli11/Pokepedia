@@ -203,11 +203,36 @@ if (Astro.locals.cacheControl) {
 
         <main class="container mx-auto px-4 py-12 flex-grow">
 		    <slot />
-        </main>
+        <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between transition-all duration-300">
+            <a href={`/${lang}`} class={`flex flex-col items-center gap-1 group ${currentPath === `/${lang}` || currentPath === '/' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+                <span class="text-[9px] font-black uppercase tracking-widest">Dex</span>
+            </a>
+            <a href={`/${lang}/movimientos`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/movimientos') ? 'text-emerald-500' : 'text-slate-400'}`}>
+                <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                <span class="text-[9px] font-black uppercase tracking-widest">{lang === 'es' ? 'Movs' : 'Moves'}</span>
+            </a>
+            <a href={`/${lang}/habilidades`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/habilidades') ? 'text-emerald-500' : 'text-slate-400'}`}>
+                <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span class="text-[9px] font-black uppercase tracking-widest">{lang === 'es' ? 'Habs' : 'Abil'}</span>
+            </a>
+            <a href={`/${lang}/objetos`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/objetos') ? 'text-emerald-500' : 'text-slate-400'}`}>
+                <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+                <span class="text-[9px] font-black uppercase tracking-widest">{lang === 'es' ? 'Obj' : 'Item'}</span>
+            </a>
+        </nav>
 
         <button 
             id="back-to-top"
-            class="fixed bottom-8 right-8 z-[100] h-12 w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-24 opacity-0 hover:scale-110 active:scale-95 group"
+            class="fixed bottom-24 right-6 sm:bottom-8 sm:right-8 z-[100] h-12 w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-32 opacity-0 hover:scale-110 active:scale-95 group"
             title="Volver Arriba"
         >
             <svg class="w-6 h-6 mx-auto group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
