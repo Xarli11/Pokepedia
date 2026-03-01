@@ -14,11 +14,11 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 
 <a 
     href={`/${lang}/pokemon/${pokemon.name}`} 
-    class="group relative bg-white/70 dark:bg-slate-800/40 backdrop-blur-xl rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-700/30 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card" 
+    class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 flex flex-col items-center overflow-hidden pokemon-card" 
     data-name={pokemon.name} 
     data-id={pokemon.id} 
     data-types={typesString}
-    style="content-visibility: auto; contain-intrinsic-size: 200px 350px;"
+    style="content-visibility: auto; contain-intrinsic-size: 200px 380px; transform: translateZ(0);"
 >
     <!-- Badge de Tier (Smogon) con estilo flotante -->
     <div class="absolute top-5 left-6 z-20 tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
