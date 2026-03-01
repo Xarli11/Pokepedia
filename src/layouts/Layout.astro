@@ -232,10 +232,10 @@ if (Astro.locals.cacheControl) {
 
         <button 
             id="back-to-top"
-            class="fixed bottom-24 right-6 sm:bottom-8 sm:right-8 z-[100] h-12 w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-32 opacity-0 hover:scale-110 active:scale-95 group"
+            class="fixed bottom-28 right-6 sm:bottom-8 sm:right-8 z-[100] h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-32 opacity-0 hover:scale-110 active:scale-95 group"
             title="Volver Arriba"
         >
-            <svg class="w-6 h-6 mx-auto group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6 mx-auto group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"></path>
             </svg>
         </button>
@@ -302,10 +302,10 @@ if (Astro.locals.cacheControl) {
                 
                 window.onscroll = () => {
                     if (window.scrollY > 500) {
-                        btn.classList.remove('translate-y-24', 'opacity-0');
+                        btn.classList.remove('translate-y-32', 'opacity-0');
                         btn.classList.add('translate-y-0', 'opacity-100');
                     } else {
-                        btn.classList.add('translate-y-24', 'opacity-0');
+                        btn.classList.add('translate-y-32', 'opacity-0');
                         btn.classList.remove('translate-y-0', 'opacity-100');
                     }
                 };
