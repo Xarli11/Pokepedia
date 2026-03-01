@@ -103,6 +103,28 @@ export interface AbilityDetail {
     names: PokemonName[];
 }
 
+/**
+ * Simple In-Memory Cache for Node.js SSR
+ */
+const cache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
+
+async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<T> {
+    const cached = cache.get(url);
+    const now = Date.now();
+
+    if (cached && (now - cached.timestamp < ttl)) {
+        return cached.data;
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
+    const data = await response.json();
+
+    cache.set(url, { data, timestamp: now });
+    return data;
+}
+
 export const GENERATIONS: Record<string, { limit: number; offset: number; region: string }> = {
     'gen1': { limit: 151, offset: 0, region: 'Kanto' },
     'gen2': { limit: 100, offset: 151, region: 'Johto' },
@@ -120,13 +142,10 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
  */
 export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
-    const response = await fetch(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
-    if (!response.ok) throw new Error('Error al conectar con PokeAPI');
-    const data = await response.json();
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
     
     const detailedPromises = data.results.map(async (pokemon: { name: string, url: string }) => {
-        const detailResponse = await fetch(pokemon.url);
-        return detailResponse.json();
+        return fetchWithCache<PokemonDetail>(pokemon.url);
     });
 
     return Promise.all(detailedPromises);
@@ -146,15 +165,11 @@ export async function getFirstGenPokemon(): Promise<PokemonDetail[]> {
  */
 export async function getPokemonByName(name: string): Promise<{ detail: PokemonDetail, species: PokemonSpecies }> {
     // 1. Intentar obtener el detalle del Pokémon (esto funciona para variedades y formas base)
-    const detailRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
-    if (!detailRes.ok) throw new Error(`No se pudo encontrar información de ${name}`);
-    const detail: PokemonDetail = await detailRes.json();
+    const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${name}`);
 
     // 2. Obtener la especie. El nombre de la especie puede ser diferente al del Pokémon (ej: charizard-gmax -> charizard)
     // PokeAPI siempre incluye el enlace a la especie en el detalle del Pokémon.
-    const speciesRes = await fetch((detail as any).species.url);
-    if (!speciesRes.ok) throw new Error(`No se pudo encontrar la especie de ${name}`);
-    const species: PokemonSpecies = await speciesRes.json();
+    const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
 
     return { detail, species };
 }
@@ -164,18 +179,14 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
  */
 export async function getItemDetail(urlOrName: string) {
     const url = urlOrName.startsWith('http') ? urlOrName : `https://pokeapi.co/api/v2/item/${urlOrName}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al obtener objeto');
-    return response.json();
+    return fetchWithCache<any>(url);
 }
 
 /**
  * Obtiene el listado de todos los objetos.
  */
 export async function getAllItems(): Promise<{ name: string, url: string }[]> {
-    const response = await fetch('https://pokeapi.co/api/v2/item?limit=2000');
-    if (!response.ok) throw new Error('Error al obtener objetos');
-    const data = await response.json();
+    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/item?limit=2000');
     
     // Filtrar objetos "fake" o datos basura
     const { isRealItem } = await import('../utils/pokemon');
@@ -186,27 +197,21 @@ export async function getAllItems(): Promise<{ name: string, url: string }[]> {
  * Obtiene los detalles de una habilidad por su URL.
  */
 export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al obtener habilidad');
-    return response.json();
+    return fetchWithCache<AbilityDetail>(url);
 }
 
 /**
  * Obtiene los detalles de un movimiento por su URL.
  */
 export async function getMoveDetail(url: string): Promise<MoveDetail> {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al obtener movimiento');
-    return response.json();
+    return fetchWithCache<MoveDetail>(url);
 }
 
 /**
  * Obtiene el listado de todas las habilidades.
  */
 export async function getAllAbilities(): Promise<{ name: string, url: string }[]> {
-    const response = await fetch('https://pokeapi.co/api/v2/ability?limit=500');
-    if (!response.ok) throw new Error('Error al obtener habilidades');
-    const data = await response.json();
+    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/ability?limit=500');
     return data.results;
 }
 
@@ -214,9 +219,7 @@ export async function getAllAbilities(): Promise<{ name: string, url: string }[]
  * Obtiene el listado de todos los movimientos.
  */
 export async function getAllMoves(): Promise<{ name: string, url: string }[]> {
-    const response = await fetch('https://pokeapi.co/api/v2/move?limit=1000');
-    if (!response.ok) throw new Error('Error al obtener movimientos');
-    const data = await response.json();
+    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/move?limit=1000');
     return data.results;
 }
 
@@ -234,10 +237,16 @@ export function getLocalizedName(names: PokemonName[] | undefined, lang: string)
  */
 export async function getAllPokemonNames(): Promise<{ name: string, id: number | string, sprite?: string }[]> {
     try {
+        const cacheKey = 'global-pokemon-names-list';
+        const cached = cache.get(cacheKey);
+        const now = Date.now();
+
+        if (cached && (now - cached.timestamp < CACHE_TTL)) {
+            return cached.data;
+        }
+
         // 1. Obtener todas las especies (usamos un límite alto para cubrir futuras expansiones)
-        const response = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=2000');
-        if (!response.ok) throw new Error('Error al obtener lista global de especies');
-        const data = await response.json();
+        const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon-species?limit=2000');
         
         const baseSpecies = data.results.map((p: any) => {
             const id = parseInt(p.url.split('/').filter(Boolean).pop());
@@ -249,10 +258,8 @@ export async function getAllPokemonNames(): Promise<{ name: string, id: number |
         });
 
         // 2. Obtener variedades importantes (Megas, Gigamax, Regionales)
-        // El offset 10000 es donde suelen empezar las variedades en PokeAPI
-        const varResponse = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000&offset=1025');
-        if (!varResponse.ok) return baseSpecies;
-        const varData = await varResponse.json();
+        // El offset 1025 es donde suelen empezar las variedades en PokeAPI
+        const varData = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon?limit=1000&offset=1025');
 
         const varieties = varData.results
             .map((p: any) => {
@@ -269,7 +276,9 @@ export async function getAllPokemonNames(): Promise<{ name: string, id: number |
             })
             .filter(Boolean);
 
-        return [...baseSpecies, ...varieties];
+        const result = [...baseSpecies, ...varieties];
+        cache.set(cacheKey, { data: result, timestamp: now });
+        return result;
     } catch (error) {
         console.error('Error in getAllPokemonNames:', error);
         return [];

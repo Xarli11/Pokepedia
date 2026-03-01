@@ -8,9 +8,8 @@ const { lang = 'es' } = Astro.params;
 const url = new URL(Astro.request.url);
 const gen = url.searchParams.get('gen') || 'gen1';
 
-const [pokemonList, allPokemon] = await Promise.all([
-    getPokemonByGeneration(gen),
-    getAllPokemonNames()
+const [pokemonList] = await Promise.all([
+    getPokemonByGeneration(gen)
 ]);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
@@ -48,17 +47,40 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             </div>
         </div>
         
-        <div class="flex flex-wrap gap-4 justify-center mt-10">
-             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-2.5 flex gap-4 items-center shadow-sm transition-colors">
-                <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-r border-slate-100 dark:border-slate-700 pr-4">{t.region}</span>
-                <select id="gen-selector" class="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer hover:text-emerald-500 transition-colors">
-                    {Object.entries(GENERATIONS).map(([key, value]) => (
-                        <option value={key} selected={gen === key} class="dark:bg-slate-800">
-                            {value.region}
-                        </option>
+        <!-- Selector de Regiones: Lab Terminal Switcher -->
+        <div class="mt-12 mb-16 max-w-5xl mx-auto px-4">
+            <div class="bg-slate-200/30 dark:bg-slate-900/40 backdrop-blur-md rounded-[2rem] p-1.5 border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
+                <div class="overflow-x-auto no-scrollbar snap-x snap-mandatory flex gap-1 items-center">
+                    {Object.entries(GENERATIONS).map(([key, value], index) => (
+                        <button 
+                            class={`gen-pill snap-center flex-1 min-w-[110px] sm:min-w-0 px-4 py-3 rounded-[1.5rem] transition-all duration-500 flex flex-col items-center gap-0.5 group/pill ${
+                                gen === key 
+                                ? 'bg-white dark:bg-emerald-500 shadow-lg dark:shadow-emerald-500/20 z-10' 
+                                : 'hover:bg-white/50 dark:hover:bg-slate-800/50'
+                            }`}
+                            data-gen={key}
+                        >
+                            <span class={`text-[8px] font-mono font-bold tracking-[0.2em] ${
+                                gen === key ? 'text-emerald-500 dark:text-emerald-100' : 'text-slate-400 dark:text-slate-600'
+                            }`}>
+                                0{index + 1}
+                            </span>
+                            <span class={`text-[10px] font-black uppercase tracking-wider ${
+                                gen === key ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-500'
+                            }`}>
+                                {value.region}
+                            </span>
+                        </button>
                     ))}
-                </select>
-             </div>
+                </div>
+            </div>
+            
+            <!-- Indicador de Scroll para Móvil (Opcional, sutil) -->
+            <div class="flex justify-center gap-1 mt-4 sm:hidden opacity-30">
+                {Object.keys(GENERATIONS).map((key) => (
+                    <div class={`h-1 w-1 rounded-full transition-all ${gen === key ? 'w-4 bg-emerald-500 opacity-100' : 'bg-slate-400'}`}></div>
+                ))}
+            </div>
         </div>
     </div>
 
@@ -80,14 +102,14 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         ))}
     </div>
 
-    <script define:vars={{ allPokemon, lang, uiTranslations }}>
+    <script define:vars={{ lang, uiTranslations }}>
         const searchInput = document.getElementById('global-search');
         const suggestionsContainer = document.getElementById('search-suggestions');
         const suggestionsList = document.getElementById('suggestions-list');
         const grid = document.getElementById('pokemon-grid');
         const noResults = document.getElementById('no-results');
         const cards = document.querySelectorAll('.pokemon-card');
-        const genSelector = document.getElementById('gen-selector');
+        const genPills = document.querySelectorAll('.gen-pill');
 
         const t = uiTranslations[lang] || uiTranslations.es;
 
@@ -97,12 +119,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             return str.toLowerCase().replace(/-/g, ' ').trim();
         }
 
-        function handleSearch() {
+        async function handleSearch() {
             const query = normalize(searchInput.value);
             
             // 1. Filtrar Cuadrícula Local (Generación actual)
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
+            searchTimeout = setTimeout(async () => {
                 let visibleCount = 0;
                 for (let i = 0; i < cards.length; i++) {
                     const card = cards[i];
@@ -113,6 +135,52 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     if (isVisible) visibleCount++;
                 }
                 
+                // 2. Sugerencias Globales vía API
+                if (query.length >= 2) {
+                    // Mostrar Skeletons de Carga
+                    suggestionsContainer.classList.remove('hidden');
+                    suggestionsList.innerHTML = Array(3).fill(0).map(() => `
+                        <div class="flex items-center gap-5 px-6 py-4 animate-pulse">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl"></div>
+                            <div class="flex flex-col gap-2">
+                                <div class="w-10 h-2 bg-slate-100 dark:bg-slate-700 rounded"></div>
+                                <div class="w-24 h-4 bg-slate-100 dark:bg-slate-700 rounded"></div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    try {
+                        const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+                        const matches = await res.json();
+
+                        if (matches.length > 0) {
+                            suggestionsList.innerHTML = matches.map(p => {
+                                const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+                                const isVariety = p.id > 10000;
+                                
+                                return `
+                                <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
+                                    <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
+                                        <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? t.special_form : '#' + p.id.toString().padStart(4, '0')}</span>
+                                        <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
+                                    </div>
+                                    <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
+                                </a>
+                            `}).join('');
+                        } else {
+                            suggestionsContainer.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        console.error('Error fetching suggestions:', e);
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                } else {
+                    suggestionsContainer.classList.add('hidden');
+                }
+
                 // Mostrar mensaje de "sin resultados" solo si la cuadrícula está vacía y hay una búsqueda
                 if (visibleCount === 0 && query.length > 0) {
                     grid.classList.add('hidden');
@@ -121,62 +189,17 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     grid.classList.remove('hidden');
                     noResults.classList.add('hidden');
                 }
-            }, 50);
-
-            // 2. Sugerencias Globales (Todos los Pokémon)
-            if (query.length >= 2) {
-                const isNumeric = /^\d+$/.test(query) || query.startsWith('#');
-                const cleanQuery = query.startsWith('#') ? query.slice(1) : query;
-
-                const matches = allPokemon
-                    .filter(p => {
-                        const nameMatch = normalize(p.name).includes(query);
-                        const idMatch = isNumeric && p.id.toString().includes(cleanQuery);
-                        return nameMatch || idMatch;
-                    })
-                    .sort((a, b) => {
-                        // Priorizar coincidencias exactas o al inicio
-                        const aName = normalize(a.name);
-                        const bName = normalize(b.name);
-                        
-                        // 1. Coincidencias Exactas
-                        if (aName === query) return -1;
-                        if (bName === query) return 1;
-                        
-                        // 2. Empieza por el término (mejor que estar en medio)
-                        if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-                        if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
-                        
-                        // 3. Orden Numérico por ID
-                        return a.id - b.id;
-                    })
-                    .slice(0, 10);
-
-                if (matches.length > 0) {
-                    suggestionsList.innerHTML = matches.map(p => {
-                        const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-                        const isVariety = p.id > 10000;
-                        
-                        return `
-                        <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
-                            <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
-                                <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? t.special_form : '#' + p.id.toString().padStart(4, '0')}</span>
-                                <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
-                            </div>
-                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
-                        </a>
-                    `}).join('');
-                    suggestionsContainer.classList.remove('hidden');
-                } else {
-                    suggestionsContainer.classList.add('hidden');
-                }
-            } else {
-                suggestionsContainer.classList.add('hidden');
-            }
+            }, 100);
         }
+
+        // Atajo de Teclado '/'
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== searchInput) {
+                e.preventDefault();
+                searchInput.focus();
+                window.scrollTo({ top: searchInput.offsetTop - 100, behavior: 'smooth' });
+            }
+        });
 
         searchInput.addEventListener('input', handleSearch);
         searchInput.addEventListener('focus', () => {
@@ -201,10 +224,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         });
 
-        genSelector.addEventListener('change', (e) => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('gen', e.target.value);
-            window.location.href = url.toString();
+        genPills.forEach(pill => {
+            pill.onclick = () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('gen', pill.dataset.gen);
+                window.location.href = url.toString();
+            };
         });
     </script>
 </Layout>

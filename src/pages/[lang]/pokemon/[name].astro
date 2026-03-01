@@ -89,6 +89,16 @@ const getStatColor = (baseStat: number) => {
 
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
+// Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
+const currentDexId = detail.id > 10000 ? species.url.split('/').filter(Boolean).pop() : detail.id;
+const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
+const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
+
+const [prevPokemon, nextPokemon] = await Promise.all([
+    fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.json()),
+    fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.json())
+]);
+
 // Lógica para el gráfico de radar (SVG)
 const statsValues = detail.stats.map(s => s.base_stat);
 const angleStep = (Math.PI * 2) / 6;
@@ -117,10 +127,35 @@ const seoTitle = lang === 'es'
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
-        <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
-            <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            {t.back_to_pokedex}
-        </a>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
+            <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
+                    <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </div>
+                {t.back_to_pokedex}
+            </a>
+
+            <!-- Navegación Rápida -->
+            <div class="flex items-center gap-3">
+                <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline">
+                    <img src={prevPokemon.sprites.front_default} alt={prevPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
+                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
+                    </div>
+                </a>
+
+                <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
+
+                <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline text-right">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
+                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
+                    </div>
+                    <img src={nextPokemon.sprites.front_default} alt={nextPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                </a>
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-12">
             <!-- Columna Izquierda: Imagen y Info Básica -->
