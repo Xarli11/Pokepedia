@@ -1,19 +1,39 @@
 // src/services/smogon.ts
 
 /**
+ * Simple In-Memory Cache for Node.js SSR
+ */
+const cache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
+
+async function fetchWithCache<T>(url: string): Promise<T> {
+    const cached = cache.get(url);
+    const now = Date.now();
+
+    if (cached && (now - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Error al conectar con Showdown: ${url}`);
+    const data = await response.json();
+
+    cache.set(url, { data, timestamp: now });
+    return data;
+}
+
+/**
  * Obtiene el Tier de Smogon para un Pokémon específico.
- * Nota: Como no hay API directa, usaremos un mapeo basado en los datos de Showdown
- * o consultaremos el endpoint de la comunidad si está disponible.
+ * Nota: Como no hay API directa, usaremos un mapeo basado en los datos de Showdown.
  */
 export async function getPokemonTier(pokemonName: string): Promise<string> {
     try {
         // Formatear nombre para Showdown (ej: mr-mime -> mrmime)
+        // Casos especiales: iron-valiant -> ironvaliant, tapu-koko -> tapukoko
         const formatName = pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '');
         
-        // Consultar el pokedex.json oficial de Showdown
-        const response = await fetch(`https://play.pokemonshowdown.com/data/pokedex.json`);
-        if (!response.ok) return 'Untiered';
-        const data = await response.json();
+        // Consultar el pokedex.json oficial de Showdown (Caché de 24h)
+        const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/pokedex.json`);
         
         return data[formatName]?.tier || 'Untiered';
     } catch (e) {
