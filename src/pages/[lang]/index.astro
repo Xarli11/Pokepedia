@@ -47,26 +47,39 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             </div>
         </div>
         
-        <!-- Selector de Regiones Premium (Refined UX) -->
-        <div class="relative mt-12 mb-16 max-w-4xl mx-auto">
-            <!-- Máscara de Degradado para indicar scroll -->
-            <div class="absolute inset-0 mask-fade-x pointer-events-none z-10 hidden sm:block"></div>
-            
-            <div class="overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory flex justify-start sm:justify-center px-8 sm:px-12 pb-6">
-                <div class="flex gap-4 sm:gap-6">
-                    {Object.entries(GENERATIONS).map(([key, value]) => (
+        <!-- Selector de Regiones: Lab Terminal Switcher -->
+        <div class="mt-12 mb-16 max-w-5xl mx-auto px-4">
+            <div class="bg-slate-200/30 dark:bg-slate-900/40 backdrop-blur-md rounded-[2rem] p-1.5 border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
+                <div class="overflow-x-auto no-scrollbar snap-x snap-mandatory flex gap-1 items-center">
+                    {Object.entries(GENERATIONS).map(([key, value], index) => (
                         <button 
-                            class={`gen-pill snap-center px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border-2 ${
+                            class={`gen-pill snap-center flex-1 min-w-[110px] sm:min-w-0 px-4 py-3 rounded-[1.5rem] transition-all duration-500 flex flex-col items-center gap-0.5 group/pill ${
                                 gen === key 
-                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-xl shadow-emerald-500/25 scale-105 z-20' 
-                                : 'bg-white dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-emerald-500/40 hover:text-emerald-500 hover:scale-105 z-10'
+                                ? 'bg-white dark:bg-emerald-500 shadow-lg dark:shadow-emerald-500/20 z-10' 
+                                : 'hover:bg-white/50 dark:hover:bg-slate-800/50'
                             }`}
                             data-gen={key}
                         >
-                            {value.region}
+                            <span class={`text-[8px] font-mono font-bold tracking-[0.2em] ${
+                                gen === key ? 'text-emerald-500 dark:text-emerald-100' : 'text-slate-400 dark:text-slate-600'
+                            }`}>
+                                0{index + 1}
+                            </span>
+                            <span class={`text-[10px] font-black uppercase tracking-wider ${
+                                gen === key ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-500'
+                            }`}>
+                                {value.region}
+                            </span>
                         </button>
                     ))}
                 </div>
+            </div>
+            
+            <!-- Indicador de Scroll para Móvil (Opcional, sutil) -->
+            <div class="flex justify-center gap-1 mt-4 sm:hidden opacity-30">
+                {Object.keys(GENERATIONS).map((key) => (
+                    <div class={`h-1 w-1 rounded-full transition-all ${gen === key ? 'w-4 bg-emerald-500 opacity-100' : 'bg-slate-400'}`}></div>
+                ))}
             </div>
         </div>
     </div>
