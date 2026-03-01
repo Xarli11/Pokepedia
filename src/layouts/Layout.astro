@@ -205,6 +205,16 @@ if (Astro.locals.cacheControl) {
 		    <slot />
         </main>
 
+        <button 
+            id="back-to-top"
+            class="fixed bottom-8 right-8 z-[100] h-12 w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-24 opacity-0 hover:scale-110 active:scale-95 group"
+            title="Volver Arriba"
+        >
+            <svg class="w-6 h-6 mx-auto group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"></path>
+            </svg>
+        </button>
+
         <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-16 mt-auto">
             <div class="container mx-auto px-4 text-center">
                 <div class="mb-8">
@@ -261,11 +271,32 @@ if (Astro.locals.cacheControl) {
                 };
             }
 
+            function initBackToTop() {
+                const btn = document.getElementById('back-to-top');
+                if (!btn) return;
+                
+                window.onscroll = () => {
+                    if (window.scrollY > 500) {
+                        btn.classList.remove('translate-y-24', 'opacity-0');
+                        btn.classList.add('translate-y-0', 'opacity-100');
+                    } else {
+                        btn.classList.add('translate-y-24', 'opacity-0');
+                        btn.classList.remove('translate-y-0', 'opacity-100');
+                    }
+                };
+
+                btn.onclick = () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+            }
+
             initTheme();
             initRandom();
+            initBackToTop();
             document.addEventListener('astro:after-swap', () => {
                 initTheme();
                 initRandom();
+                initBackToTop();
             });
         </script>
 	</body>
