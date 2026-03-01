@@ -47,21 +47,26 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             </div>
         </div>
         
-        <!-- Selector de Regiones Premium (Scroll Horizontal) -->
-        <div class="mt-12 overflow-x-auto no-scrollbar pb-4 flex justify-start sm:justify-center">
-            <div class="flex gap-3 px-4">
-                {Object.entries(GENERATIONS).map(([key, value]) => (
-                    <button 
-                        class={`gen-pill px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${
-                            gen === key 
-                            ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105' 
-                            : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:border-emerald-500/30 hover:text-emerald-500'
-                        }`}
-                        data-gen={key}
-                    >
-                        {value.region}
-                    </button>
-                ))}
+        <!-- Selector de Regiones Premium (Refined UX) -->
+        <div class="relative mt-12 mb-16 max-w-4xl mx-auto">
+            <!-- Máscara de Degradado para indicar scroll -->
+            <div class="absolute inset-0 mask-fade-x pointer-events-none z-10 hidden sm:block"></div>
+            
+            <div class="overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory flex justify-start sm:justify-center px-8 sm:px-12 pb-6">
+                <div class="flex gap-4 sm:gap-6">
+                    {Object.entries(GENERATIONS).map(([key, value]) => (
+                        <button 
+                            class={`gen-pill snap-center px-8 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border-2 ${
+                                gen === key 
+                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-xl shadow-emerald-500/25 scale-105 z-20' 
+                                : 'bg-white dark:bg-slate-900/50 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-emerald-500/40 hover:text-emerald-500 hover:scale-105 z-10'
+                            }`}
+                            data-gen={key}
+                        >
+                            {value.region}
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     </div>

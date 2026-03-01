@@ -14,11 +14,11 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 
 <a 
     href={`/${lang}/pokemon/${pokemon.name}`} 
-    class="group relative bg-white/70 dark:bg-slate-800/40 backdrop-blur-xl rounded-[2.5rem] p-6 border border-slate-200/50 dark:border-slate-700/30 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card" 
+    class="group relative bg-white/70 dark:bg-slate-800/40 backdrop-blur-xl rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-700/30 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card" 
     data-name={pokemon.name} 
     data-id={pokemon.id} 
     data-types={typesString}
-    style="content-visibility: auto; contain-intrinsic-size: 200px 300px;"
+    style="content-visibility: auto; contain-intrinsic-size: 200px 350px;"
 >
     <!-- Badge de Tier (Smogon) con estilo flotante -->
     <div class="absolute top-5 left-6 z-20 tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
@@ -47,20 +47,20 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         />
     </div>
     
-    <h2 class="relative mt-4 text-xl font-black text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tight">
+    <h2 class="relative mt-6 text-xl font-black text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tight">
         {pokemon.name.replace(/-/g, ' ')}
     </h2>
     
-    <div class="relative flex gap-2 mt-3 z-10">
+    <div class="relative flex gap-2 mt-4 z-10">
         {pokemon.types.map((t) => {
             const typeName = t.type.name;
             const bgColor = typeColors[typeName] || '#777';
             const label = typeTranslations[lang][typeName] || typeName;
             
             return (
-                <div class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
-                    <div class="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]" style={`background-color: ${bgColor}; box-shadow: 0 0 10px ${bgColor}44;`}></div>
-                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
+                    <div class="w-1.5 h-1.5 rounded-full" style={`background-color: ${bgColor}; box-shadow: 0 0 8px ${bgColor}88;`}></div>
+                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
                         {label}
                     </span>
                 </div>
