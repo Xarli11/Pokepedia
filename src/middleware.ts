@@ -4,7 +4,7 @@ export function onRequest(context: any, next: any) {
     if (url.pathname === '/') {
         const acceptLang = context.request.headers.get('accept-language') || '';
         const preferredLang = acceptLang.toLowerCase().includes('es') ? 'es' : 'en';
-        return context.redirect(`/${preferredLang}`);
+        return context.redirect(`/${preferredLang}/`);
     }
     
     // Añadir caché para que las páginas carguen instantáneamente tras la primera visita
