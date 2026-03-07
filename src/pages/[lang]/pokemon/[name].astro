@@ -116,8 +116,8 @@ const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spde
 
 const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es' 
-    ? `${localizedName}: Stats, Tier Smogon y Estrategia | Pokepedia`
-    : `${localizedName}: Stats, Smogon Tier & Strategy | Pokepedia`;
+    ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
+    : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
 ---
 
 <Layout 
@@ -239,13 +239,17 @@ const seoTitle = lang === 'es'
                             href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            class="px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.1em] hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all shadow-sm flex items-center gap-2 group"
+                            class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all duration-300 no-underline"
                         >
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                {lang === 'es' ? 'Tabla de Efectividad' : 'Effectiveness Table'}
-                            </span>
-                            <svg class="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                    {lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}
+                                </span>
+                            </div>
+                            <svg class="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-width="2"/>
+                            </svg>
                         </a>
                     </div>
                     <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>

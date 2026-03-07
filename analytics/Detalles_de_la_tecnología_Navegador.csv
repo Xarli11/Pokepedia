@@ -1,0 +1,16 @@
+# ----------------------------------------
+# Detalles de la tecnología: Navegador
+# Cuenta: Pokepedia
+# Propiedad: Pokepedia
+# ----------------------------------------
+# 
+# Todos los usuarios
+# Fecha de inicio: 20260206
+# Fecha de finalización: 20260305
+Navegador,Usuarios activos,Usuarios nuevos,Sesiones con interacción,Porcentaje de interacciones,Sesiones con interacción por usuario activo,Tiempo de interacción medio por usuario activo,Número de eventos,Eventos clave,Total de ingresos
+Chrome,165,164,57,0.33727810650887574,0.34545454545454546,17.224242424242423,1143,0,0
+Safari,56,56,37,0.5522388059701493,0.6607142857142857,57.857142857142854,589,0,0
+Edge,6,9,3,0.5,0.5,1,31,0,0
+Firefox,5,5,1,0.2,0.2,21.8,32,0,0
+Opera,4,4,4,1,1,111,102,0,0
+Samsung Internet,1,1,1,1,1,22,11,0,0
