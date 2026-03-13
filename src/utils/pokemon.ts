@@ -47,6 +47,8 @@ export const uiTranslations: Record<string, Record<string, string>> = {
     es: {
         'search_placeholder': 'Busca por nombre, número o tipo...',
         'back_to_pokedex': 'Volver a la Pokedex',
+        'favorites': 'Favoritos',
+        'no_favorites': 'No tienes Pokémon favoritos todavía.',
         'basic_info': 'Información Básica',
         'height': 'Altura',
         'weight': 'Peso',
@@ -132,6 +134,8 @@ export const uiTranslations: Record<string, Record<string, string>> = {
     en: {
         'search_placeholder': 'Search by name, number or type...',
         'back_to_pokedex': 'Back to Pokedex',
+        'favorites': 'Favorites',
+        'no_favorites': 'You don\'t have any favorite Pokémon yet.',
         'basic_info': 'Basic Information',
         'height': 'Height',
         'weight': 'Weight',

@@ -34,7 +34,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         <button 
             class="fav-btn p-2.5 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn"
             data-pokemon={pokemon.name}
-            onclick="event.preventDefault(); window.toggleFavorite(this.dataset.pokemon)"
+            onclick="event.preventDefault(); event.stopPropagation(); window.toggleFavorite(this.dataset.pokemon)"
             title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
         >
             <svg class="w-5 h-5 heart-icon transition-all duration-500 ease-out group-hover/fav-btn:scale-125 group-active/fav-btn:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -118,13 +118,17 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             document.querySelectorAll('.fav-btn').forEach(btn => {
                 const isFav = favorites.includes(btn.dataset.pokemon);
                 const heart = btn.querySelector('.heart-icon');
+                const currentlyFav = heart.getAttribute('fill') === 'currentColor';
+
                 if (isFav) {
                     heart.setAttribute('fill', 'currentColor');
                     btn.classList.add('text-rose-500');
                     btn.classList.remove('text-slate-400');
-                    // Efecto de pulso (pop) premium al activarse
-                    btn.style.transform = 'scale(1.2)';
-                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                    // Solo efecto pop si cambia de estado a favorito
+                    if (!currentlyFav) {
+                        btn.style.transform = 'scale(1.2)';
+                        setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                    }
                 } else {
                     heart.setAttribute('fill', 'none');
                     btn.classList.remove('text-rose-500');
