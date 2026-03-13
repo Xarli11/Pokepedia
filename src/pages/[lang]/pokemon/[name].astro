@@ -145,12 +145,13 @@ const seoDescription = lang === 'es'
                         {localizedName}
                     </h1>
                     <button 
-                        class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 transition-all shadow-sm group/fav"
+                        class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-rose-500/30 transition-all shadow-sm group/fav text-slate-400"
                         data-pokemon={name}
                         onclick="window.toggleFavorite(this.dataset.pokemon)"
+                        title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
                     >
-                        <svg class="w-6 h-6 heart-icon transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        <svg class="w-6 h-6 heart-icon transition-all duration-300 group-hover/fav:scale-110 group-active/fav:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
                         </svg>
                     </button>
                 </div>
@@ -178,222 +179,193 @@ const seoDescription = lang === 'es'
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-12">
-            <!-- Columna Izquierda: Imagen y Info Básica -->
-            <div class="md:col-span-5 flex flex-col items-center">
-                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8 transition-colors duration-300 group/image">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 items-start">
+            <!-- Columna Izquierda: Arte y Tipos -->
+            <div class="lg:col-span-5 flex flex-col items-center">
+                <div class="relative group w-full aspect-square flex items-center justify-center p-8 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all duration-700 hover:shadow-emerald-500/10 hover:border-emerald-500/20 overflow-hidden">
+                    <!-- Resplandor de fondo -->
+                    <div class="absolute inset-0 bg-emerald-500/5 dark:bg-emerald-500/10 opacity-0 group-hover:opacity-100 blur-[80px] transition-opacity duration-1000"></div>
+                    
+                    <button 
+                        id="shiny-toggle"
+                        class="absolute top-6 right-6 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 transition-all z-20 group/shiny"
+                        title="Ver versión Shiny"
+                    >
+                        <svg class="w-6 h-6 group-hover/shiny:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l.6 2.1c.1.3.4.6.7.7L16.5 6.5l-2.2.6c-.3.1-.6.4-.7.7L13 10l-.6-2.2c-.1-.3-.4-.6-.7-.7L9.5 6.5l2.2-.6c.3-.1.6-.4.7-.7L13 3zM19 13l.3 1.1c.1.2.2.3.4.4l1.1.3-1.1.3c-.2.1-.3.2-.4.4l-.3 1.1-.3-1.1c-.1-.2-.2-.3-.4-.4l-1.1-.3 1.1-.3c.2-.1.3-.2.4-.4l.3-1.1z"></path></svg>
+                    </button>
+
                     <img 
                         id="pokemon-image"
                         src={detail.sprites.other["official-artwork"].front_default} 
+                        alt={localizedName} 
+                        class="relative w-full h-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_20px_40px_rgba(16,185,129,0.15)] transition-all duration-500 z-10"
                         data-default={detail.sprites.other["official-artwork"].front_default}
                         data-shiny={detail.sprites.other["official-artwork"].front_shiny}
-                        alt={localizedName}
-                        class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500"
                     />
-                    <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(detail.id)}</span>
-                    
-                    <!-- Interruptor Shiny -->
-                    <button 
-                        id="shiny-toggle"
-                        class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-amber-500 transition-all hover:scale-110 group/shiny"
-                        title={lang === 'es' ? 'Ver forma Variocolor' : 'View Shiny version'}
-                    >
-                        <svg class="w-6 h-6 group-[.active]:fill-amber-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                    </button>
                 </div>
 
-                <div class="w-full bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                    <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">{t.basic_info}</h3>
-                    <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.height}</p>
-                            <p class="text-slate-900 dark:text-white font-bold text-lg">{height} m</p>
+                <div class="flex gap-3 mt-8">
+                    {detail.types.map(t => (
+                        <div 
+                            class="px-6 py-2.5 rounded-2xl text-white font-black text-sm uppercase tracking-widest shadow-lg transition-transform hover:scale-105"
+                            style={`background-color: ${typeColors[t.type.name]}; box-shadow: 0 10px 20px -5px ${typeColors[t.type.name]}66;`}
+                        >
+                            {typeTranslations[lang as string][t.type.name]}
                         </div>
-                        <div>
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.weight}</p>
-                            <p class="text-slate-900 dark:text-white font-bold text-lg">{weight} kg</p>
-                        </div>
-                        <div class="col-span-2 border-t border-slate-50 dark:border-slate-800 pt-6 mt-2">
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.abilities}</p>
-                            <div class="space-y-3 mt-3">
-                                {abilitiesWithTranslation.map(a => (
-                                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <span class={`text-sm font-bold ${a.is_hidden ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                                {a.displayName}
-                                            </span>
-                                            {a.is_hidden && (
-                                                <span class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md">
-                                                    {t.hidden}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                                            {a.description}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            <!-- Columna Derecha: Nombre, Lore y Stats -->
-            <div class="md:col-span-7 space-y-12">
-                <div>
-                    <div class="flex flex-wrap items-center gap-4 mb-6">
-                        <div class="flex gap-2">
-                            {detail.types.map(t => (
-                                <span 
-                                    class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm"
-                                    style={`background-color: ${typeColors[t.type.name]}`}
-                                >
-                                    {typeTranslations[lang as string][t.type.name]}
-                                </span>
-                            ))}
+            <!-- Columna Derecha: Stats y Datos -->
+            <div class="lg:col-span-7 flex flex-col gap-8">
+                <!-- Tarjeta de Info Física -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 group hover:border-emerald-500/20 transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
                         </div>
-                        
-                        <a 
-                            href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all duration-300 no-underline"
-                        >
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-                                    {lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}
-                                </span>
-                            </div>
-                            <svg class="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-width="2"/>
-                            </svg>
-                        </a>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.height}</span>
+                            <span class="text-xl font-black text-slate-800 dark:text-white leading-none mt-1">{height} m</span>
+                        </div>
                     </div>
-                    <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
-                    <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                        "{description}"
-                    </p>
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-4 group hover:border-emerald-500/20 transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 6l3 12h12l3-12H3z"></path></svg>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.weight}</span>
+                            <span class="text-xl font-black text-slate-800 dark:text-white leading-none mt-1">{weight} kg</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Stats -->
-                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300 mb-12">
-                    <div class="flex justify-between items-center mb-10">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.base_stats}</h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.total}</span>
-                            <span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span>
-                        </div>
+                <!-- Habilidades -->
+                <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+                    <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-6 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        {t.abilities}
+                    </h3>
+                    <div class="flex flex-col gap-4">
+                        {abilitiesWithTranslation.map(a => (
+                            <div class="group/ability">
+                                <div class="flex items-baseline gap-3 mb-1">
+                                    <span class="text-lg font-black text-slate-800 dark:text-white group-hover/ability:text-emerald-500 transition-colors">{a.displayName}</span>
+                                    {a.is_hidden && (
+                                        <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500">
+                                            {t.hidden}
+                                        </span>
+                                    )}
+                                </div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{a.description}</p>
+                            </div>
+                        ))}
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-                        <!-- Radar Chart -->
-                        <div class="lg:col-span-5 relative flex justify-center">
-                            <svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">
-                                <!-- Grid -->
+                <!-- Gráfico de Radar de Stats -->
+                <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                    <div class="flex flex-col sm:flex-row items-center gap-8 relative z-10">
+                        <!-- Radar SVG -->
+                        <div class="relative w-[250px] h-[250px] shrink-0">
+                            <svg viewBox="0 0 250 250" class="w-full h-full drop-shadow-2xl">
+                                <!-- Rejilla -->
                                 {gridLevels.map(level => (
-                                    <polygon 
-                                        points={Array.from({length: 6}).map((_, i) => {
+                                    <polygon
+                                        points={statLabels.map((_, i) => {
                                             const r = level * radius;
                                             const x = center + r * Math.sin(i * angleStep);
                                             const y = center - r * Math.cos(i * angleStep);
                                             return `${x},${y}`;
                                         }).join(' ')}
-                                        class="fill-none stroke-slate-200 dark:stroke-slate-800"
+                                        class="fill-none stroke-slate-200 dark:stroke-slate-800/50"
                                         stroke-width="1"
                                     />
                                 ))}
-                                <!-- Axis -->
-                                {Array.from({length: 6}).map((_, i) => (
-                                    <line 
-                                        x1={center} y1={center}
-                                        x2={center + radius * Math.sin(i * angleStep)}
-                                        y2={center - radius * Math.cos(i * angleStep)}
-                                        class="stroke-slate-200 dark:stroke-slate-800"
-                                        stroke-width="1"
-                                    />
+                                <!-- Ejes -->
+                                {statLabels.map((_, i) => {
+                                    const x = center + radius * Math.sin(i * angleStep);
+                                    const y = center - radius * Math.cos(i * angleStep);
+                                    return <line x1={center} y1={center} x2={x} y2={y} class="stroke-slate-200 dark:stroke-slate-800/50" stroke-width="1" />;
+                                })}
+                                <!-- Polígono de Datos -->
+                                <polygon
+                                    points={points}
+                                    class="fill-emerald-500/30 stroke-emerald-500"
+                                    stroke-width="3"
+                                    stroke-linejoin="round"
+                                />
+                                <!-- Puntos -->
+                                {points.split(' ').map(p => (
+                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="4" class="fill-white stroke-emerald-500" stroke-width="2" />
                                 ))}
-                                <!-- Labels -->
+                                <!-- Etiquetas -->
                                 {statLabels.map((label, i) => {
-                                    const r = radius + 25; // Distancia de la etiqueta
+                                    const r = radius + 25;
                                     const x = center + r * Math.sin(i * angleStep);
                                     const y = center - r * Math.cos(i * angleStep);
                                     return (
-                                        <text 
-                                            x={x} y={y} 
-                                            text-anchor="middle" 
+                                        <text
+                                            x={x}
+                                            y={y}
+                                            text-anchor="middle"
                                             dominant-baseline="middle"
-                                            class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter"
+                                            class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black uppercase tracking-tighter"
                                         >
                                             {label}
                                         </text>
                                     );
                                 })}
-                                <!-- Area -->
-                                <polygon 
-                                    points={points}
-                                    class="fill-emerald-500/20 stroke-emerald-500"
-                                    stroke-width="3"
-                                    stroke-linejoin="round"
-                                />
-                                <!-- Points -->
-                                {points.split(' ').map(p => (
-                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
-                                ))}
                             </svg>
                         </div>
 
-                        <!-- Stats Bars -->
-                        <div class="lg:col-span-7 space-y-4">
-                            {detail.stats.map(s => {
-                            const percentage = (s.base_stat / 255) * 100;
-                            const colorClass = getStatColor(s.base_stat);
-                            return (
-                                <div>
-                                    <div class="flex justify-between mb-1 text-sm font-bold">
-                                        <span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span>
-                                        <span class="text-slate-900 dark:text-white">{s.base_stat}</span>
+                        <!-- Lista de Stats Técnica -->
+                        <div class="flex-1 w-full flex flex-col gap-4">
+                            <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2 flex items-center justify-between">
+                                {t.base_stats}
+                                <span class="text-emerald-500 font-black">{totalStats} Total</span>
+                            </h3>
+                            {detail.stats.map(s => (
+                                <div class="flex flex-col gap-1.5 group/stat">
+                                    <div class="flex justify-between items-baseline px-1">
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 group-hover/stat:text-emerald-500 transition-colors">
+                                            {t[s.stat.name as keyof typeof t]}
+                                        </span>
+                                        <span class="text-sm font-black text-slate-800 dark:text-white">{s.base_stat}</span>
                                     </div>
-                                    <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div class="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                         <div 
-                                            class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`}
-                                            style={`width: ${percentage}%`}
+                                            class={`h-full rounded-full bg-gradient-to-r transition-all duration-1000 ${getStatColor(s.base_stat)}`}
+                                            style={`width: ${Math.min(s.base_stat, 180) / 1.8}%`}
                                         ></div>
                                     </div>
                                 </div>
-                            );
-                        })}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Formas Alternativas (Megas, G-Max) -->
-                {varieties.length > 0 && (
-                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">{t.other_forms}</h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                            {varieties.map(v => (
-                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all group no-underline">
-                                    <img src={v.sprites.other["official-artwork"].front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
-                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{v.name.replace(/-/g, ' ')}</span>
-                                    <div class="flex gap-1.5 mt-3">
-                                        {v.types.map((t: any) => (
-                                            <div class="w-2.5 h-2.5 rounded-full shadow-sm" style={`background-color: ${typeColors[t.type.name]}`}></div>
-                                        ))}
-                                    </div>
-                                </a>
                             ))}
                         </div>
                     </div>
-                )}
+                </div>
             </div>
         </div>
 
+        {varieties.length > 0 && (
+            <div class="mb-12">
+                <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-6 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    {t.other_forms}
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {varieties.map(v => (
+                        <a href={`/${lang}/pokemon/${v.name}`} class="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-emerald-500/20 hover:shadow-lg transition-all text-center no-underline group">
+                            <img src={v.sprites.front_default} alt={v.name} class="w-20 h-20 mx-auto object-contain group-hover:scale-110 transition-transform" />
+                            <span class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mt-2 capitalize">{formatPokemonName(v.name, species.name, lang as string)}</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        )}
+
         <!-- Cadena Evolutiva -->
-        <EvolutionChain chain={evolutionChain} lang={lang as string} />
+        <EvolutionChain chainUrl={species.evolution_chain.url} lang={lang as string} currentName={name as string} />
 
         <!-- Guía de Localización -->
         <LocationGuide pokemonId={detail.id} lang={lang as string} />
@@ -437,11 +409,14 @@ const seoDescription = lang === 'es'
                 const heart = btn.querySelector('.heart-icon');
                 if (isFav) {
                     heart.setAttribute('fill', 'currentColor');
-                    btn.classList.add('text-red-500');
+                    btn.classList.add('text-rose-500');
                     btn.classList.remove('text-slate-400');
+                    // Efecto pop sutil
+                    btn.style.transform = 'scale(1.2)';
+                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
                 } else {
                     heart.setAttribute('fill', 'none');
-                    btn.classList.remove('text-red-500');
+                    btn.classList.remove('text-rose-500');
                     btn.classList.add('text-slate-400');
                 }
             }
