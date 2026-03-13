@@ -118,22 +118,44 @@ const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es' 
     ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
     : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
+
+const seoDescription = lang === 'es'
+    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y mejores estrategias competitivas en la Pokepedia técnica definitiva.`
+    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses, and top competitive strategies in the ultimate technical Pokepedia.`;
 ---
 
 <Layout 
     title={seoTitle} 
-    description={description}
+    description={seoDescription}
     image={detail.sprites.other["official-artwork"].front_default}
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
-            <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
-                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
-                    <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+            <div class="flex flex-col gap-4">
+                <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
+                    <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
+                        <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                    </div>
+                    {t.back_to_pokedex}
+                </a>
+                
+                <div class="flex items-center gap-4">
+                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">
+                        {localizedName}
+                    </h1>
+                    <button 
+                        class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-rose-500/30 transition-all shadow-sm group/fav text-slate-400"
+                        data-pokemon={name}
+                        onclick="window.toggleFavorite(this.dataset.pokemon)"
+                        title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
+                    >
+                        <svg class="w-6 h-6 heart-icon transition-all duration-300 group-hover/fav:scale-110 group-active/fav:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
+                        </svg>
+                    </button>
                 </div>
-                {t.back_to_pokedex}
-            </a>
+            </div>
 
             <!-- Navegación Rápida -->
             <div class="flex items-center gap-3">
@@ -407,5 +429,30 @@ const seoTitle = lang === 'es'
         }
         initShiny();
         document.addEventListener('astro:after-swap', initShiny);
+
+        function updateDetailFavButton() {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            const btn = document.querySelector('.fav-btn');
+            if (btn) {
+                const isFav = favorites.includes(btn.dataset.pokemon || '');
+                const heart = btn.querySelector('.heart-icon');
+                if (isFav) {
+                    heart.setAttribute('fill', 'currentColor');
+                    btn.classList.add('text-rose-500');
+                    btn.classList.remove('text-slate-400');
+                    // Efecto pop sutil
+                    btn.style.transform = 'scale(1.2)';
+                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                } else {
+                    heart.setAttribute('fill', 'none');
+                    btn.classList.remove('text-rose-500');
+                    btn.classList.add('text-slate-400');
+                }
+            }
+        }
+
+        updateDetailFavButton();
+        document.addEventListener('astro:after-swap', updateDetailFavButton);
+        document.addEventListener('favorites-updated', updateDetailFavButton);
     </script>
 </Layout>
