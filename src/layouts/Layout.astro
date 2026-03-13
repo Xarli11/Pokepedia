@@ -212,8 +212,10 @@ if (Astro.locals.cacheControl) {
             </div>
         </header>
 
-        <main class="container mx-auto px-4 py-12 flex-grow">
+        <main class="container mx-auto px-4 pt-12 pb-32 flex-grow">
 		    <slot />
+        </main>
+
         <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between transition-all duration-300">
             <a href={`/${lang}`} class={`flex flex-col items-center gap-1 group ${currentPath === `/${lang}` || (currentPath === '/' && lang === 'es') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -261,7 +263,7 @@ if (Astro.locals.cacheControl) {
             </svg>
         </button>
 
-        <footer class="mt-auto pb-32 md:pb-12 px-4">
+        <footer class="mt-20 pb-32 md:pb-12 px-4">
             <div class="container mx-auto">
                 <div class="relative bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[3rem] p-12 md:p-16 overflow-hidden shadow-sm">
                     <!-- Elementos Decorativos Bento -->
