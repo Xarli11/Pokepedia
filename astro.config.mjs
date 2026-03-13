@@ -3,19 +3,12 @@ import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import sitemap from '@astrojs/sitemap';
 
-// https://astro.build/config
+// Pokepedia Production Build - 2026-03-13
 export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
   adapter: vercel(),
-  integrations: [sitemap({
-    serialize(item) {
-      if (item.url.includes('/es')) {
-        item.priority = 0.9;
-      }
-      return item;
-    },
-  })],
+  integrations: [],
   vite: {
     plugins: [tailwindcss()]
   }
