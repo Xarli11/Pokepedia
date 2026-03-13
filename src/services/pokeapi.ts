@@ -141,6 +141,8 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
  * Obtiene la lista de Pokémon por generación.
  */
 export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
+    if (genKey === 'favorites') return [];
+    
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
     
