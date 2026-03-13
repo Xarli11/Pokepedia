@@ -118,22 +118,43 @@ const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es' 
     ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
     : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
+
+const seoDescription = lang === 'es'
+    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y mejores estrategias competitivas en la Pokepedia técnica definitiva.`
+    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses, and top competitive strategies in the ultimate technical Pokepedia.`;
 ---
 
 <Layout 
     title={seoTitle} 
-    description={description}
+    description={seoDescription}
     image={detail.sprites.other["official-artwork"].front_default}
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
-            <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
-                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
-                    <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+            <div class="flex flex-col gap-4">
+                <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
+                    <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
+                        <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                    </div>
+                    {t.back_to_pokedex}
+                </a>
+                
+                <div class="flex items-center gap-4">
+                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">
+                        {localizedName}
+                    </h1>
+                    <button 
+                        class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-emerald-500/30 transition-all shadow-sm group/fav"
+                        data-pokemon={name}
+                        onclick="window.toggleFavorite(this.dataset.pokemon)"
+                    >
+                        <svg class="w-6 h-6 heart-icon transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </button>
                 </div>
-                {t.back_to_pokedex}
-            </a>
+            </div>
 
             <!-- Navegación Rápida -->
             <div class="flex items-center gap-3">
@@ -407,5 +428,27 @@ const seoTitle = lang === 'es'
         }
         initShiny();
         document.addEventListener('astro:after-swap', initShiny);
+
+        function updateDetailFavButton() {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            const btn = document.querySelector('.fav-btn');
+            if (btn) {
+                const isFav = favorites.includes(btn.dataset.pokemon || '');
+                const heart = btn.querySelector('.heart-icon');
+                if (isFav) {
+                    heart.setAttribute('fill', 'currentColor');
+                    btn.classList.add('text-red-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    heart.setAttribute('fill', 'none');
+                    btn.classList.remove('text-red-500');
+                    btn.classList.add('text-slate-400');
+                }
+            }
+        }
+
+        updateDetailFavButton();
+        document.addEventListener('astro:after-swap', updateDetailFavButton);
+        document.addEventListener('favorites-updated', updateDetailFavButton);
     </script>
 </Layout>

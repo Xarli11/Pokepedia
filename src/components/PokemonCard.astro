@@ -20,6 +20,18 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
     data-types={typesString}
     style="content-visibility: auto; contain-intrinsic-size: 200px 380px; transform: translateZ(0);"
 >
+    <!-- Botón Favorito -->
+    <button 
+        class="absolute top-5 right-6 z-30 fav-btn p-2 rounded-xl bg-slate-100/50 dark:bg-slate-900/30 hover:bg-emerald-500/20 transition-all group/fav-btn"
+        data-pokemon={pokemon.name}
+        onclick="event.preventDefault(); window.toggleFavorite(this.dataset.pokemon)"
+        title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
+    >
+        <svg class="w-4 h-4 heart-icon transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+    </button>
+
     <!-- Badge de Tier (Smogon) con estilo flotante -->
     <div class="absolute top-5 left-6 z-20 tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
         <div class="h-4 w-8 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
@@ -102,6 +114,26 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         }
 
         loadTiers();
-        document.addEventListener('astro:after-swap', updateTiers);
+
+        function updateFavButtons() {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                const isFav = favorites.includes(btn.dataset.pokemon);
+                const heart = btn.querySelector('.heart-icon');
+                if (isFav) {
+                    heart.setAttribute('fill', 'currentColor');
+                    btn.classList.add('text-red-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    heart.setAttribute('fill', 'none');
+                    btn.classList.remove('text-red-500');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+        }
+
+        updateFavButtons();
+        document.addEventListener('astro:after-swap', updateFavButtons);
+        document.addEventListener('favorites-updated', updateFavButtons);
     }
 </script>

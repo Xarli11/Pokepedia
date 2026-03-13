@@ -1,0 +1,132 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { uiTranslations } from '../../utils/pokemon';
+
+const { lang } = Astro.params;
+const t = uiTranslations[lang as string] || uiTranslations.es;
+
+const title = lang === 'es' ? 'Mis Favoritos' : 'My Favorites';
+const description = lang === 'es' 
+    ? 'Accede a tu lista personalizada de Pokémon favoritos guardados en esta sesión.' 
+    : 'Access your personalized list of favorite Pokémon saved in this session.';
+---
+
+<Layout title={title} description={description} lang={lang}>
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-12">
+            <h1 class="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter mb-4">
+                {title}
+            </h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg font-medium max-w-2xl">
+                {description}
+            </p>
+        </header>
+
+        <div id="favorites-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <!-- Cargando... -->
+            <div id="loading-favs" class="col-span-full py-20 flex flex-col items-center justify-center opacity-50">
+                <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="font-bold uppercase tracking-widest text-xs">Sincronizando Laboratorio...</p>
+            </div>
+        </div>
+
+        <div id="empty-favs" class="hidden col-span-full py-40 text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-slate-100 dark:bg-slate-900 mb-6">
+                <svg class="w-10 h-10 text-slate-300 dark:text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">No tienes favoritos aún</h2>
+            <p class="text-slate-500 mb-8">Marca el corazón en cualquier Pokémon para guardarlo aquí.</p>
+            <a href={`/${lang}`} class="inline-flex items-center px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-colors">
+                Explorar Pokedex
+            </a>
+        </div>
+    </div>
+</Layout>
+
+<script is:inline define:vars={{ lang }}>
+    async function loadFavorites() {
+        const grid = document.getElementById('favorites-grid');
+        const empty = document.getElementById('empty-favs');
+        const loading = document.getElementById('loading-favs');
+        const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+
+        if (favorites.length === 0) {
+            loading.classList.add('hidden');
+            grid.classList.add('hidden');
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const pokemonData = await Promise.all(
+                favorites.map(name => fetch(`https://pokeapi.co/api/v2/pokemon/${name}`).then(res => res.json()))
+            );
+
+            loading.classList.add('hidden');
+            
+            pokemonData.forEach(pokemon => {
+                const card = createCardHTML(pokemon);
+                grid.appendChild(card);
+            });
+            
+            // Inicializar Tiers y Favoritos en las nuevas tarjetas
+            if (window.updateTiers) window.updateTiers();
+            if (window.updateFavButtons) window.updateFavButtons();
+
+        } catch (error) {
+            console.error('Error loading favorites:', error);
+            loading.innerHTML = '<p class="text-red-500">Error al cargar el equipo de favoritos.</p>';
+        }
+    }
+
+    function createCardHTML(pokemon) {
+        const div = document.createElement('div');
+        const types = pokemon.types.map(t => {
+            const colors = {
+                normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C', ice: '#96D9D6', fighting: '#C22E28', poison: '#A33EA1', ground: '#E2BF65', flying: '#A98FF3', psychic: '#F95587', bug: '#A6B91A', rock: '#B6A136', ghost: '#735797', dragon: '#6F35FC', dark: '#705746', steel: '#B7B7CE', fairy: '#D685AD'
+            };
+            const labels = lang === 'es' ? {
+                normal: 'Normal', fire: 'Fuego', water: 'Agua', electric: 'Eléctrico', grass: 'Planta', ice: 'Hielo', fighting: 'Lucha', poison: 'Veneno', ground: 'Tierra', flying: 'Volador', psychic: 'Psíquico', bug: 'Bicho', rock: 'Roca', ghost: 'Fantasma', dragon: 'Dragón', dark: 'Siniestro', steel: 'Acero', fairy: 'Hada'
+            } : {
+                normal: 'Normal', fire: 'Fire', water: 'Water', electric: 'Electric', grass: 'Grass', ice: 'Ice', fighting: 'Fighting', poison: 'Poison', ground: 'Ground', flying: 'Flying', psychic: 'Psychic', bug: 'Bug', rock: 'Rock', ghost: 'Ghost', dragon: 'Dragon', dark: 'Dark', steel: 'Steel', fairy: 'Fairy'
+            };
+
+            const color = colors[t.type.name] || '#777';
+            const label = labels[t.type.name] || t.type.name;
+            return `
+                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm">
+                    <div class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}; box-shadow: 0 0 8px ${color}88;"></div>
+                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${label}</span>
+                </div>
+            `;
+        }).join('');
+
+        div.innerHTML = `
+            <a href="/${lang}/pokemon/${pokemon.name}" class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 flex flex-col items-center overflow-hidden">
+                <button 
+                    class="absolute top-5 right-6 z-30 fav-btn p-2 rounded-xl bg-slate-100/50 dark:bg-slate-900/30 hover:bg-emerald-500/20 transition-all group/fav-btn text-red-500"
+                    data-pokemon="${pokemon.name}"
+                    onclick="event.preventDefault(); window.toggleFavorite(this.dataset.pokemon); this.closest('a').remove(); if(document.querySelectorAll('#favorites-grid a').length === 0) location.reload();"
+                >
+                    <svg class="w-4 h-4 heart-icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                </button>
+                <div class="absolute top-5 left-6 z-20 tier-badge" data-tier-for="${pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}"></div>
+                <span class="relative w-full text-right text-slate-300 dark:text-slate-600 font-black text-[10px] mb-2 tracking-[0.2em]">#${pokemon.id.toString().padStart(4, '0')}</span>
+                <div class="relative w-32 h-32 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
+                    <div class="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full opacity-0 group-hover:opacity-40 transition-opacity"></div>
+                    <img src="${pokemon.sprites.other["official-artwork"].front_default}" alt="${pokemon.name}" class="w-full h-full object-contain drop-shadow-xl relative z-20" />
+                </div>
+                <h2 class="relative mt-6 text-xl font-black text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tight">${pokemon.name.replace(/-/g, ' ')}</h2>
+                <div class="relative flex gap-2 mt-4 z-10">${types}</div>
+            </a>
+        `;
+        return div.firstElementChild;
+    }
+
+    loadFavorites();
+    document.addEventListener('astro:after-swap', loadFavorites);
+</script>

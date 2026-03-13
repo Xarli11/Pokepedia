@@ -66,17 +66,17 @@ if (Astro.locals.cacheControl) {
         <meta name="description" content={description} />
         <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Type Calculator, Weakness Chart, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet, Type Coverage" />
         <meta name="author" content="Xarli11" />
-        <link rel="canonical" href={Astro.url} />
+        <link rel="canonical" href={new URL(Astro.url.pathname, siteUrl).href} />
         
         <!-- Multilanguage SEO -->
-        <link rel="alternate" hreflang="es" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
-        <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
-        <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
+        <link rel="alternate" hreflang="es" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl).href} />
+        <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl).href} />
+        <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl).href} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={Astro.url} />
-        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta property="og:url" content={new URL(currentPath, siteUrl).href} />
+        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia & Type Calculator' : `${title} | Pokepedia`} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={finalImageUrl} />
         <meta property="og:image:secure_url" content={finalImageUrl} />
@@ -88,8 +88,8 @@ if (Astro.locals.cacheControl) {
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={Astro.url} />
-        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta name="twitter:url" content={new URL(currentPath, siteUrl).href} />
+        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia & Type Calculator' : `${title} | Pokepedia`} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={finalImageUrl} />
         <meta name="twitter:image:alt" content={title} />
@@ -118,6 +118,36 @@ if (Astro.locals.cacheControl) {
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             const theme = savedTheme || systemTheme;
             if (theme === 'dark') document.documentElement.classList.add('dark');
+        </script>
+        
+        <script is:inline>
+            // Gestión de Favoritos Global
+            function updateFavCounter() {
+                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+                const counter = document.getElementById('fav-count');
+                if (counter) {
+                    counter.textContent = favorites.length;
+                    counter.classList.toggle('hidden', favorites.length === 0);
+                    counter.classList.toggle('flex', favorites.length > 0);
+                }
+            }
+
+            window.toggleFavorite = function(name) {
+                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+                const index = favorites.indexOf(name);
+                if (index === -1) {
+                    favorites.push(name);
+                } else {
+                    favorites.splice(index, 1);
+                }
+                localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
+                updateFavCounter();
+                document.dispatchEvent(new CustomEvent('favorites-updated', { detail: { name, action: index === -1 ? 'add' : 'remove' } }));
+            };
+
+            // Inicializar contador
+            updateFavCounter();
+            document.addEventListener('astro:after-swap', updateFavCounter);
         </script>
         
         <Analytics />
@@ -161,6 +191,10 @@ if (Astro.locals.cacheControl) {
                         <a href={`/${lang}/movimientos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Movimientos</a>
                         <a href={`/${lang}/habilidades`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Habilidades</a>
                         <a href={`/${lang}/objetos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">{lang === 'es' ? 'Objetos' : 'Items'}</a>
+                        <a href={`/${lang}/favoritos`} class="relative hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors flex items-center gap-1 group/fav">
+                            <span>{lang === 'es' ? 'Favoritos' : 'Favorites'}</span>
+                            <span id="fav-count" class="hidden min-w-[1.25rem] h-5 items-center justify-center bg-emerald-500 text-white text-[10px] rounded-full px-1 group-hover/fav:scale-110 transition-transform">0</span>
+                        </a>
                     </nav>
 
                     <div class="flex items-center gap-2 md:gap-4 md:border-l border-slate-200 dark:border-slate-800 md:pl-6">
