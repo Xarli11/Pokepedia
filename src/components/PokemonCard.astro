@@ -32,19 +32,17 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         </svg>
     </button>
 
-    <!-- Badge de Tier (Smogon) con estilo flotante -->
-    <div class="absolute top-5 left-6 z-20 tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
-        <div class="h-4 w-8 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
+    <div class="absolute top-5 left-6 flex items-center gap-3 z-20">
+        <span class="text-slate-300 dark:text-slate-600 font-black text-[10px] tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">
+            {formatPokemonNumber(pokemon.id)}
+        </span>
+        <div class="tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
+            <div class="h-4 w-8 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
+        </div>
     </div>
-
-    <!-- Gradiente de profundidad en Hover -->
-    <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-    
-    <span class="relative w-full text-right text-slate-300 dark:text-slate-600 font-black text-[10px] mb-2 tracking-[0.2em] z-10 transition-colors group-hover:text-emerald-500/50">
-        {formatPokemonNumber(pokemon.id)}
-    </span>
     
     <div class="relative w-32 h-32 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
+
         <!-- Resplandor de fondo al hover -->
         <div class="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-700"></div>
         
