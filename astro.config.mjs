@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vercel from '@astrojs/vercel';
 import sitemap from '@astrojs/sitemap';
 
-// https://astro.build/config
+// Pokepedia Technical Overhaul - v1.0.1
 export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
