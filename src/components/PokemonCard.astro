@@ -14,51 +14,64 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 
 <a 
     href={`/${lang}/pokemon/${pokemon.name}`} 
-    class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 flex flex-col items-center overflow-hidden pokemon-card" 
+    class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-10 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card" 
     data-name={pokemon.name} 
     data-id={pokemon.id} 
     data-types={typesString}
-    style="content-visibility: auto; contain-intrinsic-size: 200px 380px; transform: translateZ(0);"
+    style="content-visibility: auto; contain-intrinsic-size: 200px 420px; transform: translateZ(0);"
 >
-    <div class="absolute top-5 left-6 flex items-center gap-3 z-20">
-        <span class="text-slate-300 dark:text-slate-600 font-black text-[10px] tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">
-            {formatPokemonNumber(pokemon.id)}
-        </span>
-        <div class="tier-badge opacity-80 group-hover:opacity-100 transition-opacity" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
-            <div class="h-4 w-8 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
+    <!-- Barra Superior Técnica (Separada del sprite) -->
+    <div class="w-full flex items-center justify-between mb-8 z-30">
+        <div class="flex items-center gap-3">
+            <span class="text-slate-300 dark:text-slate-600 font-black text-[10px] tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">
+                {formatPokemonNumber(pokemon.id)}
+            </span>
+            <div class="tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
+                <div class="h-4 w-8 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
+            </div>
         </div>
+
+        <button 
+            class="fav-btn p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-emerald-500/10 transition-all group/fav-btn"
+            data-pokemon={pokemon.name}
+            onclick="event.preventDefault(); window.toggleFavorite(this.dataset.pokemon)"
+            title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
+        >
+            <svg class="w-4 h-4 heart-icon transition-transform duration-300 group-hover/fav-btn:scale-125" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+        </button>
     </div>
     
-    <div class="relative w-32 h-32 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
-
-        <!-- Resplandor de fondo al hover -->
-        <div class="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-700"></div>
+    <!-- Área del Sprite con Resplandor Expandido -->
+    <div class="relative w-44 h-44 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
+        <div class="absolute inset-0 bg-emerald-500/20 blur-[50px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700"></div>
         
         <img 
             src={pokemon.sprites.other["official-artwork"].front_default} 
             alt={pokemon.name} 
-            width="140"
-            height="140"
-            class="w-full h-full object-contain drop-shadow-xl relative z-20"
+            width="180"
+            height="180"
+            class="w-full h-full object-contain drop-shadow-2xl relative z-20"
             loading="lazy"
             decoding="async"
         />
     </div>
     
-    <h2 class="relative mt-6 text-xl font-black text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tight">
+    <h2 class="relative mt-8 text-2xl font-[1000] text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tighter">
         {pokemon.name.replace(/-/g, ' ')}
     </h2>
     
-    <div class="relative flex gap-2 mt-4 z-10">
+    <div class="relative flex gap-2 mt-5 z-10">
         {pokemon.types.map((t) => {
             const typeName = t.type.name;
             const bgColor = typeColors[typeName] || '#777';
             const label = typeTranslations[lang][typeName] || typeName;
             
             return (
-                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
                     <div class="w-1.5 h-1.5 rounded-full" style={`background-color: ${bgColor}; box-shadow: 0 0 8px ${bgColor}88;`}></div>
-                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
                         {label}
                     </span>
                 </div>
@@ -68,7 +81,6 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 </a>
 
 <script is:inline>
-    // Script Global Único para Tiers
     if (!window.tierScriptInjected) {
         window.tierScriptInjected = true;
         
@@ -100,6 +112,29 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         }
 
         loadTiers();
-        document.addEventListener('astro:after-swap', updateTiers);
+
+        function updateFavButtons() {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                const isFav = favorites.includes(btn.dataset.pokemon);
+                const heart = btn.querySelector('.heart-icon');
+                if (isFav) {
+                    heart.setAttribute('fill', 'currentColor');
+                    btn.classList.add('text-red-500');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    heart.setAttribute('fill', 'none');
+                    btn.classList.remove('text-red-500');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+        }
+
+        updateFavButtons();
+        document.addEventListener('astro:after-swap', () => {
+            updateTiers();
+            updateFavButtons();
+        });
+        document.addEventListener('favorites-updated', updateFavButtons);
     }
 </script>
