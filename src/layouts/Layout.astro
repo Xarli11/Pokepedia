@@ -278,6 +278,18 @@ if (Astro.locals.cacheControl) {
                 };
             }
 
+            window.toggleFavorite = (pokemonName) => {
+                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+                const index = favorites.indexOf(pokemonName);
+                if (index > -1) {
+                    favorites.splice(index, 1);
+                } else {
+                    favorites.push(pokemonName);
+                }
+                localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
+                document.dispatchEvent(new CustomEvent('favorites-updated'));
+            };
+
             function initRandom() {
                 const btn = document.getElementById('random-pokemon-btn');
                 if (!btn) return;

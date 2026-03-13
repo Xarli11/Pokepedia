@@ -17,6 +17,7 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Contenido Avanzado**: Soporte para formas Mega, Gigamax y variantes regionales.
 - [x] **Pokémon Aleatorio**: Botón de dados premium con animación.
 - [x] **Gráficos de Radar**: Visualización SVG de estadísticas base.
+- [x] **Sistema de Favoritos**: Persistencia en LocalStorage y reactividad visual en toda la app.
 
 ## ⚙️ Normas de Trabajo y GitFlow (OBLIGATORIO SIN EXCEPCIÓN)
 - **Commits**: Usar siempre **Conventional Commits** (feat, fix, docs, style, refactor, perf, test, chore).
@@ -38,5 +39,4 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] Guía de localización técnica con nombres oficiales traducidos.
 
 ## 🚀 Próximos Pasos
-- [ ] Implementar sistema de "Favoritos" con LocalStorage.
 - [ ] Comparador técnico entre dos Pokémon.

@@ -436,13 +436,18 @@ const seoDescription = lang === 'es'
             if (btn) {
                 const isFav = favorites.includes(btn.dataset.pokemon || '');
                 const heart = btn.querySelector('.heart-icon');
+                const currentlyFav = heart.getAttribute('fill') === 'currentColor';
+
                 if (isFav) {
                     heart.setAttribute('fill', 'currentColor');
                     btn.classList.add('text-rose-500');
                     btn.classList.remove('text-slate-400');
-                    // Efecto pop sutil
-                    btn.style.transform = 'scale(1.2)';
-                    setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                    
+                    if (!currentlyFav) {
+                        // Efecto pop sutil solo si cambia a favorito
+                        btn.style.transform = 'scale(1.2)';
+                        setTimeout(() => btn.style.transform = 'scale(1)', 200);
+                    }
                 } else {
                     heart.setAttribute('fill', 'none');
                     btn.classList.remove('text-rose-500');
