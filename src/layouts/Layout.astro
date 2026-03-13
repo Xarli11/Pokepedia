@@ -261,26 +261,22 @@ if (Astro.locals.cacheControl) {
             </svg>
         </button>
 
-        <footer class="relative mt-auto pt-20 pb-32 md:pb-16 overflow-hidden">
-            <!-- Elementos Decorativos de Fondo -->
-            <div class="absolute inset-0 bg-slate-100/50 dark:bg-slate-900/30 -z-10"></div>
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent"></div>
-            
-            <div class="container mx-auto px-4 relative">
-                <!-- Grid Decorativo de Laboratorio -->
-                <div class="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
-                <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        <footer class="mt-auto pb-32 md:pb-12 px-4">
+            <div class="container mx-auto">
+                <div class="relative bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[3rem] p-12 md:p-16 overflow-hidden shadow-sm">
+                    <!-- Elementos Decorativos Bento -->
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                    <div class="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-                <div class="flex flex-col items-center">
-                    <!-- Botón de Apoyo con Estilo Cápsula -->
-                    <div class="mb-12">
-                        <a 
-                            href="https://buymeacoffee.com/xarli11" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="inline-flex items-center gap-3 px-8 py-4 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-amber-600 dark:text-amber-400 font-bold text-sm hover:shadow-xl hover:shadow-amber-500/10 hover:border-amber-500/30 transition-all duration-500 group"
-                        >
-                            <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div class="relative flex flex-col items-center">
+                        <!-- Botón de Apoyo Bento Style -->
+                        <div class="mb-12">
+                            <a 
+                                href="https://buymeacoffee.com/xarli11" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-4 px-6 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 text-amber-600 dark:text-amber-400 font-bold text-sm hover:scale-105 transition-all duration-300 group"
+                            >
                                 <svg class="w-5 h-5 group-hover:rotate-12 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
                                     <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
@@ -288,35 +284,34 @@ if (Astro.locals.cacheControl) {
                                     <line x1="10" y1="1" x2="10" y2="4"></line>
                                     <line x1="14" y1="1" x2="14" y2="4"></line>
                                 </svg>
-                            </div>
-                            <div class="flex flex-col items-start leading-none">
-                                <span class="text-[10px] uppercase tracking-[0.2em] opacity-50 mb-1">Support the Lab</span>
-                                <span class="text-sm tracking-tight">{uiTranslations[lang]?.support_project || uiTranslations.es.support_project}</span>
-                            </div>
-                        </a>
-                    </div>
-
-                    <!-- Logo en Footer -->
-                    <div class="flex items-center gap-3 mb-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
-                        <div class="w-8 h-8 relative flex items-center justify-center">
-                            <div class="absolute inset-0 bg-slate-900 dark:bg-emerald-500/20 border border-emerald-500/50 rounded-lg rotate-45"></div>
-                            <svg class="relative w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
-                            </svg>
+                                <span class="tracking-tight">{uiTranslations[lang]?.support_project || uiTranslations.es.support_project}</span>
+                            </a>
                         </div>
-                        <span class="text-xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">POKE<span class="font-thin text-emerald-500">pedia</span></span>
-                    </div>
 
-                    <div class="text-center space-y-4">
-                        <p class="text-slate-900 dark:text-white font-black text-lg tracking-tight italic">
-                            © 2026 Pokepedia <span class="text-emerald-500 mx-2">•</span> Data up to Gen 9
-                        </p>
-                        <div class="flex items-center justify-center gap-4">
-                            <span class="h-px w-8 bg-slate-200 dark:bg-slate-800"></span>
-                            <p class="text-slate-500 dark:text-slate-400 text-xs font-medium tracking-wide">
-                                Designed & Crafted by <span class="text-emerald-600 dark:text-emerald-400 font-black underline decoration-emerald-500/20 underline-offset-8">Xarli11</span>
+                        <!-- Logo en Footer -->
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="w-10 h-10 relative flex items-center justify-center">
+                                <div class="absolute inset-0 bg-slate-900 dark:bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700"></div>
+                                <svg class="relative w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
+                                </svg>
+                            </div>
+                            <span class="text-2xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">POKE<span class="font-thin text-emerald-500">pedia</span></span>
+                        </div>
+
+                        <div class="text-center space-y-4">
+                            <p class="text-slate-900 dark:text-white font-black text-xl tracking-tight italic">
+                                © 2026 Pokepedia <span class="text-emerald-500 mx-2">•</span> Data up to Gen 9
                             </p>
-                            <span class="h-px w-8 bg-slate-200 dark:bg-slate-800"></span>
+                            <div class="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4">
+                                <p class="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide">
+                                    Designed & Crafted by <span class="text-emerald-600 dark:text-emerald-400 font-black underline decoration-emerald-500/20 underline-offset-8">Xarli11</span>
+                                </p>
+                                <span class="hidden md:block h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                                <p class="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
+                                    {lang === 'es' ? '[ INVESTIGACIÓN_ACTIVA ]' : '[ RESEARCH_ACTIVE ]'}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
