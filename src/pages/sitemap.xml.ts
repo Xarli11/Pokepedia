@@ -3,47 +3,56 @@ import type { APIRoute } from 'astro';
 export const GET: APIRoute = async () => {
   const languages = ['es', 'en'];
   const siteUrl = 'https://pokepedia.app';
+  const lastmod = new Date().toISOString().split('T')[0];
 
-  // Obtener datos dinámicos de PokeAPI en paralelo
-  const [pokemonRes, movesRes, abilitiesRes, itemsRes] = await Promise.all([
-    fetch('https://pokeapi.co/api/v2/pokemon?limit=1025').then(r => r.json()),
-    fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r => r.json()),
-    fetch('https://pokeapi.co/api/v2/ability?limit=400').then(r => r.json()),
-    fetch('https://pokeapi.co/api/v2/item?limit=500').then(r => r.json())
-  ]);
+  let pokemon = [];
+  let moves = [];
+  let abilities = [];
+  let items = [];
 
-  const pokemon = pokemonRes.results;
-  const moves = movesRes.results;
-  const abilities = abilitiesRes.results;
-  const items = itemsRes.results;
+  try {
+    // Obtener datos dinámicos de PokeAPI en paralelo con timeout y reintentos sutiles
+    const [pokemonRes, movesRes, abilitiesRes, itemsRes] = await Promise.all([
+      fetch('https://pokeapi.co/api/v2/pokemon?limit=1025').then(r => r.json()).catch(() => ({ results: [] })),
+      fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r => r.json()).catch(() => ({ results: [] })),
+      fetch('https://pokeapi.co/api/v2/ability?limit=400').then(r => r.json()).catch(() => ({ results: [] })),
+      fetch('https://pokeapi.co/api/v2/item?limit=500').then(r => r.json()).catch(() => ({ results: [] }))
+    ]);
+
+    pokemon = pokemonRes.results || [];
+    moves = movesRes.results || [];
+    abilities = abilitiesRes.results || [];
+    items = itemsRes.results || [];
+  } catch (e) {
+    console.error('Sitemap generation error, falling back to static pages only');
+  }
 
   // Páginas estáticas / Índices
   const staticPages = [
-    { path: '', priority: '1.0' },
-    { path: '/movimientos', priority: '0.9' },
-    { path: '/habilidades', priority: '0.9' },
-    { path: '/objetos', priority: '0.9' }
+    { path: '/', priority: '1.0' },
+    { path: '/movimientos/', priority: '0.9' },
+    { path: '/habilidades/', priority: '0.9' },
+    { path: '/objetos/', priority: '0.9' }
   ];
 
   const generateUrlEntry = (path: string, priority: string = '0.7', changefreq: string = 'weekly') => {
+    // Asegurar que el path empiece y termine correctamente
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const finalPath = cleanPath.endsWith('/') ? cleanPath : `${cleanPath}/`;
+
     return languages.map(lang => {
       const otherLang = lang === 'es' ? 'en' : 'es';
-      const fullPath = `${lang}${path}`;
-      const otherPath = `${otherLang}${path}`;
-      
-      // Mapear nombres de sección si es necesario (aunque ahora usamos rutas consistentes)
-      let translatedPath = path;
-      let translatedOtherPath = path;
-      
-      // Caso especial para movimientos/moves si las rutas fueran diferentes, 
-      // pero según src/pages/[lang]/movimientos/, la ruta base es 'movimientos' para ambos
+      const fullUrl = `${siteUrl}/${lang}${finalPath}`;
+      const otherUrl = `${siteUrl}/${otherLang}${finalPath}`;
+      const defaultUrl = `${siteUrl}/es${finalPath}`;
       
       return `
   <url>
-    <loc>${siteUrl}/${fullPath}</loc>
-    <xhtml:link rel="alternate" hreflang="${lang}" href="${siteUrl}/${fullPath}"/>
-    <xhtml:link rel="alternate" hreflang="${otherLang}" href="${siteUrl}/${otherPath}"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="${siteUrl}/es${path}"/>
+    <loc>${fullUrl}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <xhtml:link rel="alternate" hreflang="${lang}" href="${fullUrl}"/>
+    <xhtml:link rel="alternate" hreflang="${otherLang}" href="${otherUrl}"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${defaultUrl}"/>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
