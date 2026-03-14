@@ -333,13 +333,25 @@ if (Astro.locals.cacheControl) {
             window.toggleFavorite = (pokemonName) => {
                 const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
                 const index = favorites.indexOf(pokemonName);
+                let action = 'add';
+                
                 if (index > -1) {
                     favorites.splice(index, 1);
+                    action = 'remove';
                 } else {
                     favorites.push(pokemonName);
                 }
+                
                 localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
                 document.dispatchEvent(new CustomEvent('favorites-updated'));
+
+                // Google Analytics Event Tracking
+                if (typeof gtag === 'function') {
+                    gtag('event', 'pokemon_favorite', {
+                        'pokemon_name': pokemonName,
+                        'action': action
+                    });
+                }
             };
 
             function initRandom() {
