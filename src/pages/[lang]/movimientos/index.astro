@@ -8,16 +8,14 @@ const moves = await getAllMoves();
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
-<Layout title={lang === 'es' ? 'Movimientos Pokémon | Pokepedia' : 'Pokémon Moves | Pokepedia'} lang={lang}>
+<Layout title={t.moves_title_seo} lang={lang}>
     <div class="max-w-6xl mx-auto">
         <div class="text-center mb-12">
             <h1 class="text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
                 {t.moves}
             </h1>
             <p class="text-slate-500 dark:text-slate-400 text-lg">
-                {lang === 'es' 
-                    ? 'Consulta la base de datos técnica de todos los ataques Pokémon.' 
-                    : 'Check the technical database of all Pokémon attacks.'}
+                {t.moves_desc_seo}
             </p>
         </div>
 
@@ -40,7 +38,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             </div>
             <div class="md:col-span-4">
                 <select id="type-filter" class="w-full px-8 py-5 rounded-[2rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400 shadow-xl shadow-slate-200/50 dark:shadow-black/20 outline-none cursor-pointer focus:border-emerald-400 appearance-none">
-                    <option value="all">{lang === 'es' ? 'Todos los tipos' : 'All types'}</option>
+                    <option value="all">{t.all_types}</option>
                     {Object.keys(typeTranslations[lang as string]).map(type => (
                         <option value={type}>{typeTranslations[lang as string][type]}</option>
                     ))}

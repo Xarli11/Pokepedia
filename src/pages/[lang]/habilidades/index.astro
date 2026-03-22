@@ -9,16 +9,14 @@ const abilities = await getAllAbilities();
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
-<Layout title={lang === 'es' ? 'Habilidades Pokémon | Pokepedia' : 'Pokémon Abilities | Pokepedia'} lang={lang}>
+<Layout title={t.abilities_title_seo} lang={lang}>
     <div class="max-w-5xl mx-auto">
         <div class="text-center mb-16">
             <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
-                {lang === 'es' ? 'Habilidades' : 'Abilities'}
+                {t.abilities}
             </h1>
             <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">
-                {lang === 'es' 
-                    ? 'Efectos especiales y talentos únicos en combate.' 
-                    : 'Special effects and unique talents in battle.'}
+                {t.abilities_desc_seo}
             </p>
         </div>
 
@@ -29,7 +27,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             <input 
                 type="text" 
                 id="ability-search" 
-                placeholder={lang === 'es' ? 'Buscar habilidad por nombre...' : 'Search ability by name...'} 
+                placeholder={t.search_ability} 
                 class="w-full pl-16 pr-8 py-6 rounded-[2.5rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white text-xl shadow-2xl shadow-slate-200/50 dark:shadow-black/40 focus:border-emerald-500 outline-none transition-all"
                 autocomplete="off"
             />

@@ -158,9 +158,15 @@ if (Astro.locals.cacheControl) {
                 <div class="flex items-center gap-3 md:gap-6">
                     <nav class="hidden md:flex gap-8 text-sm font-bold text-slate-600 dark:text-slate-400">
                         <a href={`/${lang}`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Pokedex</a>
-                        <a href={`/${lang}/movimientos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Movimientos</a>
-                        <a href={`/${lang}/habilidades`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Habilidades</a>
-                        <a href={`/${lang}/objetos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">{lang === 'es' ? 'Objetos' : 'Items'}</a>
+                        <a href={`/${lang}/movimientos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                            {uiTranslations[lang]?.moves || uiTranslations.es.moves}
+                        </a>
+                        <a href={`/${lang}/habilidades`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                            {uiTranslations[lang]?.abilities || uiTranslations.es.abilities}
+                        </a>
+                        <a href={`/${lang}/objetos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                            {uiTranslations[lang]?.items || uiTranslations.es.items}
+                        </a>
                     </nav>
 
                     <div class="flex items-center gap-2 md:gap-4 md:border-l border-slate-200 dark:border-slate-800 md:pl-6">

@@ -34,13 +34,13 @@ const categoryColors: Record<string, string> = {
 };
 
 const categoryLabels: Record<string, string> = {
-    physical: lang === 'es' ? '💪 Físico' : '💪 Physical',
-    special: lang === 'es' ? '🔮 Especial' : '🔮 Special',
-    status: lang === 'es' ? '✨ Estado' : '✨ Status'
+    physical: `💪 ${t.physical}`,
+    special: `🔮 ${t.special}`,
+    status: `✨ ${t.status}`
 };
 ---
 
-<Layout title={`${localizedName} | Pokepedia`} lang={lang}>
+<Layout title={`${localizedName} | ${t.moves} | Pokepedia`} lang={lang}>
     <div class="max-w-5xl mx-auto">
         <a href={`/${lang}/movimientos`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
             <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
