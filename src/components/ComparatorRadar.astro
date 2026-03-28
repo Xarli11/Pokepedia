@@ -1,0 +1,97 @@
+---
+interface Props {
+    stats1: number[];
+    stats2: number[];
+    labels: string[];
+}
+
+const { stats1, stats2, labels } = Astro.props;
+
+const angleStep = (Math.PI * 2) / 6;
+const radius = 90;
+const center = 150;
+
+const getPoints = (stats: number[]) => {
+    return stats.map((stat, i) => {
+        const r = (Math.min(stat, 200) / 200) * radius;
+        const x = center + r * Math.sin(i * angleStep);
+        const y = center - r * Math.cos(i * angleStep);
+        return `${x},${y}`;
+    }).join(' ');
+};
+
+const points1 = getPoints(stats1);
+const points2 = getPoints(stats2);
+
+const gridLevels = [0.25, 0.5, 0.75, 1];
+---
+
+<div class="relative w-full max-w-[400px] aspect-square">
+    <svg viewBox="0 0 300 300" class="w-full h-full drop-shadow-2xl overflow-visible">
+        <!-- Grid -->
+        {gridLevels.map(level => (
+            <polygon 
+                points={Array.from({length: 6}).map((_, i) => {
+                    const r = level * radius;
+                    const x = center + r * Math.sin(i * angleStep);
+                    const y = center - r * Math.cos(i * angleStep);
+                    return `${x},${y}`;
+                }).join(' ')}
+                class="fill-none stroke-slate-200 dark:stroke-slate-800"
+                stroke-width="1"
+            />
+        ))}
+
+        <!-- Axis -->
+        {Array.from({length: 6}).map((_, i) => (
+            <line 
+                x1={center} y1={center}
+                x2={center + radius * Math.sin(i * angleStep)}
+                y2={center - radius * Math.cos(i * angleStep)}
+                class="stroke-slate-200 dark:stroke-slate-800"
+                stroke-width="1"
+            />
+        ))}
+
+        <!-- Labels -->
+        {labels.map((label, i) => {
+            const r = radius + 35;
+            const x = center + r * Math.sin(i * angleStep);
+            const y = center - r * Math.cos(i * angleStep);
+            return (
+                <text 
+                    x={x} y={y} 
+                    text-anchor="middle" 
+                    dominant-baseline="middle"
+                    class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-widest uppercase"
+                >
+                    {label}
+                </text>
+            );
+        })}
+
+        <!-- Area 1 (Emerald) -->
+        <polygon 
+            points={points1}
+            class="fill-emerald-500/30 stroke-emerald-500 transition-all duration-700"
+            stroke-width="3"
+            stroke-linejoin="round"
+        />
+
+        <!-- Area 2 (Indigo/Amber) -->
+        <polygon 
+            points={points2}
+            class="fill-rose-500/30 stroke-rose-500 transition-all duration-700"
+            stroke-width="3"
+            stroke-linejoin="round"
+        />
+
+        <!-- Legend Markers (Points) -->
+        {points1.split(' ').map(p => (
+            <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
+        ))}
+        {points2.split(' ').map(p => (
+            <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-rose-500" />
+        ))}
+    </svg>
+</div>

@@ -1,0 +1,183 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
+import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
+import { getPokemonByName } from '../../../../services/pokeapi';
+import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber } from '../../../../utils/pokemon';
+
+const { lang, p1, p2 } = Astro.params;
+
+let pokemon1, pokemon2;
+try {
+    [pokemon1, pokemon2] = await Promise.all([
+        getPokemonByName(p1 as string),
+        getPokemonByName(p2 as string)
+    ]);
+} catch (e) {
+    return Astro.redirect(`/${lang}?error=notfound`);
+}
+
+const t = uiTranslations[lang as string] || uiTranslations.es;
+
+const stats1 = pokemon1.detail.stats.map(s => s.base_stat);
+const stats2 = pokemon2.detail.stats.map(s => s.base_stat);
+const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
+
+const totalStats1 = stats1.reduce((acc, s) => acc + s, 0);
+const totalStats2 = stats2.reduce((acc, s) => acc + s, 0);
+
+const seoTitle = lang === 'es' 
+    ? `Comparativa: ${pokemon1.detail.name} vs ${pokemon2.detail.name} | Pokepedia`
+    : `Comparison: ${pokemon1.detail.name} vs ${pokemon2.detail.name} | Pokepedia`;
+---
+
+<Layout title={seoTitle} lang={lang}>
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-16">
+            <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group no-underline">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
+                    <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                </div>
+                {t.back_to_pokedex}
+            </a>
+
+            <div class="text-center">
+                <h1 class="text-3xl md:text-5xl font-[1000] text-slate-900 dark:text-white capitalize tracking-tighter">
+                    {pokemon1.detail.name} <span class="text-emerald-500">{t.vs}</span> {pokemon2.detail.name}
+                </h1>
+                <p class="text-xs font-black uppercase tracking-[0.3em] text-slate-400 mt-2">{t.compare_desc}</p>
+            </div>
+
+            <div class="w-24 hidden md:block"></div>
+        </div>
+
+        <ComparatorSelector lang={lang} p1={p1} p2={p2} />
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start relative mb-20">
+            <!-- VS Badge (Desktop) -->
+            <div class="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-16 h-16 items-center justify-center rounded-full bg-white dark:bg-slate-950 border-4 border-slate-50 dark:border-slate-800 shadow-2xl">
+                <span class="text-xl font-black text-emerald-500 italic">VS</span>
+            </div>
+
+            <!-- Pokémon 1 Card -->
+            <div class="bg-white dark:bg-slate-900/80 rounded-[3rem] p-10 border-2 border-emerald-500/20 shadow-sm relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl -mr-24 -mt-24"></div>
+                <div class="flex flex-col items-center">
+                    <div class="relative w-56 h-56 mb-8 group-hover:scale-110 transition-transform duration-700">
+                        <img src={pokemon1.detail.sprites.other["official-artwork"].front_default} alt={pokemon1.detail.name} class="w-full h-full object-contain drop-shadow-2xl" />
+                        <span class="absolute -top-4 -right-4 text-slate-100 dark:text-slate-800 font-black text-4xl italic">{formatPokemonNumber(pokemon1.detail.id)}</span>
+                    </div>
+                    <h2 class="text-4xl font-[1000] capitalize text-slate-900 dark:text-white mb-6 tracking-tighter">{pokemon1.detail.name}</h2>
+                    <div class="flex gap-3">
+                        {pokemon1.detail.types.map(type => (
+                            <span class="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg" style={`background-color: ${typeColors[type.type.name]}; box-shadow: 0 0 15px ${typeColors[type.type.name]}44;`}>
+                                {typeTranslations[lang as string][type.type.name]}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pokémon 2 Card -->
+            <div class="bg-white dark:bg-slate-900/80 rounded-[3rem] p-10 border-2 border-rose-500/20 shadow-sm relative overflow-hidden group">
+                <div class="absolute top-0 left-0 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl -ml-24 -mt-24"></div>
+                <div class="flex flex-col items-center">
+                    <div class="relative w-56 h-56 mb-8 group-hover:scale-110 transition-transform duration-700">
+                        <img src={pokemon2.detail.sprites.other["official-artwork"].front_default} alt={pokemon2.detail.name} class="w-full h-full object-contain drop-shadow-2xl" />
+                        <span class="absolute -top-4 -right-4 text-slate-100 dark:text-slate-800 font-black text-4xl italic">{formatPokemonNumber(pokemon2.detail.id)}</span>
+                    </div>
+                    <h2 class="text-4xl font-[1000] capitalize text-slate-900 dark:text-white mb-6 tracking-tighter">{pokemon2.detail.name}</h2>
+                    <div class="flex gap-3">
+                        {pokemon2.detail.types.map(type => (
+                            <span class="px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg" style={`background-color: ${typeColors[type.type.name]}; box-shadow: 0 0 15px ${typeColors[type.type.name]}44;`}>
+                                {typeTranslations[lang as string][type.type.name]}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <!-- Radar Comparison -->
+            <div class="lg:col-span-5 flex justify-center">
+                <ComparatorRadar stats1={stats1} stats2={stats2} labels={statLabels} />
+            </div>
+
+            <!-- Numeric Comparison Table -->
+            <div class="lg:col-span-7 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div class="flex justify-between items-center mb-10 border-b border-slate-50 dark:border-slate-800 pb-6">
+                    <h3 class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t.base_stats}</h3>
+                    <div class="flex gap-12">
+                        <div class="text-right">
+                            <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">{pokemon1.detail.name}</p>
+                            <p class="text-2xl font-black text-slate-900 dark:text-white">{totalStats1}</p>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">{pokemon2.detail.name}</p>
+                            <p class="text-2xl font-black text-slate-900 dark:text-white">{totalStats2}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    {pokemon1.detail.stats.map((s1, i) => {
+                        const s2 = pokemon2.detail.stats[i];
+                        const winner = s1.base_stat > s2.base_stat ? 1 : (s2.base_stat > s1.base_stat ? 2 : 0);
+                        
+                        return (
+                            <div class="group/row">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-xs font-black uppercase tracking-widest text-slate-400 group-hover/row:text-slate-600 transition-colors">{t[s1.stat.name] || s1.stat.name}</span>
+                                    <div class="flex gap-8 items-center">
+                                        <span class={`text-lg font-black ${winner === 1 ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-700'}`}>{s1.base_stat}</span>
+                                        <div class="w-px h-4 bg-slate-100 dark:bg-slate-800"></div>
+                                        <span class={`text-lg font-black ${winner === 2 ? 'text-rose-500' : 'text-slate-300 dark:text-slate-700'}`}>{s2.base_stat}</span>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 h-1.5 w-full bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden">
+                                    <div class={`h-full transition-all duration-1000 ${winner === 1 ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: 50%`}></div>
+                                    <div class={`h-full transition-all duration-1000 ${winner === 2 ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: 50%`}></div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+
+        <!-- Type Matchup Section -->
+        <div class="mt-20 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden relative">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <h3 class="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-12 relative z-10">{lang === 'es' ? 'Análisis de Tipos' : 'Type Analysis'}</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                <div class="space-y-6">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{pokemon1.detail.name} Weaknesses</p>
+                    <div class="flex flex-wrap gap-2">
+                        {/* Aquí podríamos integrar la lógica de debilidades de utils/pokemon si estuviera disponible, 
+                            por ahora mostramos los tipos actuales como placeholder avanzado */}
+                        {pokemon1.detail.types.map(t => (
+                             <div class="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={`background-color: ${typeColors[t.type.name]}`}></div>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeTranslations[lang as string][t.type.name]}</span>
+                             </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{pokemon2.detail.name} Weaknesses</p>
+                    <div class="flex flex-wrap gap-2">
+                        {pokemon2.detail.types.map(t => (
+                             <div class="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]" style={`background-color: ${typeColors[t.type.name]}`}></div>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeTranslations[lang as string][t.type.name]}</span>
+                             </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</Layout>

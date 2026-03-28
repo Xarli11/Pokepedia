@@ -135,10 +135,17 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_error': 'Error al conectar con los servidores competitivos.',
         'comp_smogon_link': 'Abrir Estrategia en Smogon',
         'comp_meta_desc': 'Este Pokémon se sitúa en {tier}. Sus habilidades más efectivas para el juego competitivo son: {abilities}.',
-        'support_project': '¿Te gusta Pokepedia? Invítame a un café'
-    },
-    en: {
+        'support_project': '¿Te gusta Pokepedia? Invítame a un café',
+        'compare': 'Comparar',
+        'compare_desc': 'Enfrenta a dos Pokémon para analizar sus diferencias técnicas.',
+        'select_pokemon': 'Seleccionar Pokémon',
+        'vs': 'VS',
+        'stat_winner': 'Superior',
+        'no_advantage': 'Sin ventaja'
+        },
+        en: {
         'search_placeholder': 'Search by name, number or type...',
+
         'back_to_pokedex': 'Back to Pokedex',
         'favorites': 'Favorites',
         'no_favorites': 'You don\'t have any favorite Pokémon yet.',
@@ -228,7 +235,13 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_error': 'Error connecting to competitive servers.',
         'comp_smogon_link': 'Open Smogon Strategy',
         'comp_meta_desc': 'This Pokémon is ranked in {tier}. Its most effective abilities for competitive play are: {abilities}.',
-        'support_project': 'Enjoying Pokepedia? Buy me a coffee'
+        'support_project': 'Enjoying Pokepedia? Buy me a coffee',
+        'compare': 'Compare',
+        'compare_desc': 'Face two Pokémon to analyze their technical differences.',
+        'select_pokemon': 'Select Pokémon',
+        'vs': 'VS',
+        'stat_winner': 'Superior',
+        'no_advantage': 'No advantage'
     }
 };
 

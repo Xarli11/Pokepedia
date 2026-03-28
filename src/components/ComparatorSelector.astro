@@ -1,0 +1,84 @@
+---
+const { lang, p1, p2 } = Astro.props;
+import { uiTranslations } from '../utils/pokemon';
+const t = uiTranslations[lang] || uiTranslations.es;
+---
+
+<div class="flex flex-col md:flex-row gap-4 items-center justify-center w-full max-w-4xl mx-auto mb-12">
+    <!-- Input 1 -->
+    <div class="relative w-full group">
+        <input 
+            type="text" 
+            id="p1-search"
+            placeholder={p1} 
+            autocomplete="off"
+            class="w-full pl-6 pr-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500/50 transition-all capitalize"
+        >
+        <div id="p1-suggestions" class="hidden absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl z-[100] max-h-60 overflow-y-auto"></div>
+    </div>
+
+    <div class="text-emerald-500 font-black italic">VS</div>
+
+    <!-- Input 2 -->
+    <div class="relative w-full group">
+        <input 
+            type="text" 
+            id="p2-search"
+            placeholder={p2} 
+            autocomplete="off"
+            class="w-full pl-6 pr-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-rose-500/50 transition-all capitalize"
+        >
+        <div id="p2-suggestions" class="hidden absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-2xl z-[100] max-h-60 overflow-y-auto"></div>
+    </div>
+</div>
+
+<script define:vars={{ lang, p1, p2 }}>
+    function setupSearch(inputId, suggestionsId, otherPokemon, pos) {
+        const input = document.getElementById(inputId);
+        const suggestions = document.getElementById(suggestionsId);
+        let timeout;
+
+        input.addEventListener('input', () => {
+            clearTimeout(timeout);
+            const query = input.value.toLowerCase();
+            if (query.length < 2) {
+                suggestions.classList.add('hidden');
+                return;
+            }
+
+            timeout = setTimeout(async () => {
+                const res = await fetch(`/api/suggestions?q=${query}`);
+                const matches = await res.json();
+
+                if (matches.length > 0) {
+                    suggestions.innerHTML = matches.map(p => `
+                        <div class="px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer capitalize font-bold text-sm flex items-center gap-3" data-name="${p.name}">
+                            <img src="${p.sprite}" class="w-8 h-8 object-contain" />
+                            ${p.name.replace(/-/g, ' ')}
+                        </div>
+                    `).join('');
+                    suggestions.classList.remove('hidden');
+
+                    suggestions.querySelectorAll('div').forEach(div => {
+                        div.onclick = () => {
+                            const newP = div.dataset.name;
+                            const path = pos === 1 
+                                ? `/${lang}/comparar/${newP}/${otherPokemon}`
+                                : `/${lang}/comparar/${otherPokemon}/${newP}`;
+                            window.location.href = path;
+                        };
+                    });
+                }
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                suggestions.classList.add('hidden');
+            }
+        });
+    }
+
+    setupSearch('p1-search', 'p1-suggestions', p2, 1);
+    setupSearch('p2-search', 'p2-suggestions', p1, 2);
+</script>
