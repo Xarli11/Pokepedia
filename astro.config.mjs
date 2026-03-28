@@ -2,11 +2,15 @@ import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import cloudflare from '@astrojs/cloudflare';
 
-// Pokepedia Production Build - 2026-03-13 v2
+// Pokepedia Production Build - Cloudflare Edge Edition
 export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: true
+    }
+  }),
   integrations: [],
   vite: {
     plugins: [tailwindcss()]
