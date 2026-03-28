@@ -6,11 +6,7 @@ import cloudflare from '@astrojs/cloudflare';
 export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
-  adapter: cloudflare({
-    platformProxy: {
-      enabled: true
-    }
-  }),
+  adapter: cloudflare(),
   integrations: [],
   vite: {
     plugins: [tailwindcss()]
