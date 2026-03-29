@@ -5,7 +5,7 @@ import cloudflare from '@astrojs/cloudflare';
 // Pokepedia Production Build - Cloudflare Edge Edition
 export default defineConfig({
   site: 'https://pokepedia.app',
-  output: 'hybrid', // Cambiamos a híbrido para pre-renderizar lo pesado
+  output: 'static', // Astro 5+: 'static' ahora maneja el comportamiento híbrido por defecto
   adapter: cloudflare(),
   image: {
     service: { entrypoint: 'astro/assets/services/noop' }
