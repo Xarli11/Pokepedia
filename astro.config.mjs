@@ -7,6 +7,9 @@ export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
   adapter: cloudflare(),
+  image: {
+    service: { entrypoint: 'astro/assets/services/noop' }
+  },
   integrations: [],
   vite: {
     plugins: [tailwindcss()]

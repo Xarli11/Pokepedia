@@ -117,12 +117,21 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
         return cached.data;
     }
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
-    const data = await response.json();
+    try {
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error(`PokeAPI Error: ${response.status}`);
+        const data = await response.json();
 
-    cache.set(url, { data, timestamp: now });
-    return data;
+        cache.set(url, { data, timestamp: now });
+        return data;
+    } catch (error) {
+        console.error(`Fetch failed for ${url}:`, error);
+        // Si hay error y teníamos algo en caché aunque fuera viejo, lo devolvemos
+        if (cached) return cached.data;
+        throw error;
+    }
 }
 
 export const GENERATIONS: Record<string, { limit: number; offset: number; region: string }> = {
