@@ -1,8 +1,8 @@
 export function onRequest(context: any, next: any) {
     const url = new URL(context.request.url);
     
-    // Evitar bucles de redirección y manejar la raíz
-    if (url.pathname === '/') {
+    // Si estamos en la raíz exacta, redirigir según idioma
+    if (url.pathname === '/' || url.pathname === '') {
         let preferredLang = 'es';
         try {
             const acceptLang = context.request.headers.get('accept-language');
@@ -10,14 +10,10 @@ export function onRequest(context: any, next: any) {
                 preferredLang = 'en';
             }
         } catch (e) {
-            // Fallback silencioso
+            // Ante cualquier error en el móvil, default a español
         }
         return context.redirect(`/${preferredLang}/`, 302);
     }
-    
-    // Añadir caché para que las páginas carguen instantáneamente tras la primera visita
-    // Cloudflare respetará estos headers
-    context.locals.cacheControl = 'public, max-age=0, s-maxage=86400, stale-while-revalidate=3600';
     
     return next();
 }
