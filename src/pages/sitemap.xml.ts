@@ -11,20 +11,15 @@ export const GET: APIRoute = async () => {
   let items = [];
 
   try {
-    // Obtener datos dinámicos de PokeAPI en paralelo con timeout y reintentos sutiles
-    const [pokemonRes, movesRes, abilitiesRes, itemsRes] = await Promise.all([
-      fetch('https://pokeapi.co/api/v2/pokemon?limit=1025').then(r => r.json()).catch(() => ({ results: [] })),
-      fetch('https://pokeapi.co/api/v2/move?limit=1000').then(r => r.json()).catch(() => ({ results: [] })),
-      fetch('https://pokeapi.co/api/v2/ability?limit=400').then(r => r.json()).catch(() => ({ results: [] })),
-      fetch('https://pokeapi.co/api/v2/item?limit=500').then(r => r.json()).catch(() => ({ results: [] }))
-    ]);
-
-    pokemon = pokemonRes.results || [];
-    moves = movesRes.results || [];
-    abilities = abilitiesRes.results || [];
-    items = itemsRes.results || [];
+    // Obtener SOLO los nombres de los primeros 1025 pokemon para el sitemap
+    // Reducimos el alcance para evitar límites de memoria en Cloudflare
+    const pokemonRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025', {
+        signal: AbortSignal.timeout(10000)
+    });
+    const pokemonData = await pokemonRes.json();
+    pokemon = pokemonData.results || [];
   } catch (e) {
-    console.error('Sitemap generation error, falling back to static pages only');
+    console.error('Sitemap generation error, simplified version');
   }
 
   // Páginas estáticas / Índices
