@@ -9,6 +9,8 @@ import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, form
 
 const { lang, name } = Astro.params;
 
+export const prerender = false;
+
 let pokemonData;
 try {
     pokemonData = await getPokemonByName(name as string);
