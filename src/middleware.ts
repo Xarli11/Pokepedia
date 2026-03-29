@@ -1,18 +1,14 @@
 export function onRequest(context: any, next: any) {
     const url = new URL(context.request.url);
     
-    // Si estamos en la raíz exacta, redirigir según idioma
-    if (url.pathname === '/' || url.pathname === '') {
+    // Si el usuario entra en la raíz pura, lo mandamos a su idioma
+    if (url.pathname === '/') {
         let preferredLang = 'es';
-        try {
-            const acceptLang = context.request.headers.get('accept-language');
-            if (acceptLang && acceptLang.toLowerCase().includes('en')) {
-                preferredLang = 'en';
-            }
-        } catch (e) {
-            // Ante cualquier error en el móvil, default a español
+        const acceptLang = context.request.headers.get('accept-language') || '';
+        if (acceptLang.toLowerCase().includes('en')) {
+            preferredLang = 'en';
         }
-        return context.redirect(`/${preferredLang}/`, 302);
+        return context.redirect(`/${preferredLang}/`, 308); // Redirección permanente para SEO y estabilidad
     }
     
     return next();
