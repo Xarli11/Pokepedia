@@ -4,6 +4,15 @@ import PokemonCard from '../../components/PokemonCard.astro';
 import { getPokemonByGeneration, getAllPokemonNames, GENERATIONS } from '../../services/pokeapi';
 import { uiTranslations } from '../../utils/pokemon';
 
+export const prerender = true;
+
+export async function getStaticPaths() {
+    return [
+        { params: { lang: 'es' } },
+        { params: { lang: 'en' } }
+    ];
+}
+
 const { lang = 'es' } = Astro.params;
 const url = new URL(Astro.request.url);
 const gen = url.searchParams.get('gen') || 'gen1';

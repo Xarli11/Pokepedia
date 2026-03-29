@@ -147,7 +147,7 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
 };
 
 /**
- * Obtiene la lista de Pokémon por generación.
+ * Obtiene la lista de Pokémon por generación con paralelismo limitado para Cloudflare.
  */
 export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
     if (genKey === 'favorites') return [];
@@ -155,11 +155,18 @@ export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<P
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
     
-    const detailedPromises = data.results.map(async (pokemon: { name: string, url: string }) => {
-        return fetchWithCache<PokemonDetail>(pokemon.url);
-    });
+    // Procesar en bloques para no superar el límite de 50 subrequests de Cloudflare
+    const results: PokemonDetail[] = [];
+    const batchSize = 40;
+    
+    for (let i = 0; i < data.results.length; i += batchSize) {
+        const batch = data.results.slice(i, i + batchSize);
+        const batchPromises = batch.map((pokemon: { url: string }) => fetchWithCache<PokemonDetail>(pokemon.url));
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+    }
 
-    return Promise.all(detailedPromises);
+    return results;
 }
 
 /**
