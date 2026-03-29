@@ -116,15 +116,60 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     </div>
 
     <div id="pokemon-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {pokemonList.map((pokemon) => (
-            <PokemonCard 
-                pokemon={pokemon}
-                lang={lang}
-            />
+        {pokemonList.map((p) => (
+            <a 
+                href={`/${lang}/pokemon/${p.name}`}
+                class="group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card"
+                data-name={p.name}
+                data-id={p.id}
+            >
+                <div class="w-full flex items-center justify-between mb-10 z-30">
+                    <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em]">#{p.id.toString().padStart(4, '0')}</span>
+                    <button class="fav-btn p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500" data-pokemon={p.name}>
+                        <svg class="w-6 h-6 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
+                    </button>
+                </div>
+                <div class="relative w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
+                    <div class="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700"></div>
+                    <img src={p.sprite} alt={p.name} width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl relative z-20" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                </div>
+                <h2 class="relative mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tighter text-center">{p.name.replace(/-/g, ' ')}</h2>
+                <div class="types-container relative flex gap-3 mt-6 z-10" data-url={p.url}>
+                    <!-- Tipos cargados por JS para no saturar Cloudflare -->
+                    <div class="h-8 w-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div>
+                </div>
+            </a>
         ))}
     </div>
 
     <script define:vars={{ lang, uiTranslations, gen }}>
+        // Lógica para cargar tipos desde el cliente (Navegador)
+        async function loadTypes() {
+            const containers = document.querySelectorAll('.types-container');
+            const typeColors = {
+                normal: '#A8A878', fire: '#F08030', water: '#6890F0', electric: '#F8D030', grass: '#78C850',
+                ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0', ground: '#E0C068', flying: '#A890F0',
+                psychic: '#F85888', bug: '#A8B820', rock: '#B8A038', ghost: '#705898', dragon: '#7038F8',
+                dark: '#705848', steel: '#B8B8D0', fairy: '#EE99AC'
+            };
+
+            const fetchPromises = Array.from(containers).map(async (container) => {
+                try {
+                    const res = await fetch(container.dataset.url);
+                    const data = await res.json();
+                    container.innerHTML = data.types.map(t => `
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
+                            <div class="w-2 h-2 rounded-full" style="background-color: ${typeColors[t.type.name] || '#777'}; box-shadow: 0 0 10px ${typeColors[t.type.name] || '#777'}88;"></div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${t.type.name}</span>
+                        </div>
+                    `).join('');
+                } catch (e) {
+                    container.innerHTML = '';
+                }
+            });
+        }
+
+        loadTypes();
         const searchInput = document.getElementById('global-search');
         const suggestionsContainer = document.getElementById('search-suggestions');
         const suggestionsList = document.getElementById('suggestions-list');

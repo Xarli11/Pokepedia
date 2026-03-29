@@ -147,26 +147,25 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
 };
 
 /**
- * Obtiene la lista de Pokémon por generación con paralelismo limitado para Cloudflare.
+ * Obtiene la lista básica de Pokémon por generación.
+ * Optimizada para Cloudflare: Solo hace 1 petición en lugar de 151.
  */
-export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
+export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<any[]> {
     if (genKey === 'favorites') return [];
     
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
     
-    // Procesar en bloques para no superar el límite de 50 subrequests de Cloudflare
-    const results: PokemonDetail[] = [];
-    const batchSize = 40;
-    
-    for (let i = 0; i < data.results.length; i += batchSize) {
-        const batch = data.results.slice(i, i + batchSize);
-        const batchPromises = batch.map((pokemon: { url: string }) => fetchWithCache<PokemonDetail>(pokemon.url));
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-    }
-
-    return results;
+    return data.results.map((p: any) => {
+        const id = parseInt(p.url.split('/').filter(Boolean).pop());
+        return {
+            name: p.name,
+            id: id,
+            url: p.url,
+            // Pre-construimos datos básicos para evitar peticiones extra
+            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
+        };
+    });
 }
 
 /**
