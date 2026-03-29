@@ -7,8 +7,6 @@ import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber } fro
 
 const { lang, p1, p2 } = Astro.params;
 
-export const prerender = false;
-
 let pokemon1, pokemon2;
 try {
     [pokemon1, pokemon2] = await Promise.all([
