@@ -12,7 +12,7 @@ export function onRequest(context: any, next: any) {
         } catch (e) {
             // Fallback silencioso
         }
-        return context.redirect(`/${preferredLang}/`);
+        return context.redirect(`/${preferredLang}/`, 302);
     }
     
     // Añadir caché para que las páginas carguen instantáneamente tras la primera visita
