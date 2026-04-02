@@ -20,29 +20,29 @@ interface Props {
     lang: string;
 }
 
-const { moves, lang = 'es' } = Astro.props;
+const { moves = [], lang = 'es' } = Astro.props;
 const t = uiTranslations[lang] || uiTranslations.es;
 const mt = methodTranslations[lang] || methodTranslations.es;
 
-const versionGroups = [...new Set(moves.flatMap(m => m.version_group_details.map(d => d.version_group.name)))].sort();
+const safeMoves = moves || [];
+const versionGroups = [...new Set(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)))].sort();
 
-const processedMoves = moves.flatMap(m => 
-    m.version_group_details.map(d => ({
-        name: formatName(m.move.name),
-        slug: m.move.name,
-        url: m.move.url,
+const processedMoves = safeMoves.flatMap(m => 
+    (m.version_group_details || []).map(d => ({
+        name: formatName(m.move?.name || ""),
+        slug: m.move?.name || "",
+        url: m.move?.url || "",
         level: d.level_learned_at,
-        method: d.move_learn_method.name,
-        methodLabel: mt[d.move_learn_method.name] || d.move_learn_method.name,
-        version: d.version_group.name,
-        versionLabel: versionTranslations[d.version_group.name] || d.version_group.name.replace(/-/g, ' ')
+        method: d.move_learn_method?.name || "",
+        methodLabel: mt[d.move_learn_method?.name] || d.move_learn_method?.name || "",
+        version: d.version_group?.name || "",
+        versionLabel: versionTranslations[d.version_group?.name] || d.version_group?.name?.replace(/-/g, ' ') || ""
     }))
-);
+).filter(m => m.slug);
 
 // Deduplicar movimientos por versión, nombre y nivel para evitar duplicados visuales
 const movesByVersion = versionGroups.reduce((acc, version) => {
     const versionMoves = processedMoves.filter(m => m.version === version);
-    // Usar un Set de strings para identificar duplicados únicos (move-level-method)
     const seen = new Set();
     acc[version] = versionMoves.filter(m => {
         const key = `${m.slug}-${m.level}-${m.method}`;
@@ -53,7 +53,9 @@ const movesByVersion = versionGroups.reduce((acc, version) => {
     return acc;
 }, {} as Record<string, any[]>);
 
-const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1];
+const initialVersion = versionGroups.length > 0 
+    ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
+    : '';
 ---
 
 <div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300" 
@@ -120,15 +122,17 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
     const moveCache = new Map();
 
     async function fetchMoveInfo(url, lang) {
+        if (!url) return null;
         if (moveCache.has(url)) return moveCache.get(url);
         try {
             const res = await fetch(url);
+            if (!res.ok) return null;
             const data = await res.json();
             const localizedName = data.names.find(n => n.language.name === lang)?.name || data.name;
             const localizedDesc = data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
                                 data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
-            const category = data.damage_class.name;
-            const priority = data.priority;
+            const category = data.damage_class?.name || 'status';
+            const priority = data.priority || 0;
             const result = { name: localizedName, description: localizedDesc, category, priority };
             moveCache.set(url, result);
             return result;
@@ -200,10 +204,12 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
                 `;
             }).join('');
 
-            noMoves?.classList.toggle('hidden', moves.length > 0);
+            noMoves?.classList.toggle('hidden', moves.length > 0 || currentVersion === '');
+            if (currentVersion === '') tableBody.innerHTML = '';
         }
 
         async function prefetch() {
+            if (!currentVersion) return;
             const currentMoves = movesByVersion[currentVersion] || [];
             await Promise.all(currentMoves.map(async m => {
                 const info = await fetchMoveInfo(m.url, lang);
@@ -231,7 +237,6 @@ const initialVersion = versionGroups.includes('red-blue') ? 'red-blue' : version
                     });
                 }
             }));
-            // After prefetching ALL, if there is a search filter applied, re-sort/re-render to be safe
             if (searchInput?.value || methodFilter?.value !== 'all') renderMoves();
         }
 

@@ -12,11 +12,17 @@ const i18n = encounterTranslations[lang as string] || encounterTranslations.es;
 
 let encounters = [];
 try {
+    // Las variedades a menudo no tienen encuentros propios, intentamos obtenerlos
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}/encounters`);
-    encounters = await res.json();
+    if (res.ok) {
+        encounters = await res.json();
+    }
 } catch (e) {
     console.error("Error fetching encounters", e);
 }
+
+// Si es una variedad y no tiene encuentros, podríamos intentar los de la especie base, 
+// pero usualmente las Megas/G-Max no se encuentran en estado salvaje, así que es correcto que esté vacío.
 
 // Cache para no repetir peticiones
 const areaNamesCache = new Map();
@@ -26,16 +32,17 @@ const fetchAreaName = async (areaUrl: string, technicalName: string) => {
     
     try {
         const areaRes = await fetch(areaUrl);
+        if (!areaRes.ok) return formatLocationName(technicalName, lang);
         const areaData = await areaRes.json();
         
-        // 1. Intentar obtener nombre en español del Área
         let localized = areaData.names?.find((n: any) => n.language.name === lang)?.name;
         
-        // 2. Si no hay (común en áreas), intentar obtenerlo de la Ubicación superior (Location)
         if (!localized && areaData.location?.url) {
             const locRes = await fetch(areaData.location.url);
-            const locData = await locRes.json();
-            localized = locData.names?.find((n: any) => n.language.name === lang)?.name;
+            if (locRes.ok) {
+                const locData = await locRes.json();
+                localized = locData.names?.find((n: any) => n.language.name === lang)?.name;
+            }
         }
 
         const name = localized || formatLocationName(technicalName, lang);
@@ -49,22 +56,25 @@ const fetchAreaName = async (areaUrl: string, technicalName: string) => {
 const groupedEncounters: Record<string, any[]> = {};
 
 const processEncounters = async () => {
-    // Procesamos todos pero con un límite de concurrencia simple
+    if (!Array.isArray(encounters)) return;
+    
     const promises = encounters.map(async (loc: any) => {
-        const areaName = await fetchAreaName(loc.location_area.url, loc.location_area.name);
-        
-        loc.version_details.forEach((det: any) => {
-            const ver = det.version.name;
-            if (!groupedEncounters[ver]) groupedEncounters[ver] = [];
+        try {
+            const areaName = await fetchAreaName(loc.location_area.url, loc.location_area.name);
             
-            if (!groupedEncounters[ver].find(e => e.location === areaName)) {
-                groupedEncounters[ver].push({
-                    location: areaName,
-                    chance: det.max_chance,
-                    method: det.encounter_details[0]?.method.name
-                });
-            }
-        });
+            (loc.version_details || []).forEach((det: any) => {
+                const ver = det.version.name;
+                if (!groupedEncounters[ver]) groupedEncounters[ver] = [];
+                
+                if (!groupedEncounters[ver].find(e => e.location === areaName)) {
+                    groupedEncounters[ver].push({
+                        location: areaName,
+                        chance: det.max_chance,
+                        method: det.encounter_details[0]?.method?.name || 'walk'
+                    });
+                }
+            });
+        } catch (e) {}
     });
     
     await Promise.all(promises);

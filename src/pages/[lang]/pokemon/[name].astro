@@ -8,26 +8,30 @@ import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../
 import { getShowdownPokemon } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
 
-const { lang, name: rawName } = Astro.params;
-const name = (rawName as string).toLowerCase();
+const { lang = 'es', name: rawName } = Astro.params;
+const name = (rawName as string || '').toLowerCase();
 
-let pokemonData;
+let detail: any = null;
+let species: any = null;
+let pokemonData: any = null;
+
 try {
     pokemonData = await getPokemonByName(name);
+    if (!pokemonData) throw new Error("No data");
+    detail = pokemonData.detail;
+    species = pokemonData.species;
 } catch (e) {
-    return Astro.redirect(`/${lang}?error=notfound`);
+    console.error("Critical error loading pokemon base data:", e);
+    return Astro.redirect(`/${lang}`);
 }
 
-const { detail: rawDetail, species } = pokemonData;
-// Asegurar que detail siempre tenga arrays inicializados
-let detail = { 
-    ...rawDetail, 
-    abilities: rawDetail.abilities || [], 
-    moves: rawDetail.moves || [],
-    stats: rawDetail.stats || []
-};
+// Inicializar arrays para evitar errores de undefined
+detail.abilities = detail.abilities || [];
+detail.moves = detail.moves || [];
+detail.stats = detail.stats || [];
+detail.types = detail.types || [];
 
-// 1. Enriquecer con Showdown (Prioritario para variedades)
+// 1. Enriquecer con Showdown
 try {
     const showdownData = await getShowdownPokemon(name);
     if (showdownData) {
@@ -45,18 +49,13 @@ try {
             const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
             detail.stats = detail.stats.map(s => {
                 const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
-                return { 
-                    ...s, 
-                    base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat 
-                };
+                return { ...s, base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat };
             });
         }
     }
-} catch (e) {
-    console.error("Error enrichment Showdown:", e);
-}
+} catch (e) {}
 
-// 2. Fallback de especie si sigue vacío (Heredar de la base)
+// 2. Fallback de especie
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
@@ -71,34 +70,36 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
     }
 }
 
-// 3. Datos Técnicos (Safe Settlement)
+// 3. Datos Técnicos
 let evolutionChain = null;
 let abilitiesWithTranslation = [];
 let varieties = [];
 
-const results = await Promise.allSettled([
-    species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
-    Promise.all(detail.abilities.map(async (a) => {
-        try {
-            const res = await fetch(a.ability.url);
-            if (!res.ok) throw new Error();
-            const ad = await res.json();
-            return {
-                ...a,
-                displayName: ad.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
-                description: ad.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                             ad.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
-            };
-        } catch (e) {
-            return { ...a, displayName: formatName(a.ability.name), description: "" };
-        }
-    })),
-    species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map(v => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
-]);
+try {
+    const results = await Promise.allSettled([
+        species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
+        Promise.all(detail.abilities.map(async (a: any) => {
+            try {
+                const res = await fetch(a.ability.url);
+                if (!res.ok) throw new Error();
+                const ad = await res.json();
+                return {
+                    ...a,
+                    displayName: ad.names?.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
+                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                                 ad.flavor_text_entries?.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
+                };
+            } catch (e) {
+                return { ...a, displayName: formatName(a.ability.name), description: "" };
+            }
+        })),
+        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
+    ]);
 
-evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
-abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
-varieties = (results[2].status === 'fulfilled' ? results[2].value : []).filter(Boolean);
+    evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
+    abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
+    varieties = (results[2].status === 'fulfilled' ? (results[2].value as any[]) : []).filter(Boolean);
+} catch (e) {}
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = species ? (getLocalizedName(species.names, lang as string) || species.name) : detail.name;
@@ -114,8 +115,8 @@ if (species && detail.name !== species.name) {
     }
 }
 
-const description = species?.flavor_text_entries?.find(entry => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                  species?.flavor_text_entries?.find(entry => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ') || "";
+const description = species?.flavor_text_entries?.find((entry: any) => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                  species?.flavor_text_entries?.find((entry: any) => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ') || "";
 
 const pokemonId = detail.id;
 const officialArtwork = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
@@ -123,23 +124,30 @@ const officialArtworkShiny = `https://raw.githubusercontent.com/PokeAPI/sprites/
 
 const height = detail.height / 10;
 const weight = detail.weight / 10;
-const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
+const totalStats = detail.stats.reduce((acc: number, s: any) => acc + s.base_stat, 0);
 
 const currentDexId = (pokemonId > 10000 && species) ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 
-const [prevPokemon, nextPokemon] = await Promise.all([
-    fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.ok ? res.json() : null).catch(() => null),
-    fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.ok ? res.json() : null).catch(() => null)
-]);
+let prevPokemon: any = null;
+let nextPokemon: any = null;
+try {
+    const navResults = await Promise.all([
+        fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.ok ? res.json() : null),
+        fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.ok ? res.json() : null)
+    ]);
+    prevPokemon = navResults[0];
+    nextPokemon = navResults[1];
+} catch (e) {}
+
 const hasNavigation = prevPokemon && nextPokemon;
 
-const statsValues = detail.stats.map(s => s.base_stat);
+const statsValues = detail.stats.map((s: any) => s.base_stat);
 const angleStep = (Math.PI * 2) / 6;
 const radius = 80;
 const center = 125;
-const points = statsValues.map((stat, i) => {
+const points = statsValues.map((stat: number, i: number) => {
     const r = (Math.min(stat, 180) / 180) * radius; 
     const x = center + r * Math.sin(i * angleStep);
     const y = center - r * Math.cos(i * angleStep);
@@ -158,7 +166,7 @@ const getStatColor = (baseStat: number) => {
 };
 ---
 
-<Layout title={seoTitle} description={seoDescription} image={officialArtwork} lang={lang}>
+<Layout title={seoTitle} description={seoDescription} image={officialArtwork} lang={lang as string}>
     <div class="max-w-5xl mx-auto">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
             <div class="flex flex-col gap-4">
@@ -214,7 +222,7 @@ const getStatColor = (baseStat: number) => {
                         <div class="col-span-2 border-t border-slate-50 dark:border-slate-800 pt-6 mt-2">
                             <p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.abilities}</p>
                             <div class="space-y-3 mt-3">
-                                {abilitiesWithTranslation.map(a => (
+                                {abilitiesWithTranslation.map((a: any) => (
                                     <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class={`text-sm font-bold ${a.is_hidden ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{a.displayName}</span>
@@ -232,7 +240,7 @@ const getStatColor = (baseStat: number) => {
             <div class="md:col-span-7 space-y-12">
                 <div class="flex flex-wrap items-center gap-4 mb-6">
                     <div class="flex gap-2">
-                        {(detail.types || []).map(t2 => (
+                        {detail.types.map((t2: any) => (
                             <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
                         ))}
                     </div>
@@ -261,13 +269,13 @@ const getStatColor = (baseStat: number) => {
                                     return <text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">{label}</text>; 
                                 })}
                                 <polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" stroke-linejoin="round" />
-                                {points.split(' ').map(p => (
+                                {points.split(' ').map((p: string) => (
                                     <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
                                 ))}
                             </svg>
                         </div>
                         <div class="lg:col-span-7 space-y-4">
-                            {detail.stats.map(s => { 
+                            {detail.stats.map((s: any) => { 
                                 const percentage = (s.base_stat / 255) * 100; 
                                 const colorClass = getStatColor(s.base_stat); 
                                 return (
@@ -285,7 +293,7 @@ const getStatColor = (baseStat: number) => {
                     <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                            {varieties.map(v => (
+                            {varieties.map((v: any) => (
                                 <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-all group no-underline">
                                     <img src={v.sprites?.other?.["official-artwork"]?.front_default || v.sprites?.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
                                     <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight">{v.name.replace(/-/g, ' ')}</span>
