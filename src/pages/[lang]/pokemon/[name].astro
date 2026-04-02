@@ -18,14 +18,17 @@ try {
 }
 
 const { detail: rawDetail, species } = pokemonData;
-let detail = rawDetail;
+let detail = { ...rawDetail };
 
 // 1. Enriquecer con Showdown (Prioritario para variedades)
 const showdownData = await getShowdownPokemon(name as string);
 if (showdownData) {
-    if (detail.abilities.length === 0 && showdownData.abilities) {
+    if ((!detail.abilities || detail.abilities.length === 0) && showdownData.abilities) {
         detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
-            ability: { name: abilityName.toLowerCase().replace(/\s+/g, '-'), url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` },
+            ability: { 
+                name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
+                url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` 
+            },
             is_hidden: index > 0,
             slot: index + 1
         }));
@@ -34,21 +37,24 @@ if (showdownData) {
         const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
         detail.stats = detail.stats.map(s => {
             const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
-            return { ...s, base_stat: showdownData.baseStats[showdownKey as string] || s.base_stat };
+            return { 
+                ...s, 
+                base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat 
+            };
         });
     }
 }
 
 // 2. Fallback de especie si sigue vacío
-if (detail.moves.length === 0 || detail.abilities.length === 0) {
+if (!detail.moves || detail.moves.length === 0 || !detail.abilities || detail.abilities.length === 0) {
     const baseVariety = species.varieties.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
         try {
             const baseRes = await fetch(baseVariety.pokemon.url);
             if (baseRes.ok) {
                 const baseDetail = await baseRes.json();
-                detail.abilities = detail.abilities.length > 0 ? detail.abilities : baseDetail.abilities;
-                detail.moves = detail.moves.length > 0 ? detail.moves : baseDetail.moves;
+                if (!detail.abilities || detail.abilities.length === 0) detail.abilities = baseDetail.abilities;
+                if (!detail.moves || detail.moves.length === 0) detail.moves = baseDetail.moves;
             }
         } catch (e) {}
     }
@@ -62,7 +68,7 @@ let varieties = [];
 try {
     const results = await Promise.allSettled([
         getEvolutionChain(species.evolution_chain.url),
-        Promise.all(detail.abilities.map(async (a) => {
+        Promise.all((detail.abilities || []).map(async (a) => {
             try {
                 const res = await fetch(a.ability.url);
                 if (!res.ok) throw new Error();
@@ -232,18 +238,48 @@ const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), 
                 <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
                     <div class="flex justify-between items-center mb-10"><h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">{t.base_stats}</h3><div class="flex items-center gap-2"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.total}</span><span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span></div></div>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-                        <div class="lg:col-span-5 relative flex justify-center"><svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">{gridLevels.map(level => (<polygon points={Array.from({length: 6}).map((_, i) => { const r = level * radius; const x = center + r * Math.sin(i * angleStep); const y = center - r * Math.cos(i * angleStep); return `${x},${y}`; }).join(' ')} class="fill-none stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />))}{Array.from({length: 6}).map((_, i) => (<line x1={center} y1={center} x2={center + radius * Math.sin(i * angleStep)} y2={center - radius * Math.cos(i * angleStep)} class="stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />))}{statLabels.map((label, i) => { const r = radius + 25; const x = center + r * Math.sin(i * angleStep); const y = center - r * Math.cos(i * angleStep); return (<text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">{label}</text>); })}<polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" stroke-linejoin="round" />{points.split(' ').map(p => (<circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />))}</svg></div>
-                        <div class="lg:col-span-7 space-y-4">{detail.stats.map(s => { const percentage = (s.base_stat / 255) * 100; const colorClass = getStatColor(s.base_stat); return (<div><div class="flex justify-between mb-1 text-sm font-bold"><span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span><span class="text-slate-900 dark:text-white">{s.base_stat}</span></div><div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`} style={`width: ${percentage}%`}></div></div></div>); })}</div>
+                        <div class="lg:col-span-5 relative flex justify-center">
+                            <svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">
+                                {gridLevels.map(level => (
+                                    <polygon points={Array.from({length: 6}).map((_, i) => { const r = level * radius; const x = center + r * Math.sin(i * angleStep); const y = center - r * Math.cos(i * angleStep); return `${x},${y}`; }).join(' ')} class="fill-none stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />
+                                ))}
+                                {Array.from({length: 6}).map((_, i) => (
+                                    <line x1={center} y1={center} x2={center + radius * Math.sin(i * angleStep)} y2={center - radius * Math.cos(i * angleStep)} class="stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />
+                                ))}
+                                {statLabels.map((label, i) => { 
+                                    const r = radius + 25; 
+                                    const x = center + r * Math.sin(i * angleStep); 
+                                    const y = center - r * Math.cos(i * angleStep); 
+                                    return <text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">{label}</text>; 
+                                })}
+                                <polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" stroke-linejoin="round" />
+                                {points.split(' ').map(p => (
+                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
+                                ))}
+                            </svg>
+                        </div>
+                        <div class="lg:col-span-7 space-y-4">
+                            {detail.stats.map(s => { 
+                                const percentage = (s.base_stat / 255) * 100; 
+                                const colorClass = getStatColor(s.base_stat); 
+                                return (
+                                    <div>
+                                        <div class="flex justify-between mb-1 text-sm font-bold"><span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span><span class="text-slate-900 dark:text-white">{s.base_stat}</span></div>
+                                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`} style={`width: ${percentage}%`}></div></div>
+                                    </div>
+                                ); 
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                {varieties.length > 0 && (
+                {varieties && varieties.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map(v => (
                                 <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-all group no-underline">
-                                    <img src={v.sprites.other?.["official-artwork"]?.front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
+                                    <img src={v.sprites?.other?.["official-artwork"]?.front_default || v.sprites?.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
                                     <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight">{v.name.replace(/-/g, ' ')}</span>
                                 </a>
                             ))}
@@ -267,7 +303,10 @@ const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), 
             btn.onclick = () => {
                 const isShiny = btn.classList.toggle('active');
                 img.style.opacity = '0';
-                setTimeout(() => { img.src = isShiny ? img.dataset.shiny : img.dataset.default; img.style.opacity = '1'; }, 250);
+                setTimeout(() => { 
+                    img.src = isShiny ? img.dataset.shiny : img.dataset.default; 
+                    img.style.opacity = '1'; 
+                }, 250);
             };
         }
         initShiny();
