@@ -139,7 +139,11 @@ const height = detail.height / 10;
 const weight = detail.weight / 10;
 const totalStats = detail.stats.reduce((acc: number, s: any) => acc + s.base_stat, 0);
 
-const currentDexId = (pokemonId > 10000 && species) ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
+// Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
+// Obtenemos el ID de la especie desde la URL vinculada en el detalle
+const speciesUrl = rawDetail.species?.url || '';
+const speciesIdMatch = speciesUrl.match(/\/pokemon-species\/(\d+)\//);
+const currentDexId = pokemonId > 10000 ? (speciesIdMatch ? speciesIdMatch[1] : pokemonId) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 
