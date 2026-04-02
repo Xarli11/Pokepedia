@@ -3,7 +3,6 @@ import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
-import LocationGuide from '../../../components/LocationGuide.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../services/pokeapi';
 import { getShowdownPokemon } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
@@ -35,7 +34,8 @@ detail.types = detail.types || [];
 try {
     const showdownData = await getShowdownPokemon(name);
     if (showdownData) {
-        if (detail.abilities.length === 0 && showdownData.abilities) {
+        // Habilidades desde Showdown (Fuente principal de verdad técnica)
+        if (showdownData.abilities) {
             detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
                 ability: { 
                     name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
@@ -45,6 +45,19 @@ try {
                 slot: index + 1
             }));
         }
+
+        // Tipos desde Showdown
+        if (showdownData.types && showdownData.types.length > 0) {
+            detail.types = showdownData.types.map((typeName: string, index: number) => ({
+                slot: index + 1,
+                type: {
+                    name: typeName.toLowerCase(),
+                    url: `https://pokeapi.co/api/v2/type/${typeName.toLowerCase()}/`
+                }
+            }));
+        }
+
+        // Stats desde Showdown
         if (showdownData.baseStats) {
             const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
             detail.stats = detail.stats.map(s => {
@@ -55,7 +68,7 @@ try {
     }
 } catch (e) {}
 
-// 2. Fallback de especie
+// 2. Fallback de especie (para Movimientos que Showdown no detalla para Megas)
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
@@ -306,7 +319,6 @@ const getStatColor = (baseStat: number) => {
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <LocationGuide pokemonId={detail.id} lang={lang as string} />
         <CompetitiveSets pokemonName={detail.name} lang={lang as string} />
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>

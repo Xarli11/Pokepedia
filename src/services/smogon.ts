@@ -6,7 +6,7 @@
 const cache = new Map<string, { data: any, timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
 
-async function fetchWithCache<T>(url: string): Promise<T | null> {
+async function fetchWithCache<T>(url: string, timeoutMs = 8000): Promise<T | null> {
     const cached = cache.get(url);
     const now = Date.now();
 
@@ -17,32 +17,64 @@ async function fetchWithCache<T>(url: string): Promise<T | null> {
     try {
         const response = await fetch(url, {
             headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(5000) // Timeout de 5 segundos para no bloquear el worker
+            signal: AbortSignal.timeout(timeoutMs) // Timeout ajustable
         });
         if (!response.ok) return null;
-        const data = await response.json();
+        
+        // Showdown a veces devuelve texto que parece un módulo en lugar de JSON puro si no está configurado,
+        // pero sus endpoints .json en data/ son puros.
+        const text = await response.text();
+        const data = JSON.parse(text.replace(/^var \w+ = /i, '').replace(/;$/, ''));
 
         cache.set(url, { data, timestamp: now });
         return data;
     } catch (e) {
-        console.error(`Showdown fetch failed: ${url}`);
+        console.error(`Showdown fetch failed for ${url}:`, e);
+        if (cached) return cached.data;
         return null;
     }
 }
 
 /**
- * Obtiene los datos completos de un Pokémon desde la Pokedex de Showdown.
+ * Obtiene la Pokedex completa de Showdown
+ */
+export async function getShowdownPokedex(): Promise<Record<string, any>> {
+    const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/pokedex.json`);
+    return data || {};
+}
+
+/**
+ * Obtiene los detalles completos de un Pokémon desde la Pokedex de Showdown.
  */
 export async function getShowdownPokemon(pokemonName: string): Promise<any | null> {
-    try {
-        const formatName = pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/pokedex.json`);
-        
-        if (!data) return null;
-        return data[formatName] || null;
-    } catch (e) {
-        return null;
-    }
+    const data = await getShowdownPokedex();
+    const formatName = pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return data[formatName] || null;
+}
+
+/**
+ * Obtiene el diccionario completo de movimientos de Showdown
+ */
+export async function getShowdownMoves(): Promise<Record<string, any>> {
+    const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/moves.json`, 15000);
+    return data || {};
+}
+
+/**
+ * Obtiene el diccionario completo de habilidades de Showdown
+ */
+export async function getShowdownAbilities(): Promise<Record<string, any>> {
+    const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/abilities.json`, 10000);
+    return data || {};
+}
+
+/**
+ * Obtiene los conjuntos de movimientos de Showdown (Learnsets)
+ */
+export async function getShowdownLearnsets(): Promise<Record<string, any>> {
+    // Learnsets.json es masivo (~3.5MB), aumentamos timeout
+    const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/learnsets.json`, 20000);
+    return data || {};
 }
 
 /**
