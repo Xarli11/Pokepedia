@@ -133,6 +133,19 @@ if (detail.name !== species.name) {
 const description = species.flavor_text_entries.find(entry => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
                   species.flavor_text_entries.find(entry => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ');
 
+// Configuración de Imágenes (Priorizar official-artwork con el ID real)
+const pokemonId = detail.id;
+const officialArtwork = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
+const officialArtworkShiny = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${pokemonId}.png`;
+
+// Fallback para el objeto detail.sprites por si acaso algún componente lo usa
+if (!detail.sprites.other?.["official-artwork"]?.front_default) {
+    if (!detail.sprites.other) detail.sprites.other = {} as any;
+    if (!detail.sprites.other["official-artwork"]) detail.sprites.other["official-artwork"] = {} as any;
+    detail.sprites.other["official-artwork"].front_default = officialArtwork;
+    detail.sprites.other["official-artwork"].front_shiny = officialArtworkShiny;
+}
+
 const height = detail.height / 10;
 const weight = detail.weight / 10;
 
@@ -145,7 +158,8 @@ const getStatColor = (baseStat: number) => {
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
 // Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
-const currentDexId = detail.id > 10000 ? (species.url.split('/').filter(Boolean).pop()) : detail.id;
+// Para variedades, el "currentDexId" debe ser el de la especie base para navegar entre números nacionales
+const currentDexId = pokemonId > 10000 ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 
@@ -186,7 +200,7 @@ const seoDescription = lang === 'es'
 <Layout 
     title={seoTitle} 
     description={seoDescription}
-    image={detail.sprites.other["official-artwork"].front_default}
+    image={officialArtwork}
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
@@ -252,13 +266,13 @@ const seoDescription = lang === 'es'
                 <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8 transition-colors duration-300 group/image">
                     <img 
                         id="pokemon-image"
-                        src={detail.sprites.other["official-artwork"].front_default} 
-                        data-default={detail.sprites.other["official-artwork"].front_default}
-                        data-shiny={detail.sprites.other["official-artwork"].front_shiny}
+                        src={officialArtwork} 
+                        data-default={officialArtwork}
+                        data-shiny={officialArtworkShiny}
                         alt={localizedName}
                         class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500"
                     />
-                    <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(detail.id)}</span>
+                    <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(pokemonId)}</span>
                     
                     <!-- Interruptor Shiny -->
                     <button 

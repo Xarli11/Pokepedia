@@ -179,16 +179,47 @@ export async function getFirstGenPokemon(): Promise<PokemonDetail[]> {
 /**
  * Obtiene los detalles completos de un Pokémon por su nombre.
  * Maneja automáticamente variedades (G-Max, Megas, etc) obteniendo su especie base.
+ * Si la variedad no existe en PokeAPI (Megas personalizadas), hace fallback a la especie base.
  */
 export async function getPokemonByName(name: string): Promise<{ detail: PokemonDetail, species: PokemonSpecies }> {
-    // 1. Intentar obtener el detalle del Pokémon (esto funciona para variedades y formas base)
-    const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${name}`);
+    try {
+        // 1. Buscar primero en nuestra lista global para tener el ID real (útil para variedades)
+        const allNames = await getAllPokemonNames();
+        const varietyEntry = allNames.find(p => p.name.toLowerCase() === name.toLowerCase());
+        const realId = varietyEntry?.id;
 
-    // 2. Obtener la especie. El nombre de la especie puede ser diferente al del Pokémon (ej: charizard-gmax -> charizard)
-    // PokeAPI siempre incluye el enlace a la especie en el detalle del Pokémon.
-    const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
+        // 2. Intentar obtener el detalle del Pokémon
+        const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${name}`);
+        const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
+        
+        // Si tenemos un ID real de variedad pero PokeAPI nos devolvió otro (poco probable si el fetch funcionó), lo mantenemos
+        return { detail, species };
+    } catch (error) {
+        console.warn(`Variety ${name} not found in PokeAPI, attempting fallback to base species...`);
+        
+        // 3. Fallback: Intentar obtener el ID desde nuestra lista global si falló el fetch directo
+        const allNames = await getAllPokemonNames();
+        const varietyEntry = allNames.find(p => p.name.toLowerCase() === name.toLowerCase());
+        const realId = varietyEntry?.id;
 
-    return { detail, species };
+        const baseName = name.split('-')[0];
+        try {
+            const baseDetail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${baseName}`);
+            const species = await fetchWithCache<PokemonSpecies>((baseDetail as any).species.url);
+            
+            // Inyectamos el ID real de la variedad y su nombre para que los componentes funcionen
+            return { 
+                detail: { 
+                    ...baseDetail, 
+                    id: realId ? (typeof realId === 'string' ? parseInt(realId) : realId) : baseDetail.id,
+                    name: name 
+                }, 
+                species 
+            };
+        } catch (innerError) {
+            throw new Error(`Pokemon not found: ${name}`);
+        }
+    }
 }
 
 /**
