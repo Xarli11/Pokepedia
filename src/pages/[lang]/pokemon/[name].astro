@@ -8,96 +8,103 @@ import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../
 import { getShowdownPokemon } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
 
-const { lang, name } = Astro.params;
+const { lang, name: rawName } = Astro.params;
+const name = (rawName as string).toLowerCase();
 
 let pokemonData;
 try {
-    pokemonData = await getPokemonByName(name as string);
+    pokemonData = await getPokemonByName(name);
 } catch (e) {
     return Astro.redirect(`/${lang}?error=notfound`);
 }
 
 const { detail: rawDetail, species } = pokemonData;
-let detail = { ...rawDetail };
+// Asegurar que detail siempre tenga arrays inicializados
+let detail = { 
+    ...rawDetail, 
+    abilities: rawDetail.abilities || [], 
+    moves: rawDetail.moves || [],
+    stats: rawDetail.stats || []
+};
 
 // 1. Enriquecer con Showdown (Prioritario para variedades)
-const showdownData = await getShowdownPokemon(name as string);
-if (showdownData) {
-    if ((!detail.abilities || detail.abilities.length === 0) && showdownData.abilities) {
-        detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
-            ability: { 
-                name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
-                url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` 
-            },
-            is_hidden: index > 0,
-            slot: index + 1
-        }));
+try {
+    const showdownData = await getShowdownPokemon(name);
+    if (showdownData) {
+        if (detail.abilities.length === 0 && showdownData.abilities) {
+            detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
+                ability: { 
+                    name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
+                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` 
+                },
+                is_hidden: index > 0,
+                slot: index + 1
+            }));
+        }
+        if (showdownData.baseStats) {
+            const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
+            detail.stats = detail.stats.map(s => {
+                const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
+                return { 
+                    ...s, 
+                    base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat 
+                };
+            });
+        }
     }
-    if (showdownData.baseStats) {
-        const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
-        detail.stats = detail.stats.map(s => {
-            const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
-            return { 
-                ...s, 
-                base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat 
-            };
-        });
-    }
+} catch (e) {
+    console.error("Error enrichment Showdown:", e);
 }
 
-// 2. Fallback de especie si sigue vacío
-if (!detail.moves || detail.moves.length === 0 || !detail.abilities || detail.abilities.length === 0) {
-    const baseVariety = species.varieties.find((v: any) => v.is_default);
+// 2. Fallback de especie si sigue vacío (Heredar de la base)
+if (detail.moves.length === 0 || detail.abilities.length === 0) {
+    const baseVariety = species?.varieties?.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
         try {
             const baseRes = await fetch(baseVariety.pokemon.url);
             if (baseRes.ok) {
                 const baseDetail = await baseRes.json();
-                if (!detail.abilities || detail.abilities.length === 0) detail.abilities = baseDetail.abilities;
-                if (!detail.moves || detail.moves.length === 0) detail.moves = baseDetail.moves;
+                if (detail.abilities.length === 0) detail.abilities = baseDetail.abilities || [];
+                if (detail.moves.length === 0) detail.moves = baseDetail.moves || [];
             }
         } catch (e) {}
     }
 }
 
-// 3. Datos Técnicos (Safe Fetching)
+// 3. Datos Técnicos (Safe Settlement)
 let evolutionChain = null;
 let abilitiesWithTranslation = [];
 let varieties = [];
 
-try {
-    const results = await Promise.allSettled([
-        getEvolutionChain(species.evolution_chain.url),
-        Promise.all((detail.abilities || []).map(async (a) => {
-            try {
-                const res = await fetch(a.ability.url);
-                if (!res.ok) throw new Error();
-                const ad = await res.json();
-                return {
-                    ...a,
-                    displayName: ad.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
-                    description: ad.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                                 ad.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
-                };
-            } catch (e) {
-                return { ...a, displayName: formatName(a.ability.name), description: "" };
-            }
-        })),
-        Promise.all(species.varieties.filter((v: any) => !v.is_default).map(v => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null)))
-    ]);
+const results = await Promise.allSettled([
+    species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
+    Promise.all(detail.abilities.map(async (a) => {
+        try {
+            const res = await fetch(a.ability.url);
+            if (!res.ok) throw new Error();
+            const ad = await res.json();
+            return {
+                ...a,
+                displayName: ad.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
+                description: ad.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                             ad.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
+            };
+        } catch (e) {
+            return { ...a, displayName: formatName(a.ability.name), description: "" };
+        }
+    })),
+    species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map(v => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
+]);
 
-    evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
-    abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
-    varieties = (results[2].status === 'fulfilled' ? results[2].value : []).filter(Boolean);
-} catch (e) {
-    console.error("Error in technical data fetching", e);
-}
+evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
+abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
+varieties = (results[2].status === 'fulfilled' ? results[2].value : []).filter(Boolean);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
-const speciesName = getLocalizedName(species.names, lang as string) || species.name;
+const speciesName = species ? (getLocalizedName(species.names, lang as string) || species.name) : detail.name;
 let localizedName = speciesName;
 
-if (detail.name !== species.name) {
+if (species && detail.name !== species.name) {
     const suffix = detail.name.replace(species.name, '').replace(/-/g, ' ').trim();
     if (suffix) {
         const suffixMap: Record<string, string> = {
@@ -107,8 +114,8 @@ if (detail.name !== species.name) {
     }
 }
 
-const description = species.flavor_text_entries.find(entry => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                  species.flavor_text_entries.find(entry => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ');
+const description = species?.flavor_text_entries?.find(entry => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                  species?.flavor_text_entries?.find(entry => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ') || "";
 
 const pokemonId = detail.id;
 const officialArtwork = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
@@ -116,14 +123,9 @@ const officialArtworkShiny = `https://raw.githubusercontent.com/PokeAPI/sprites/
 
 const height = detail.height / 10;
 const weight = detail.weight / 10;
-const getStatColor = (baseStat: number) => {
-    if (baseStat < 70) return 'from-red-400 to-red-600';
-    if (baseStat < 100) return 'from-yellow-400 to-yellow-600';
-    return 'from-emerald-400 to-emerald-600';
-};
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
-const currentDexId = pokemonId > 10000 ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
+const currentDexId = (pokemonId > 10000 && species) ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 
@@ -148,6 +150,12 @@ const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spde
 const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`;
 const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`;
+
+const getStatColor = (baseStat: number) => {
+    if (baseStat < 70) return 'from-red-400 to-red-600';
+    if (baseStat < 100) return 'from-yellow-400 to-yellow-600';
+    return 'from-emerald-400 to-emerald-600';
+};
 ---
 
 <Layout title={seoTitle} description={seoDescription} image={officialArtwork} lang={lang}>
@@ -172,7 +180,7 @@ const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), 
                 {hasNavigation ? (
                     <>
                         <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
-                            <img src={prevPokemon.sprites.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={prevPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
@@ -184,7 +192,7 @@ const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), 
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <img src={nextPokemon.sprites.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={nextPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                         </a>
                     </>
                 ) : <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">{t.navigation_unavailable || 'Navigation unavailable'}</div>}
@@ -224,11 +232,11 @@ const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), 
             <div class="md:col-span-7 space-y-12">
                 <div class="flex flex-wrap items-center gap-4 mb-6">
                     <div class="flex gap-2">
-                        {detail.types.map(t2 => (
+                        {(detail.types || []).map(t2 => (
                             <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
                         ))}
                     </div>
-                    <a href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} target="_blank" rel="noopener noreferrer" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
+                    <a href={`https://www.poketypes.app/?t1=${detail.types[0]?.type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} target="_blank" rel="noopener noreferrer" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>
                 </div>
