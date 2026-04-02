@@ -5,6 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import LocationGuide from '../../../components/LocationGuide.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../services/pokeapi';
+import { getShowdownPokemon } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
 
 const { lang, name } = Astro.params;
@@ -19,8 +20,34 @@ try {
 const { detail: rawDetail, species } = pokemonData;
 let detail = rawDetail;
 
-// Lógica de Fallback para variedades sin datos (Megas personalizadas/nuevas)
-// Si la variedad no tiene movimientos o habilidades, intentamos heredar de la forma base
+// 1. Obtener datos de Showdown para enriquecer (especialmente Megas/Variedades nuevas)
+const showdownData = await getShowdownPokemon(name as string);
+
+// 2. Enriquecimiento de Datos: Habilidades y Stats
+if (showdownData) {
+    // Si Showdown tiene habilidades y PokeAPI no, o si queremos priorizar Showdown para Megas
+    if (detail.abilities.length === 0 && showdownData.abilities) {
+        detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
+            ability: { name: abilityName.toLowerCase().replace(/\s+/g, '-'), url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` },
+            is_hidden: index > 0, // Convención simple
+            slot: index + 1
+        }));
+    }
+
+    // Si Showdown tiene stats base para una variedad que PokeAPI tiene a 0 o desactualizada
+    if (showdownData.baseStats) {
+        const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
+        detail.stats = detail.stats.map(s => {
+            const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
+            return {
+                ...s,
+                base_stat: showdownData.baseStats[showdownKey as string] || s.base_stat
+            };
+        });
+    }
+}
+
+// 3. Lógica de Fallback Final (Especie Base) si sigue vacío
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species.varieties.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
@@ -29,9 +56,9 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
             if (baseRes.ok) {
                 const baseDetail = await baseRes.json();
                 detail = {
-                    ...rawDetail,
-                    abilities: rawDetail.abilities.length > 0 ? rawDetail.abilities : baseDetail.abilities,
-                    moves: rawDetail.moves.length > 0 ? rawDetail.moves : baseDetail.moves
+                    ...detail,
+                    abilities: detail.abilities.length > 0 ? detail.abilities : baseDetail.abilities,
+                    moves: detail.moves.length > 0 ? detail.moves : baseDetail.moves
                 };
             }
         } catch (e) {

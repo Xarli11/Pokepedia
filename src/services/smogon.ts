@@ -31,18 +31,26 @@ async function fetchWithCache<T>(url: string): Promise<T | null> {
 }
 
 /**
- * Obtiene el Tier de Smogon para un Pokémon específico.
+ * Obtiene los datos completos de un Pokémon desde la Pokedex de Showdown.
  */
-export async function getPokemonTier(pokemonName: string): Promise<string> {
+export async function getShowdownPokemon(pokemonName: string): Promise<any | null> {
     try {
         const formatName = pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '');
         const data = await fetchWithCache<any>(`https://play.pokemonshowdown.com/data/pokedex.json`);
         
-        if (!data) return 'Untiered';
-        return data[formatName]?.tier || 'Untiered';
+        if (!data) return null;
+        return data[formatName] || null;
     } catch (e) {
-        return 'Untiered';
+        return null;
     }
+}
+
+/**
+ * Obtiene el Tier de Smogon para un Pokémon específico.
+ */
+export async function getPokemonTier(pokemonName: string): Promise<string> {
+    const data = await getShowdownPokemon(pokemonName);
+    return data?.tier || 'Untiered';
 }
 
 /**
