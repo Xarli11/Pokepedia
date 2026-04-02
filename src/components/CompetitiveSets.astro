@@ -24,7 +24,7 @@ const t = uiTranslations[lang] || uiTranslations.es;
         </div>
     </div>
 
-    <div id="competitive-content" class="space-y-10" data-pokemon={pokemonName.toLowerCase().replace(/[^a-z0-0]/g, '')} data-lang={lang}>
+    <div id="competitive-content" class="space-y-10" data-pokemon={pokemonName.toLowerCase().replace(/[^a-z0-9]/g, '')} data-lang={lang}>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 animate-pulse">
             <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
             <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
@@ -38,7 +38,7 @@ const t = uiTranslations[lang] || uiTranslations.es;
     const abilityCache = new Map();
 
     async function getAbilityInfo(abilityName, lang) {
-        const slug = abilityName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-0-]/g, '');
+        const slug = abilityName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         const psSlug = abilityName.toLowerCase().replace(/[^a-z0-9]/g, '');
         
         if (abilityCache.has(slug)) return abilityCache.get(slug);

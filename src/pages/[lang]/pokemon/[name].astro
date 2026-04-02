@@ -16,17 +16,44 @@ try {
     return Astro.redirect(`/${lang}?error=notfound`);
 }
 
-const { detail, species } = pokemonData;
+const { detail: rawDetail, species } = pokemonData;
+let detail = rawDetail;
+
+// Lógica de Fallback para variedades sin datos (Megas personalizadas/nuevas)
+// Si la variedad no tiene movimientos o habilidades, intentamos heredar de la forma base
+if (detail.moves.length === 0 || detail.abilities.length === 0) {
+    const baseVariety = species.varieties.find((v: any) => v.is_default);
+    if (baseVariety && baseVariety.pokemon.name !== detail.name) {
+        try {
+            const baseRes = await fetch(baseVariety.pokemon.url);
+            if (baseRes.ok) {
+                const baseDetail = await baseRes.json();
+                detail = {
+                    ...rawDetail,
+                    abilities: rawDetail.abilities.length > 0 ? rawDetail.abilities : baseDetail.abilities,
+                    moves: rawDetail.moves.length > 0 ? rawDetail.moves : baseDetail.moves
+                };
+            }
+        } catch (e) {
+            console.error("Error fetching base variety for fallback", e);
+        }
+    }
+}
 
 // Obtener variedades (Formas alternativas como Megas, G-Max)
 const varieties = await Promise.all(
     species.varieties
         .filter((v: any) => !v.is_default)
         .map(async (v: any) => {
-            const res = await fetch(v.pokemon.url);
-            return res.json();
+            try {
+                const res = await fetch(v.pokemon.url);
+                if (!res.ok) return null;
+                return res.json();
+            } catch (e) {
+                return null;
+            }
         })
-);
+).then(list => list.filter(Boolean));
 
 // Obtener cadena evolutiva y traducciones en paralelo
 const [evolutionChain, abilitiesWithTranslation] = await Promise.all([
@@ -35,6 +62,7 @@ const [evolutionChain, abilitiesWithTranslation] = await Promise.all([
         detail.abilities.map(async (a) => {
             try {
                 const res = await fetch(a.ability.url);
+                if (!res.ok) throw new Error();
                 const abilityDetail = await res.json();
                 const translatedName = abilityDetail.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name);
                 const translatedDesc = abilityDetail.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
@@ -90,14 +118,18 @@ const getStatColor = (baseStat: number) => {
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
 // Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
-const currentDexId = detail.id > 10000 ? species.url.split('/').filter(Boolean).pop() : detail.id;
+const currentDexId = detail.id > 10000 ? (species.url.split('/').filter(Boolean).pop()) : detail.id;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 
 const [prevPokemon, nextPokemon] = await Promise.all([
-    fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.json()),
-    fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.json())
+    fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.ok ? res.json() : null).catch(() => null),
+    fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.ok ? res.json() : null).catch(() => null)
 ]);
+
+// Si no hay navegación (error de API), usamos placeholders o evitamos renderizar el bloque
+const hasNavigation = prevPokemon && nextPokemon;
+
 
 // Lógica para el gráfico de radar (SVG)
 const statsValues = detail.stats.map(s => s.base_stat);
@@ -159,23 +191,31 @@ const seoDescription = lang === 'es'
 
             <!-- Navegación Rápida -->
             <div class="flex items-center gap-3">
-                <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline">
-                    <img src={prevPokemon.sprites.front_default} alt={prevPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
-                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
-                    </div>
-                </a>
+                {hasNavigation ? (
+                    <>
+                        <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline">
+                            <img src={prevPokemon.sprites.front_default} alt={prevPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
+                            </div>
+                        </a>
 
-                <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
+                        <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
 
-                <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline text-right">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
-                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
+                        <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline text-right">
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
+                            </div>
+                            <img src={nextPokemon.sprites.front_default} alt={nextPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                        </a>
+                    </>
+                ) : (
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">
+                        {lang === 'es' ? 'Navegación no disponible' : 'Navigation unavailable'}
                     </div>
-                    <img src={nextPokemon.sprites.front_default} alt={nextPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
-                </a>
+                )}
             </div>
         </div>
 
