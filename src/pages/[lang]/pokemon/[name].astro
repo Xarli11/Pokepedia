@@ -20,34 +20,26 @@ try {
 const { detail: rawDetail, species } = pokemonData;
 let detail = rawDetail;
 
-// 1. Obtener datos de Showdown para enriquecer (especialmente Megas/Variedades nuevas)
+// 1. Enriquecer con Showdown (Prioritario para variedades)
 const showdownData = await getShowdownPokemon(name as string);
-
-// 2. Enriquecimiento de Datos: Habilidades y Stats
 if (showdownData) {
-    // Si Showdown tiene habilidades y PokeAPI no, o si queremos priorizar Showdown para Megas
     if (detail.abilities.length === 0 && showdownData.abilities) {
         detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
             ability: { name: abilityName.toLowerCase().replace(/\s+/g, '-'), url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` },
-            is_hidden: index > 0, // Convención simple
+            is_hidden: index > 0,
             slot: index + 1
         }));
     }
-
-    // Si Showdown tiene stats base para una variedad que PokeAPI tiene a 0 o desactualizada
     if (showdownData.baseStats) {
         const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
         detail.stats = detail.stats.map(s => {
             const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
-            return {
-                ...s,
-                base_stat: showdownData.baseStats[showdownKey as string] || s.base_stat
-            };
+            return { ...s, base_stat: showdownData.baseStats[showdownKey as string] || s.base_stat };
         });
     }
 }
 
-// 3. Lógica de Fallback Final (Especie Base) si sigue vacío
+// 2. Fallback de especie si sigue vacío
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species.varieties.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
@@ -55,110 +47,76 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
             const baseRes = await fetch(baseVariety.pokemon.url);
             if (baseRes.ok) {
                 const baseDetail = await baseRes.json();
-                detail = {
-                    ...detail,
-                    abilities: detail.abilities.length > 0 ? detail.abilities : baseDetail.abilities,
-                    moves: detail.moves.length > 0 ? detail.moves : baseDetail.moves
-                };
+                detail.abilities = detail.abilities.length > 0 ? detail.abilities : baseDetail.abilities;
+                detail.moves = detail.moves.length > 0 ? detail.moves : baseDetail.moves;
             }
-        } catch (e) {
-            console.error("Error fetching base variety for fallback", e);
-        }
+        } catch (e) {}
     }
 }
 
-// Obtener variedades (Formas alternativas como Megas, G-Max)
-const varieties = await Promise.all(
-    species.varieties
-        .filter((v: any) => !v.is_default)
-        .map(async (v: any) => {
-            try {
-                const res = await fetch(v.pokemon.url);
-                if (!res.ok) return null;
-                return res.json();
-            } catch (e) {
-                return null;
-            }
-        })
-).then(list => list.filter(Boolean));
+// 3. Datos Técnicos (Safe Fetching)
+let evolutionChain = null;
+let abilitiesWithTranslation = [];
+let varieties = [];
 
-// Obtener cadena evolutiva y traducciones en paralelo
-const [evolutionChain, abilitiesWithTranslation] = await Promise.all([
-    getEvolutionChain(species.evolution_chain.url),
-    Promise.all(
-        detail.abilities.map(async (a) => {
+try {
+    const results = await Promise.allSettled([
+        getEvolutionChain(species.evolution_chain.url),
+        Promise.all(detail.abilities.map(async (a) => {
             try {
                 const res = await fetch(a.ability.url);
                 if (!res.ok) throw new Error();
-                const abilityDetail = await res.json();
-                const translatedName = abilityDetail.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name);
-                const translatedDesc = abilityDetail.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                                     abilityDetail.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+                const ad = await res.json();
                 return {
                     ...a,
-                    displayName: translatedName,
-                    description: translatedDesc
+                    displayName: ad.names.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
+                    description: ad.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                                 ad.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
                 };
             } catch (e) {
                 return { ...a, displayName: formatName(a.ability.name), description: "" };
             }
-        })
-    )
-]);
+        })),
+        Promise.all(species.varieties.filter((v: any) => !v.is_default).map(v => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null)))
+    ]);
+
+    evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
+    abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
+    varieties = (results[2].status === 'fulfilled' ? results[2].value : []).filter(Boolean);
+} catch (e) {
+    console.error("Error in technical data fetching", e);
+}
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = getLocalizedName(species.names, lang as string) || species.name;
 let localizedName = speciesName;
 
-// Si el nombre del detalle no es el mismo que el de la especie, es una variedad
 if (detail.name !== species.name) {
     const suffix = detail.name.replace(species.name, '').replace(/-/g, ' ').trim();
     if (suffix) {
-        // Formatear sufijos comunes
         const suffixMap: Record<string, string> = {
-            'gmax': lang === 'es' ? 'Gigamax' : 'G-Max',
-            'mega': 'Mega',
-            'alola': 'Alola',
-            'galar': 'Galar',
-            'hisui': 'Hisui',
-            'paldea': 'Paldea',
-            'mega x': 'Mega X',
-            'mega y': 'Mega Y'
+            'gmax': lang === 'es' ? 'Gigamax' : 'G-Max', 'mega': 'Mega', 'alola': 'Alola', 'galar': 'Galar', 'hisui': 'Hisui', 'paldea': 'Paldea', 'mega x': 'Mega X', 'mega y': 'Mega Y'
         };
-        const prettySuffix = suffixMap[suffix.toLowerCase()] || formatName(suffix);
-        localizedName = `${speciesName} (${prettySuffix})`;
+        localizedName = `${speciesName} (${suffixMap[suffix.toLowerCase()] || formatName(suffix)})`;
     }
 }
 
 const description = species.flavor_text_entries.find(entry => entry.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
                   species.flavor_text_entries.find(entry => entry.language.name === (lang === 'es' ? 'en' : 'es'))?.flavor_text.replace(/\f/g, ' ');
 
-// Configuración de Imágenes (Priorizar official-artwork con el ID real)
 const pokemonId = detail.id;
 const officialArtwork = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`;
 const officialArtworkShiny = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${pokemonId}.png`;
 
-// Fallback para el objeto detail.sprites por si acaso algún componente lo usa
-if (!detail.sprites.other?.["official-artwork"]?.front_default) {
-    if (!detail.sprites.other) detail.sprites.other = {} as any;
-    if (!detail.sprites.other["official-artwork"]) detail.sprites.other["official-artwork"] = {} as any;
-    detail.sprites.other["official-artwork"].front_default = officialArtwork;
-    detail.sprites.other["official-artwork"].front_shiny = officialArtworkShiny;
-}
-
 const height = detail.height / 10;
 const weight = detail.weight / 10;
-
 const getStatColor = (baseStat: number) => {
     if (baseStat < 70) return 'from-red-400 to-red-600';
     if (baseStat < 100) return 'from-yellow-400 to-yellow-600';
     return 'from-emerald-400 to-emerald-600';
 };
-
 const totalStats = detail.stats.reduce((acc, s) => acc + s.base_stat, 0);
 
-// Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
-// Para variedades, el "currentDexId" debe ser el de la especie base para navegar entre números nacionales
 const currentDexId = pokemonId > 10000 ? (species.url.split('/').filter(Boolean).pop()) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
 const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
@@ -167,17 +125,12 @@ const [prevPokemon, nextPokemon] = await Promise.all([
     fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.ok ? res.json() : null).catch(() => null),
     fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.ok ? res.json() : null).catch(() => null)
 ]);
-
-// Si no hay navegación (error de API), usamos placeholders o evitamos renderizar el bloque
 const hasNavigation = prevPokemon && nextPokemon;
 
-
-// Lógica para el gráfico de radar (SVG)
 const statsValues = detail.stats.map(s => s.base_stat);
 const angleStep = (Math.PI * 2) / 6;
-const radius = 80; // Reducido un poco para dejar espacio a etiquetas
+const radius = 80;
 const center = 125;
-
 const points = statsValues.map((stat, i) => {
     const r = (Math.min(stat, 180) / 180) * radius; 
     const x = center + r * Math.sin(i * angleStep);
@@ -186,135 +139,74 @@ const points = statsValues.map((stat, i) => {
 }).join(' ');
 
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
-
 const gridLevels = [0.25, 0.5, 0.75, 1];
-const seoTitle = lang === 'es' 
-    ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
-    : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
-
-const seoDescription = lang === 'es'
-    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y mejores estrategias competitivas en la Pokepedia técnica definitiva.`
-    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses, and top competitive strategies in the ultimate technical Pokepedia.`;
+const seoTitle = `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`;
+const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`;
 ---
 
-<Layout 
-    title={seoTitle} 
-    description={seoDescription}
-    image={officialArtwork}
-    lang={lang}
->
+<Layout title={seoTitle} description={seoDescription} image={officialArtwork} lang={lang}>
     <div class="max-w-5xl mx-auto">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
             <div class="flex flex-col gap-4">
-                <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-bold transition-colors group">
-                    <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
-                        <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group">
+                    <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 shadow-sm">
+                        <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                     </div>
                     {t.back_to_pokedex}
                 </a>
-                
                 <div class="flex items-center gap-4">
-                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">
-                        {localizedName}
-                    </h1>
-                    <button 
-                        class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-rose-500/30 transition-all shadow-sm group/fav text-slate-400"
-                        data-pokemon={name}
-                        onclick="window.toggleFavorite(this.dataset.pokemon)"
-                        title={lang === 'es' ? 'Añadir a Favoritos' : 'Add to Favorites'}
-                    >
-                        <svg class="w-6 h-6 heart-icon transition-all duration-300 group-hover/fav:scale-110 group-active/fav:scale-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
-                        </svg>
+                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">{localizedName}</h1>
+                    <button class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400" data-pokemon={name} onclick="window.toggleFavorite(this.dataset.pokemon)">
+                        <svg class="w-6 h-6 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Navegación Rápida -->
             <div class="flex items-center gap-3">
                 {hasNavigation ? (
                     <>
-                        <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline">
-                            <img src={prevPokemon.sprites.front_default} alt={prevPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                        <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
+                            <img src={prevPokemon.sprites.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
-                                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
-                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
                             </div>
                         </a>
-
                         <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
-
-                        <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group no-underline text-right">
+                        <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
                             <div class="flex flex-col">
-                                <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
-                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize group-hover:text-emerald-500 transition-colors leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <img src={nextPokemon.sprites.front_default} alt={nextPokemon.name} class="w-10 h-10 object-contain image-render-pixel group-hover:scale-110 transition-transform" />
+                            <img src={nextPokemon.sprites.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                         </a>
                     </>
-                ) : (
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">
-                        {lang === 'es' ? 'Navegación no disponible' : 'Navigation unavailable'}
-                    </div>
-                )}
+                ) : <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">{t.navigation_unavailable || 'Navigation unavailable'}</div>}
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-12">
-            <!-- Columna Izquierda: Imagen y Info Básica -->
             <div class="md:col-span-5 flex flex-col items-center">
-                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8 transition-colors duration-300 group/image">
-                    <img 
-                        id="pokemon-image"
-                        src={officialArtwork} 
-                        data-default={officialArtwork}
-                        data-shiny={officialArtworkShiny}
-                        alt={localizedName}
-                        class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500"
-                    />
+                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8">
+                    <img id="pokemon-image" src={officialArtwork} data-default={officialArtwork} data-shiny={officialArtworkShiny} alt={localizedName} class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500" />
                     <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(pokemonId)}</span>
-                    
-                    <!-- Interruptor Shiny -->
-                    <button 
-                        id="shiny-toggle"
-                        class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700 text-slate-400 hover:text-amber-500 transition-all hover:scale-110 group/shiny"
-                        title={lang === 'es' ? 'Ver forma Variocolor' : 'View Shiny version'}
-                    >
-                        <svg class="w-6 h-6 group-[.active]:fill-amber-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                    </button>
+                    <button id="shiny-toggle" class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 text-slate-400 hover:text-amber-500 transition-all"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
                 </div>
-
-                <div class="w-full bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                    <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">{t.basic_info}</h3>
+                <div class="w-full bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.basic_info}</h3>
                     <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.height}</p>
-                            <p class="text-slate-900 dark:text-white font-bold text-lg">{height} m</p>
-                        </div>
-                        <div>
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.weight}</p>
-                            <p class="text-slate-900 dark:text-white font-bold text-lg">{weight} kg</p>
-                        </div>
+                        <div><p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.height}</p><p class="text-slate-900 dark:text-white font-bold text-lg">{height} m</p></div>
+                        <div><p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.weight}</p><p class="text-slate-900 dark:text-white font-bold text-lg">{weight} kg</p></div>
                         <div class="col-span-2 border-t border-slate-50 dark:border-slate-800 pt-6 mt-2">
-                            <p class="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase mb-1">{t.abilities}</p>
+                            <p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.abilities}</p>
                             <div class="space-y-3 mt-3">
                                 {abilitiesWithTranslation.map(a => (
                                     <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
                                         <div class="flex items-center gap-2 mb-1">
-                                            <span class={`text-sm font-bold ${a.is_hidden ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                                {a.displayName}
-                                            </span>
-                                            {a.is_hidden && (
-                                                <span class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md">
-                                                    {t.hidden}
-                                                </span>
-                                            )}
+                                            <span class={`text-sm font-bold ${a.is_hidden ? 'text-slate-500' : 'text-emerald-600 dark:text-emerald-400'}`}>{a.displayName}</span>
+                                            {a.is_hidden && <span class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded-md">{t.hidden}</span>}
                                         </div>
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                                            {a.description}
-                                        </p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">{a.description}</p>
                                     </div>
                                 ))}
                             </div>
@@ -323,149 +215,36 @@ const seoDescription = lang === 'es'
                 </div>
             </div>
 
-            <!-- Columna Derecha: Nombre, Lore y Stats -->
             <div class="md:col-span-7 space-y-12">
-                <div>
-                    <div class="flex flex-wrap items-center gap-4 mb-6">
-                        <div class="flex gap-2">
-                            {detail.types.map(t => (
-                                <span 
-                                    class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm"
-                                    style={`background-color: ${typeColors[t.type.name]}`}
-                                >
-                                    {typeTranslations[lang as string][t.type.name]}
-                                </span>
-                            ))}
-                        </div>
-                        
-                        <a 
-                            href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all duration-300 no-underline"
-                        >
-                            <div class="flex items-center gap-2">
-                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-                                    {lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}
-                                </span>
-                            </div>
-                            <svg class="w-4 h-4 text-emerald-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-width="2"/>
-                            </svg>
-                        </a>
+                <div class="flex flex-wrap items-center gap-4 mb-6">
+                    <div class="flex gap-2">
+                        {detail.types.map(t2 => (
+                            <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
+                        ))}
                     </div>
-                    <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
-                    <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                        "{description}"
-                    </p>
+                    <a href={`https://www.poketypes.app/?t1=${detail.types[0].type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} target="_blank" rel="noopener noreferrer" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
+                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
+                    </a>
                 </div>
+                <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
+                <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">"{description}"</p>
 
-                <!-- Stats -->
-                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300 mb-12">
-                    <div class="flex justify-between items-center mb-10">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.base_stats}</h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.total}</span>
-                            <span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span>
-                        </div>
-                    </div>
-
+                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
+                    <div class="flex justify-between items-center mb-10"><h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">{t.base_stats}</h3><div class="flex items-center gap-2"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.total}</span><span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span></div></div>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-                        <!-- Radar Chart -->
-                        <div class="lg:col-span-5 relative flex justify-center">
-                            <svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">
-                                <!-- Grid -->
-                                {gridLevels.map(level => (
-                                    <polygon 
-                                        points={Array.from({length: 6}).map((_, i) => {
-                                            const r = level * radius;
-                                            const x = center + r * Math.sin(i * angleStep);
-                                            const y = center - r * Math.cos(i * angleStep);
-                                            return `${x},${y}`;
-                                        }).join(' ')}
-                                        class="fill-none stroke-slate-200 dark:stroke-slate-800"
-                                        stroke-width="1"
-                                    />
-                                ))}
-                                <!-- Axis -->
-                                {Array.from({length: 6}).map((_, i) => (
-                                    <line 
-                                        x1={center} y1={center}
-                                        x2={center + radius * Math.sin(i * angleStep)}
-                                        y2={center - radius * Math.cos(i * angleStep)}
-                                        class="stroke-slate-200 dark:stroke-slate-800"
-                                        stroke-width="1"
-                                    />
-                                ))}
-                                <!-- Labels -->
-                                {statLabels.map((label, i) => {
-                                    const r = radius + 25; // Distancia de la etiqueta
-                                    const x = center + r * Math.sin(i * angleStep);
-                                    const y = center - r * Math.cos(i * angleStep);
-                                    return (
-                                        <text 
-                                            x={x} y={y} 
-                                            text-anchor="middle" 
-                                            dominant-baseline="middle"
-                                            class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter"
-                                        >
-                                            {label}
-                                        </text>
-                                    );
-                                })}
-                                <!-- Area -->
-                                <polygon 
-                                    points={points}
-                                    class="fill-emerald-500/20 stroke-emerald-500"
-                                    stroke-width="3"
-                                    stroke-linejoin="round"
-                                />
-                                <!-- Points -->
-                                {points.split(' ').map(p => (
-                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
-                                ))}
-                            </svg>
-                        </div>
-
-                        <!-- Stats Bars -->
-                        <div class="lg:col-span-7 space-y-4">
-                            {detail.stats.map(s => {
-                            const percentage = (s.base_stat / 255) * 100;
-                            const colorClass = getStatColor(s.base_stat);
-                            return (
-                                <div>
-                                    <div class="flex justify-between mb-1 text-sm font-bold">
-                                        <span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span>
-                                        <span class="text-slate-900 dark:text-white">{s.base_stat}</span>
-                                    </div>
-                                    <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                                        <div 
-                                            class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`}
-                                            style={`width: ${percentage}%`}
-                                        ></div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        </div>
+                        <div class="lg:col-span-5 relative flex justify-center"><svg viewBox="0 0 250 250" class="w-full max-w-[280px] drop-shadow-2xl overflow-visible">{gridLevels.map(level => (<polygon points={Array.from({length: 6}).map((_, i) => { const r = level * radius; const x = center + r * Math.sin(i * angleStep); const y = center - r * Math.cos(i * angleStep); return `${x},${y}`; }).join(' ')} class="fill-none stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />))}{Array.from({length: 6}).map((_, i) => (<line x1={center} y1={center} x2={center + radius * Math.sin(i * angleStep)} y2={center - radius * Math.cos(i * angleStep)} class="stroke-slate-200 dark:stroke-slate-800" stroke-width="1" />))}{statLabels.map((label, i) => { const r = radius + 25; const x = center + r * Math.sin(i * angleStep); const y = center - r * Math.cos(i * angleStep); return (<text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">{label}</text>); })}<polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" stroke-linejoin="round" />{points.split(' ').map(p => (<circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />))}</svg></div>
+                        <div class="lg:col-span-7 space-y-4">{detail.stats.map(s => { const percentage = (s.base_stat / 255) * 100; const colorClass = getStatColor(s.base_stat); return (<div><div class="flex justify-between mb-1 text-sm font-bold"><span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span><span class="text-slate-900 dark:text-white">{s.base_stat}</span></div><div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`} style={`width: ${percentage}%`}></div></div></div>); })}</div>
                     </div>
                 </div>
 
-                <!-- Formas Alternativas (Megas, G-Max) -->
                 {varieties.length > 0 && (
-                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm transition-colors duration-300">
-                        <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8">{t.other_forms}</h3>
+                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map(v => (
-                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all group no-underline">
-                                    <img src={v.sprites.other["official-artwork"].front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
-                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{v.name.replace(/-/g, ' ')}</span>
-                                    <div class="flex gap-1.5 mt-3">
-                                        {v.types.map((t: any) => (
-                                            <div class="w-2.5 h-2.5 rounded-full shadow-sm" style={`background-color: ${typeColors[t.type.name]}`}></div>
-                                        ))}
-                                    </div>
+                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-all group no-underline">
+                                    <img src={v.sprites.other?.["official-artwork"]?.front_default || v.sprites.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
+                                    <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight">{v.name.replace(/-/g, ' ')}</span>
                                 </a>
                             ))}
                         </div>
@@ -474,16 +253,9 @@ const seoDescription = lang === 'es'
             </div>
         </div>
 
-        <!-- Cadena Evolutiva -->
-        <EvolutionChain chain={evolutionChain} lang={lang as string} />
-
-        <!-- Guía de Localización -->
+        {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
         <LocationGuide pokemonId={detail.id} lang={lang as string} />
-
-        <!-- Análisis Competitivo -->
         <CompetitiveSets pokemonName={detail.name} lang={lang as string} />
-
-        <!-- Tabla de Movimientos -->
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 
@@ -492,53 +264,13 @@ const seoDescription = lang === 'es'
             const btn = document.getElementById('shiny-toggle');
             const img = document.getElementById('pokemon-image');
             if (!btn || !img) return;
-
             btn.onclick = () => {
                 const isShiny = btn.classList.toggle('active');
                 img.style.opacity = '0';
-                setTimeout(() => {
-                    img.src = isShiny ? img.dataset.shiny : img.dataset.default;
-                    img.style.opacity = '1';
-                }, 250);
-                
-                if (isShiny) {
-                    btn.classList.add('text-amber-500', 'bg-amber-50', 'dark:bg-amber-900/20');
-                } else {
-                    btn.classList.remove('text-amber-500', 'bg-amber-50', 'dark:bg-amber-900/20');
-                }
+                setTimeout(() => { img.src = isShiny ? img.dataset.shiny : img.dataset.default; img.style.opacity = '1'; }, 250);
             };
         }
         initShiny();
         document.addEventListener('astro:after-swap', initShiny);
-
-        function updateDetailFavButton() {
-            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-            const btn = document.querySelector('.fav-btn');
-            if (btn) {
-                const isFav = favorites.includes(btn.dataset.pokemon || '');
-                const heart = btn.querySelector('.heart-icon');
-                const currentlyFav = heart.getAttribute('fill') === 'currentColor';
-
-                if (isFav) {
-                    heart.setAttribute('fill', 'currentColor');
-                    btn.classList.add('text-rose-500');
-                    btn.classList.remove('text-slate-400');
-                    
-                    if (!currentlyFav) {
-                        // Efecto pop sutil solo si cambia a favorito
-                        btn.style.transform = 'scale(1.2)';
-                        setTimeout(() => btn.style.transform = 'scale(1)', 200);
-                    }
-                } else {
-                    heart.setAttribute('fill', 'none');
-                    btn.classList.remove('text-rose-500');
-                    btn.classList.add('text-slate-400');
-                }
-            }
-        }
-
-        updateDetailFavButton();
-        document.addEventListener('astro:after-swap', updateDetailFavButton);
-        document.addEventListener('favorites-updated', updateDetailFavButton);
     </script>
 </Layout>
