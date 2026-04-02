@@ -10,15 +10,12 @@ interface Props {
 
 const { chain, lang = 'es', isRoot = true } = Astro.props;
 
-// Si no hay datos de cadena, no renderizamos nada para evitar errores 500
-if (!chain) return null;
-
 const t = uiTranslations[lang] || uiTranslations.es;
 const et = evolutionTranslations[lang] || evolutionTranslations.es;
 const tt = typeTranslations[lang] || typeTranslations.es;
 
-const node = isRoot ? chain.chain : chain;
-if (!node || !node.species) return null;
+const node = chain ? (isRoot ? chain.chain : chain) : null;
+const isValid = Boolean(node && node.species);
 
 async function getTranslation(url: string) {
     if (!url) return null;
@@ -71,65 +68,73 @@ async function getEvolutionRequirement(details: any) {
     };
 }
 
-const speciesId = node.species.url.split('/').filter(Boolean).pop() || "0";
-const pokemonImage = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${speciesId}.png`;
+let speciesId = "0";
+let pokemonImage = "";
+let evolutionsWithDetails: any[] = [];
 
-const evolutionsWithDetails = await Promise.all(
-    (node.evolves_to || []).map(async (evo: any) => ({
-        node: evo,
-        methods: await Promise.all((evo.evolution_details || []).map((d: any) => getEvolutionRequirement(d)))
-    }))
-);
+if (isValid) {
+    speciesId = node.species.url.split('/').filter(Boolean).pop() || "0";
+    pokemonImage = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${speciesId}.png`;
+
+    evolutionsWithDetails = await Promise.all(
+        (node.evolves_to || []).map(async (evo: any) => ({
+            node: evo,
+            methods: await Promise.all((evo.evolution_details || []).map((d: any) => getEvolutionRequirement(d)))
+        }))
+    );
+}
 ---
 
-<div class={`flex flex-col items-center ${isRoot ? 'mt-12 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl p-8 md:p-12' : ''}`}>
-    {isRoot && <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-12">{t.evolution_chain}</h3>}
+{isValid && (
+    <div class={`flex flex-col items-center ${isRoot ? 'mt-12 bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl p-8 md:p-12' : ''}`}>
+        {isRoot && <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-12">{t.evolution_chain}</h3>}
 
-    <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-12">
-        <div class="flex flex-col items-center group">
-            <a href={`/${lang}/pokemon/${node.species.name}`} class="flex flex-col items-center text-center">
-                <div class="relative w-28 h-28 md:w-36 md:h-36 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center p-6 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/20 transition-all border border-transparent group-hover:border-emerald-100 dark:group-hover:border-emerald-800 shadow-inner">
-                    <img src={pokemonImage} alt={node.species.name} class="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" />
-                </div>
-                <span class="mt-4 text-base font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                    {node.species.name.replace(/-/g, ' ')}
-                </span>
-                <span class="text-xs font-bold text-slate-300 dark:text-slate-600 tracking-widest">#{speciesId.toString().padStart(4, '0')}</span>
-            </a>
-        </div>
-
-        {evolutionsWithDetails.length > 0 && (
-            <div class="flex flex-col gap-16 w-full lg:w-auto">
-                {evolutionsWithDetails.map((evo) => (
-                    <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-12">
-                        <div class="flex flex-col items-center justify-center pt-4 lg:pt-14 w-full lg:w-32">
-                            <div class="hidden lg:block w-px h-8 bg-slate-100 dark:bg-slate-800 mb-4"></div>
-                            <div class="lg:hidden text-slate-200 dark:text-slate-800 mb-4">
-                                <svg class="w-6 h-6 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </div>
-                            
-                            <div class="space-y-4 w-full text-center">
-                                {evo.methods.map((method, mIdx) => (
-                                    <div class="flex flex-col items-center">
-                                        {mIdx > 0 && <span class="text-[8px] font-black text-slate-300 dark:text-700 my-2 tracking-widest">O</span>}
-                                        <div class="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
-                                            <p class="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 leading-none">{method?.trigger}</p>
-                                        </div>
-                                        {method?.requirements.map(r => (
-                                            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 leading-tight">{r}</p>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            <div class="hidden lg:block text-slate-200 dark:text-slate-800 mt-4">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </div>
-                        </div>
-                        <Astro.self chain={evo.node} lang={lang} isRoot={false} />
+        <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-12">
+            <div class="flex flex-col items-center group">
+                <a href={`/${lang}/pokemon/${node.species.name}`} class="flex flex-col items-center text-center">
+                    <div class="relative w-28 h-28 md:w-36 md:h-36 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center p-6 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/20 transition-all border border-transparent group-hover:border-emerald-100 dark:group-hover:border-emerald-800 shadow-inner">
+                        <img src={pokemonImage} alt={node.species.name} class="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-500" />
                     </div>
-                ))}
+                    <span class="mt-4 text-base font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {node.species.name.replace(/-/g, ' ')}
+                    </span>
+                    <span class="text-xs font-bold text-slate-300 dark:text-slate-600 tracking-widest">#{speciesId.toString().padStart(4, '0')}</span>
+                </a>
             </div>
-        )}
+
+            {evolutionsWithDetails.length > 0 && (
+                <div class="flex flex-col gap-16 w-full lg:w-auto">
+                    {evolutionsWithDetails.map((evo) => (
+                        <div class="flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-12">
+                            <div class="flex flex-col items-center justify-center pt-4 lg:pt-14 w-full lg:w-32">
+                                <div class="hidden lg:block w-px h-8 bg-slate-100 dark:bg-slate-800 mb-4"></div>
+                                <div class="lg:hidden text-slate-200 dark:text-slate-800 mb-4">
+                                    <svg class="w-6 h-6 rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </div>
+                                
+                                <div class="space-y-4 w-full text-center">
+                                    {evo.methods.map((method: any, mIdx: number) => (
+                                        <div class="flex flex-col items-center">
+                                            {mIdx > 0 && <span class="text-[8px] font-black text-slate-300 dark:text-700 my-2 tracking-widest">O</span>}
+                                            <div class="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
+                                                <p class="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 leading-none">{method?.trigger}</p>
+                                            </div>
+                                            {method?.requirements.map((r: string) => (
+                                                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 leading-tight">{r}</p>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div class="hidden lg:block text-slate-200 dark:text-slate-800 mt-4">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </div>
+                            </div>
+                            <Astro.self chain={evo.node} lang={lang} isRoot={false} />
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     </div>
-</div>
+)}
