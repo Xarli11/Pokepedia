@@ -141,7 +141,7 @@ const totalStats = detail.stats.reduce((acc: number, s: any) => acc + s.base_sta
 
 // Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
 // Obtenemos el ID de la especie desde la URL vinculada en el detalle
-const speciesUrl = rawDetail.species?.url || '';
+const speciesUrl = detail.species?.url || '';
 const speciesIdMatch = speciesUrl.match(/\/pokemon-species\/(\d+)\//);
 const currentDexId = pokemonId > 10000 ? (speciesIdMatch ? speciesIdMatch[1] : pokemonId) : pokemonId;
 const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
