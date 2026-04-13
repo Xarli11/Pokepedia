@@ -138,34 +138,31 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
 };
 
 /**
- * Obtiene la lista de Pokémon por generación con detalles completos usando ráfagas (chunks).
+ * Obtiene la lista básica de Pokémon por generación.
+ * Esta versión devuelve datos ligeros para SSR y deja los detalles pesados para el cliente.
  */
-export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
+export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<any[]> {
     if (genKey === 'favorites') return [];
-
+    
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
-
-    const detailedResults: PokemonDetail[] = [];
-    const chunkSize = 20; // Procesar en ráfagas de 20 para no saturar la red/memoria
     
-    for (let i = 0; i < data.results.length; i += chunkSize) {
-        const chunk = data.results.slice(i, i + chunkSize);
-        const chunkPromises = chunk.map((pokemon: { name: string, url: string }) => 
-            fetchWithCache<PokemonDetail>(pokemon.url)
-        );
-        const chunkData = await Promise.all(chunkPromises);
-        detailedResults.push(...chunkData);
-    }
-
-    return detailedResults;
+    return data.results.map((p: any) => {
+        const id = parseInt(p.url.split('/').filter(Boolean).pop());
+        return {
+            name: p.name,
+            id: id,
+            url: p.url,
+            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
+        };
+    });
 }
 
 /**
  * Obtiene la lista de los primeros 151 Pokémon con sus detalles básicos.
  * @deprecated Use getPokemonByGeneration('gen1') instead
  */
-export async function getFirstGenPokemon(): Promise<PokemonDetail[]> {
+export async function getFirstGenPokemon(): Promise<any[]> {
     return getPokemonByGeneration('gen1');
 }
 
