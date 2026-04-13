@@ -144,7 +144,9 @@ export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<P
     if (genKey === 'favorites') return [];
 
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
+    // Limitamos temporalmente a 30 para diagnóstico
+    const limit = Math.min(gen.limit, 30);
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${limit}&offset=${gen.offset}`);
 
     const detailedPromises = data.results.map(async (pokemon: { name: string, url: string }) => {
         return fetchWithCache<PokemonDetail>(pokemon.url);
