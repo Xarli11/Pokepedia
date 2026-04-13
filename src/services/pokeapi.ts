@@ -173,32 +173,34 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
     const cleanName = name.toLowerCase();
     
     try {
+        // 1. Intentar obtener el detalle del Pokémon (funciona para nombres exactos y variedades específicas)
         const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
         const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
-        
         return { detail, species };
     } catch (error) {
-        console.warn(`Fallback to base species for: ${cleanName}`);
-        
-        const baseName = cleanName.split('-')[0];
+        // 2. Si falla, el nombre puede ser una especie pero no el nombre del Pokémon/variedad (ej: basculin, gourgeist)
         try {
-            const baseDetail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${baseName}`);
-            const species = await fetchWithCache<PokemonSpecies>((baseDetail as any).species.url);
+            // Consultar el endpoint de especie primero
+            const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${cleanName}`);
             
-            // Intentar recuperar el ID real si es una variedad conocida
-            const allNames = await getAllPokemonNames();
-            const varietyEntry = allNames.find(p => p.name.toLowerCase() === cleanName);
-            const realId = varietyEntry?.id;
-
-            return { 
-                detail: { 
-                    ...baseDetail, 
-                    id: realId ? (typeof realId === 'string' ? parseInt(realId) : realId) : baseDetail.id,
-                    name: cleanName 
-                }, 
-                species 
-            };
+            // Buscar la variedad por defecto de esa especie
+            const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
+            const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
+            
+            return { detail, species };
         } catch (innerError) {
+            // 3. Fallback desesperado: intentar con la primera palabra (ej: basculegion-male -> basculegion)
+            const baseName = cleanName.split('-')[0];
+            if (baseName !== cleanName) {
+                try {
+                    const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${baseName}`);
+                    const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
+                    const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
+                    return { detail, species };
+                } catch (lastError) {
+                    throw new Error(`Pokemon not found: ${cleanName}`);
+                }
+            }
             throw new Error(`Pokemon not found: ${cleanName}`);
         }
     }
