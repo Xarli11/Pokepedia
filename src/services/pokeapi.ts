@@ -146,19 +146,11 @@ export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<P
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
 
-    const results: PokemonDetail[] = [];
-    const CHUNK_SIZE = 40; // Cloudflare limit is 50 subrequests per request
+    const detailedPromises = data.results.map(async (pokemon: { name: string, url: string }) => {
+        return fetchWithCache<PokemonDetail>(pokemon.url);
+    });
 
-    for (let i = 0; i < data.results.length; i += CHUNK_SIZE) {
-        const chunk = data.results.slice(i, i + CHUNK_SIZE);
-        const detailedPromises = chunk.map(async (pokemon: { name: string, url: string }) => {
-            return fetchWithCache<PokemonDetail>(pokemon.url);
-        });
-        const chunkResults = await Promise.all(detailedPromises);
-        results.push(...chunkResults);
-    }
-
-    return results;
+    return Promise.all(detailedPromises);
 }
 /**
  * Obtiene la lista de los primeros 151 Pokémon con sus detalles básicos.
