@@ -165,6 +165,19 @@ if (Astro.locals.cacheControl) {
                     </nav>
 
                     <div class="flex items-center gap-2 md:gap-4 md:border-l border-slate-200 dark:border-slate-800 md:pl-6">
+                        <!-- Buscador Global -->
+                        <button 
+                            id="global-search-trigger"
+                            class="flex items-center gap-3 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group border border-transparent hover:border-emerald-400/30"
+                            title={lang === 'es' ? 'Buscar Pokémon ( / )' : 'Search Pokémon ( / )'}
+                        >
+                            <svg class="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span class="hidden lg:block text-[10px] font-black uppercase tracking-widest">{lang === 'es' ? 'Buscar' : 'Search'}</span>
+                            <span class="hidden lg:block px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-[8px] font-mono group-hover:bg-emerald-400 group-hover:text-emerald-900 transition-colors">/</span>
+                        </button>
+
                         <!-- SWITCH CON ICONOS SVG VISIBLES -->
                         <button 
                             id="theme-switch"
@@ -253,6 +266,42 @@ if (Astro.locals.cacheControl) {
                 <span class="text-[9px] font-black uppercase tracking-widest">{lang === 'es' ? 'Obj' : 'Item'}</span>
             </a>
         </nav>
+
+        <!-- Buscador Global Modal -->
+        <div id="global-search-modal" class="fixed inset-0 z-[100] hidden items-start justify-center pt-24 px-4 backdrop-blur-2xl bg-slate-950/40 transition-all duration-300">
+            <div class="absolute inset-0" id="modal-overlay"></div>
+            <div class="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all scale-95 opacity-0 duration-300" id="modal-content">
+                <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="global-search-input" 
+                            placeholder={lang === 'es' ? 'Busca cualquier Pokémon...' : 'Search any Pokémon...'}
+                            autocomplete="off"
+                            class="w-full pl-14 pr-6 py-5 bg-transparent text-xl font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                        />
+                        <div class="absolute inset-y-0 right-0 pr-5 flex items-center">
+                            <span class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-400 tracking-tighter uppercase">ESC</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="global-search-results" class="max-h-[500px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
+                    <!-- JS Results -->
+                </div>
+                <div class="p-4 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <div class="flex gap-4">
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">↵</kbd> {lang === 'es' ? 'Seleccionar' : 'Select'}</span>
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">↑↓</kbd> {lang === 'es' ? 'Navegar' : 'Navigate'}</span>
+                    </div>
+                    <span>Research Lab Dex Search v2.0</span>
+                </div>
+            </div>
+        </div>
 
         <button 
             id="back-to-top"
@@ -395,10 +444,135 @@ if (Astro.locals.cacheControl) {
             initTheme();
             initRandom();
             initBackToTop();
+
+            function initGlobalSearch() {
+                const trigger = document.getElementById('global-search-trigger');
+                const modal = document.getElementById('global-search-modal');
+                const input = document.getElementById('global-search-input');
+                const results = document.getElementById('global-search-results');
+                const overlay = document.getElementById('modal-overlay');
+                const content = document.getElementById('modal-content');
+                let selectedIndex = -1;
+
+                function toggleModal(show) {
+                    if (show) {
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
+                        setTimeout(() => {
+                            content.classList.remove('scale-95', 'opacity-0');
+                            content.classList.add('scale-100', 'opacity-100');
+                            input.focus();
+                        }, 10);
+                        document.body.style.overflow = 'hidden';
+                    } else {
+                        content.classList.add('scale-95', 'opacity-0');
+                        content.classList.remove('scale-100', 'opacity-100');
+                        setTimeout(() => {
+                            modal.classList.add('hidden');
+                            modal.classList.remove('flex');
+                        }, 300);
+                        document.body.style.overflow = '';
+                        input.value = '';
+                        results.innerHTML = '';
+                    }
+                }
+
+                trigger?.addEventListener('click', () => toggleModal(true));
+                overlay?.addEventListener('click', () => toggleModal(false));
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === '/' && document.activeElement !== input) {
+                        e.preventDefault();
+                        toggleModal(true);
+                    }
+                    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                        toggleModal(false);
+                    }
+
+                    if (!modal.classList.contains('hidden')) {
+                        const items = results.querySelectorAll('a');
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                            updateSelection(items);
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            selectedIndex = Math.max(selectedIndex - 1, -1);
+                            updateSelection(items);
+                        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                            e.preventDefault();
+                            items[selectedIndex].click();
+                        }
+                    }
+                });
+
+                function updateSelection(items) {
+                    items.forEach((item, idx) => {
+                        if (idx === selectedIndex) {
+                            item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
+                            item.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            item.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
+                        }
+                    });
+                }
+
+                let searchTimeout;
+                input?.addEventListener('input', () => {
+                    const query = input.value.trim().toLowerCase();
+                    clearTimeout(searchTimeout);
+                    if (query.length < 2) {
+                        results.innerHTML = '';
+                        return;
+                    }
+
+                    searchTimeout = setTimeout(async () => {
+                        results.innerHTML = Array(3).fill(0).map(() => `
+                            <div class="p-6 animate-pulse flex items-center gap-4">
+                                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl"></div>
+                                <div class="space-y-2"><div class="w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded"></div><div class="w-12 h-2 bg-slate-100 dark:bg-slate-800 rounded"></div></div>
+                            </div>
+                        `).join('');
+
+                        try {
+                            const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+                            const matches = await res.json();
+                            selectedIndex = -1;
+
+                            if (matches.length > 0) {
+                                results.innerHTML = matches.map((p, idx) => {
+                                    const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+                                    const isVariety = p.id > 10000;
+                                    return `
+                                        <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group">
+                                            <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800">
+                                                <img src="${spriteUrl}" alt="${p.name}" class="w-full h-full object-contain drop-shadow-md" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + p.id.toString().padStart(4, '0')}</span>
+                                                <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
+                                            </div>
+                                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver' : 'View'} →</span>
+                                        </a>
+                                    `;
+                                }).join('');
+                            } else {
+                                results.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">${lang === 'es' ? 'Sin resultados' : 'No results found'}</div>`;
+                            }
+                        } catch (e) {
+                            results.innerHTML = '';
+                        }
+                    }, 150);
+                });
+            }
+
+            initGlobalSearch();
+
             document.addEventListener('astro:after-swap', () => {
                 initTheme();
                 initRandom();
                 initBackToTop();
+                initGlobalSearch();
             });
         </script>
 	</body>
