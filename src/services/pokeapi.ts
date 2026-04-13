@@ -80,18 +80,12 @@ export interface PokemonSpecies {
 }
 
 /**
- * Obtiene la cadena evolutiva completa de forma segura.
+ * Obtiene la cadena evolutiva completa por su URL.
  */
 export async function getEvolutionChain(url: string) {
-    if (!url) return null;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        return response.json();
-    } catch (e) {
-        console.error("Error fetching evolution chain:", e);
-        return null;
-    }
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Error al obtener cadena evolutiva');
+    return response.json();
 }
 
 export interface MoveDetail {
@@ -123,20 +117,12 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
         return cached.data;
     }
 
-    try {
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
-        if (!response.ok) throw new Error(`PokeAPI Error: ${response.status}`);
-        const data = await response.json();
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
+    const data = await response.json();
 
-        cache.set(url, { data, timestamp: now });
-        return data;
-    } catch (error) {
-        console.error(`Fetch failed for ${url}:`, error);
-        if (cached) return cached.data;
-        throw error;
-    }
+    cache.set(url, { data, timestamp: now });
+    return data;
 }
 
 export const GENERATIONS: Record<string, { limit: number; offset: number; region: string }> = {
@@ -152,23 +138,35 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
 };
 
 /**
- * Obtiene la lista básica de Pokémon por generación.
+ * Obtiene la lista de Pokémon por generación con detalles completos usando ráfagas (chunks).
  */
-export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<any[]> {
+export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonDetail[]> {
     if (genKey === 'favorites') return [];
-    
+
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
+
+    const detailedResults: PokemonDetail[] = [];
+    const chunkSize = 20; // Procesar en ráfagas de 20 para no saturar la red/memoria
     
-    return data.results.map((p: any) => {
-        const id = parseInt(p.url.split('/').filter(Boolean).pop());
-        return {
-            name: p.name,
-            id: id,
-            url: p.url,
-            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-        };
-    });
+    for (let i = 0; i < data.results.length; i += chunkSize) {
+        const chunk = data.results.slice(i, i + chunkSize);
+        const chunkPromises = chunk.map((pokemon: { name: string, url: string }) => 
+            fetchWithCache<PokemonDetail>(pokemon.url)
+        );
+        const chunkData = await Promise.all(chunkPromises);
+        detailedResults.push(...chunkData);
+    }
+
+    return detailedResults;
+}
+
+/**
+ * Obtiene la lista de los primeros 151 Pokémon con sus detalles básicos.
+ * @deprecated Use getPokemonByGeneration('gen1') instead
+ */
+export async function getFirstGenPokemon(): Promise<PokemonDetail[]> {
+    return getPokemonByGeneration('gen1');
 }
 
 /**
@@ -178,10 +176,6 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
     const cleanName = name.toLowerCase();
     
     try {
-        const allNames = await getAllPokemonNames();
-        const varietyEntry = allNames.find(p => p.name.toLowerCase() === cleanName);
-        const realId = varietyEntry?.id;
-
         const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
         const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
         
@@ -189,15 +183,16 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
     } catch (error) {
         console.warn(`Fallback to base species for: ${cleanName}`);
         
-        const allNames = await getAllPokemonNames();
-        const varietyEntry = allNames.find(p => p.name.toLowerCase() === cleanName);
-        const realId = varietyEntry?.id;
-
         const baseName = cleanName.split('-')[0];
         try {
             const baseDetail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${baseName}`);
             const species = await fetchWithCache<PokemonSpecies>((baseDetail as any).species.url);
             
+            // Intentar recuperar el ID real si es una variedad conocida
+            const allNames = await getAllPokemonNames();
+            const varietyEntry = allNames.find(p => p.name.toLowerCase() === cleanName);
+            const realId = varietyEntry?.id;
+
             return { 
                 detail: { 
                     ...baseDetail, 
