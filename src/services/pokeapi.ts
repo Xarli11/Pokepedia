@@ -163,17 +163,28 @@ export async function getFirstGenPokemon(): Promise<PokemonDetail[]> {
 
 /**
  * Obtiene los detalles completos de un Pokémon por su nombre.
- * Maneja automáticamente variedades (G-Max, Megas, etc) obteniendo su especie base.
+ * Maneja automáticamente casos donde el nombre es una especie pero no un endpoint de pokemon directo
+ * (ej: basculin -> basculin-red-striped, gourgeist -> gourgeist-average)
  */
 export async function getPokemonByName(name: string): Promise<{ detail: PokemonDetail, species: PokemonSpecies }> {
-    // 1. Intentar obtener el detalle del Pokémon (esto funciona para variedades y formas base)
-    const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${name}`);
-
-    // 2. Obtener la especie. El nombre de la especie puede ser diferente al del Pokémon (ej: charizard-gmax -> charizard)
-    // PokeAPI siempre incluye el enlace a la especie en el detalle del Pokémon.
-    const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
-
-    return { detail, species };
+    try {
+        // 1. Intentar obtener el detalle del Pokémon (esto funciona para variedades y formas base con nombre exacto)
+        const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${name}`);
+        const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
+        return { detail, species };
+    } catch (error) {
+        // 2. Si falla, es posible que el nombre sea de una especie pero el pokemon tenga un nombre de forma (ej: basculin)
+        try {
+            const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${name}`);
+            // Obtener la variedad por defecto
+            const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
+            const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
+            return { detail, species };
+        } catch (innerError) {
+            console.error(`Error fetching pokemon by name "${name}":`, innerError);
+            throw error; // Re-lanzar el error original si el fallback también falla
+        }
+    }
 }
 
 /**

@@ -53,7 +53,7 @@ const t = uiTranslations[lang] || uiTranslations.es;
                 if (matches.length > 0) {
                     suggestions.innerHTML = matches.map(p => `
                         <div class="px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer capitalize font-bold text-sm flex items-center gap-3" data-name="${p.name}">
-                            <img src="${p.sprite}" class="w-8 h-8 object-contain" />
+                            <img src="${p.sprite}" class="w-8 h-8 object-contain drop-shadow-md" />
                             ${p.name.replace(/-/g, ' ')}
                         </div>
                     `).join('');
