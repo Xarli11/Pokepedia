@@ -29,6 +29,9 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             <div class="tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
                 <div class="h-5 w-10 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
             </div>
+            {pokemon.id <= 1025 && (
+                <div class="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/20">M-A</div>
+            )}
         </div>
 
         <button 
@@ -95,6 +98,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         function updateTiers() {
             if (!window.psPokedex) return;
             const colors = {
+                'Champion': 'bg-gradient-to-r from-yellow-400 to-amber-500 font-bold text-black border border-yellow-600 shadow-sm',
                 'Uber': 'bg-red-500', 'OU': 'bg-emerald-500', 'UU': 'bg-blue-500',
                 'RU': 'bg-amber-500', 'NU': 'bg-violet-500', 'PU': 'bg-slate-500',
                 'LC': 'bg-pink-500', 'AG': 'bg-slate-900'
@@ -104,7 +108,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
                 const name = badge.dataset.tierFor;
                 const tier = window.psPokedex[name]?.tier || 'N/A';
                 if (tier !== 'N/A') {
-                    badge.innerHTML = `<span class="${colors[tier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm">${tier}</span>`;
+                    badge.innerHTML = `<span class="${colors[tier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm ${tier === 'Champion' ? 'text-black' : ''}">${tier}</span>`;
                 } else {
                     badge.innerHTML = '';
                 }

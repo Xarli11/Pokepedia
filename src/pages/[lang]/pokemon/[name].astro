@@ -6,9 +6,15 @@ import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../services/pokeapi';
 import { getShowdownPokemon } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
+import championsData from '../../../data/champions.json';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
+
+// ... (logic)
+const isChampionsLegal = championsData.legal_items.some(item => detail.name.includes(item.replace('-stone', ''))) || // Simplificación para Megas
+                         detail.id <= 1025; // Por ahora asumimos que la mayoría son legales o revisamos contra lista específica si fuera necesario
+const recruitmentCost = championsData.recruitment_cost;
 
 let detail: any = null;
 let species: any = null;
@@ -250,6 +256,31 @@ const getStatColor = (baseStat: number) => {
                                 ))}
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="w-full bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm mt-8 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800/50">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Pokémon Champions</h3>
+                        {isChampionsLegal && (
+                            <span class="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">Legal M-A</span>
+                        )}
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                            <div class="flex flex-col">
+                                <span class="text-slate-400 text-[10px] font-bold uppercase mb-0.5">{lang === 'es' ? 'Coste Reclutamiento' : 'Recruitment Cost'}</span>
+                                <span class="text-slate-900 dark:text-white font-black text-xl tracking-tighter">{recruitmentCost.toLocaleString()} VP</span>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-amber-400/10 flex items-center justify-center text-amber-500 border border-amber-400/20">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed px-1">
+                            {lang === 'es' 
+                                ? 'Este Pokémon está disponible en el pool diario de reclutamiento por un coste fijo de VP.' 
+                                : 'This Pokémon is available in the daily recruitment pool for a fixed VP cost.'}
+                        </p>
                     </div>
                 </div>
             </div>

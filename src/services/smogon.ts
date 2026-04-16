@@ -33,6 +33,7 @@ export async function getPokemonTier(name: string): Promise<string> {
 }
 
 export const TIER_DEFINITIONS: Record<string, { label: string, desc: string, color: string }> = {
+    'Champion': { label: 'Champion', desc: 'El rango más alto en Pokémon Champions.', color: 'bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-400 text-black font-bold border-2 border-yellow-600 shadow-[0_0_10px_rgba(250,204,21,0.5)]' },
     'Uber': { label: 'Uber', desc: 'Pokémon demasiado poderosos para el estándar.', color: 'bg-red-500' },
     'OU': { label: 'Overused', desc: 'El estándar competitivo.', color: 'bg-emerald-500' },
     'UU': { label: 'Underused', desc: 'Pokémon fuertes de uso medio.', color: 'bg-blue-500' },

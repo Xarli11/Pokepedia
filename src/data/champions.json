@@ -1,0 +1,29 @@
+{
+  "regulation": "Regulation M-A",
+  "start_date": "2026-04-08",
+  "end_date": "2026-06-17",
+  "recruitment_cost": 2500,
+  "legal_items": [
+    "focus-sash", "leftovers", "choice-scarf", "sitrus-berry", "lum-berry", "white-herb", "mental-herb",
+    "black-belt", "black-glasses", "charcoal", "dragon-fang", "fairy-feather", "magnet", "mystic-water",
+    "miracle-seed", "never-melt-ice", "poison-barb", "sharp-beak", "silk-scarf", "silver-powder", "soft-sand",
+    "spell-tag", "twisted-spoon", "occa-berry", "shuca-berry", "chople-berry", "colbur-berry",
+    "bright-powder", "quick-claw", "abomasite", "absolite", "aerodactylite", "aggronite", "alakazite",
+    "altarianite", "ampharosite", "audinite", "banettite", "beedrillite", "blastoisinite", "blazikenite",
+    "cameruptite", "charizardite-x", "charizardite-y", "diancite", "galladite", "garchompite", "gardevoirite",
+    "gengarite", "glalitite", "gyaradosite", "heracronite", "houndoominite", "kangaskhanite", "latiasite",
+    "latiosite", "lopunnite", "lucarionite", "manectite", "mawilitite", "medichamite", "metagrossite",
+    "mewtwonite-x", "mewtwonite-y", "pidgeotite", "pinsirite", "sablenite", "salamencite", "sceptilite",
+    "scizorite", "sharpedonite", "slowbronite", "steelixite", "swampertite", "tyranitarite", "venusaurite",
+    "glimmoranite", "dragoninite", "delphoxite", "froslassite", "meganiumite", "floettite"
+  ],
+  "banned_items": [
+    "choice-specs", "choice-band", "life-orb", "loaded-dice", "assault-vest", "rocky-helmet", "eviolite",
+    "heavy-duty-boots", "covert-cloak"
+  ],
+  "champion_tier": {
+    "label": "Champion Tier",
+    "desc": "El rango más alto en Pokémon Champions.",
+    "color": "bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-400 text-black border-yellow-600"
+  }
+}
