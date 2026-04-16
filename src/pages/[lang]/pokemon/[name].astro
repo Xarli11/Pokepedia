@@ -11,11 +11,6 @@ import championsData from '../../../data/champions.json';
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
 
-// ... (logic)
-const isChampionsLegal = championsData.legal_items.some(item => detail.name.includes(item.replace('-stone', ''))) || // Simplificación para Megas
-                         detail.id <= 1025; // Por ahora asumimos que la mayoría son legales o revisamos contra lista específica si fuera necesario
-const recruitmentCost = championsData.recruitment_cost;
-
 let detail: any = null;
 let species: any = null;
 let pokemonData: any = null;
@@ -29,6 +24,10 @@ try {
     console.error("Critical error loading pokemon base data:", e);
     return Astro.redirect(`/${lang}`);
 }
+
+const isChampionsLegal = championsData.legal_items.some(item => detail.name.includes(item.replace('-stone', ''))) || 
+                         detail.id <= 1025 || detail.name.includes('mega');
+const recruitmentCost = championsData.recruitment_cost;
 
 // Inicializar arrays para evitar errores de undefined
 detail.abilities = detail.abilities || [];
