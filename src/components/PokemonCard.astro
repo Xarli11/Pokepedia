@@ -29,7 +29,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             <div class="tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
                 <div class="h-5 w-10 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
             </div>
-            {pokemon.id <= 1025 && (
+            {(pokemon.id <= 1025 || pokemon.name.includes('mega')) && (
                 <div class="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/20">M-A</div>
             )}
         </div>
@@ -84,18 +84,22 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 </a>
 
 <script is:inline>
+    // Asegurar que las funciones sean globales para que el onclick funcione
+    window.toggleFavorite = function(pokemonName) {
+        let favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+        if (favorites.includes(pokemonName)) {
+            favorites = favorites.filter(f => f !== pokemonName);
+        } else {
+            favorites.push(pokemonName);
+        }
+        localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
+        document.dispatchEvent(new CustomEvent('favorites-updated'));
+    };
+
     if (!window.tierScriptInjected) {
         window.tierScriptInjected = true;
         
-        async function loadTiers() {
-            if (!window.psPokedex) {
-                const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json');
-                window.psPokedex = await res.json();
-            }
-            updateTiers();
-        }
-
-        function updateTiers() {
+        window.updateTiers = function() {
             if (!window.psPokedex) return;
             const colors = {
                 'Champion': 'bg-gradient-to-r from-yellow-400 to-amber-500 font-bold text-black border border-yellow-600 shadow-sm',
@@ -113,39 +117,49 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
                     badge.innerHTML = '';
                 }
             });
-        }
+        };
 
-        loadTiers();
+        window.loadTiers = async function() {
+            try {
+                if (!window.psPokedex) {
+                    const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json');
+                    window.psPokedex = await res.json();
+                }
+                window.updateTiers();
+            } catch (e) {
+                console.error("Error loading tiers:", e);
+            }
+        };
 
-        function updateFavButtons() {
+        window.updateFavButtons = function() {
             const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
             document.querySelectorAll('.fav-btn').forEach(btn => {
                 const isFav = favorites.includes(btn.dataset.pokemon);
                 const heart = btn.querySelector('.heart-icon');
+                if (!heart) return;
+                
                 const currentlyFav = heart.getAttribute('fill') === 'currentColor';
 
                 if (isFav) {
                     heart.setAttribute('fill', 'currentColor');
                     btn.classList.add('text-rose-500');
                     btn.classList.remove('text-slate-400');
-                    // Solo efecto pop si cambia de estado a favorito
-                    if (!currentlyFav) {
-                        btn.style.transform = 'scale(1.2)';
-                        setTimeout(() => btn.style.transform = 'scale(1)', 200);
-                    }
                 } else {
                     heart.setAttribute('fill', 'none');
                     btn.classList.remove('text-rose-500');
                     btn.classList.add('text-slate-400');
                 }
             });
-        }
+        };
 
-        updateFavButtons();
+        // Ejecución inicial
+        window.loadTiers();
+        window.updateFavButtons();
+
         document.addEventListener('astro:after-swap', () => {
-            updateTiers();
-            updateFavButtons();
+            window.updateTiers();
+            window.updateFavButtons();
         });
-        document.addEventListener('favorites-updated', updateFavButtons);
+        document.addEventListener('favorites-updated', window.updateFavButtons);
     }
 </script>
