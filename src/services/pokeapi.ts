@@ -267,6 +267,21 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
     return result;
 }
 
+export async function getItemDetail(urlOrName: string) {
+    const url = urlOrName.startsWith('http') ? urlOrName : `https://pokeapi.co/api/v2/item/${urlOrName}`;
+    return fetchWithCache<any>(url);
+}
+
+export async function getAllItems(): Promise<{ name: string, url: string }[]> {
+    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/item?limit=2000');
+    const { isRealItem } = await import('../utils/pokemon');
+    return data.results.filter((item: any) => isRealItem(item.name));
+}
+
+export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
+    return fetchWithCache<AbilityDetail>(url);
+}
+
 export async function getMoveDetail(url: string): Promise<MoveDetail> {
     const data = await fetchWithCache<any>(url);
     const cleanName = data.name.toLowerCase();
