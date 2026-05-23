@@ -167,65 +167,122 @@ export async function getFirstGenPokemon(): Promise<any[]> {
 }
 
 /**
+ * Parches manuales para datos que faltan en PokeAPI (Gen 8/9 en Español)
+ */
+const SPANISH_PATCHES: Record<string, any> = {
+    'sneasler': {
+        description: 'Debido a su veneno virulento y su imponente capacidad física, ninguna otra especie podía superarlo en las tierras altas heladas. Prefiriendo la soledad, esta especie no forma manadas.',
+        name: 'Sneasler'
+    },
+    'dire-claw': {
+        name: 'Garra Nociva',
+        description: 'El usuario ataca al objetivo con garras destructoras, con el objetivo de asestar un golpe crítico. Esto también puede dejar al objetivo envenenado, paralizado o somnoliento.'
+    },
+    'victory-dance': {
+        name: 'Danza Victoria',
+        description: 'El usuario realiza una danza mística que aumenta su Ataque, Defensa y Velocidad.'
+    },
+    'ceaseless-edge': {
+        name: 'Tajo Ceñudo',
+        description: 'El usuario ataca con un tajo imbuido de resentimiento. Deja púas en el campo de batalla del oponente.'
+    }
+};
+
+/**
+ * Intenta obtener una descripción en español desde WikiDex como fallback.
+ */
+async function getWikiDexFallback(name: string): Promise<string | null> {
+    try {
+        const cleanName = name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
+        const url = `https://www.wikidex.net/api.php?action=query&prop=extracts&titles=${cleanName}&format=json&exintro=1&explaintext=1&origin=*`;
+        
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        const pages = data.query?.pages;
+        if (!pages) return null;
+        
+        const pageId = Object.keys(pages)[0];
+        if (pageId === '-1') return null;
+        
+        return pages[pageId].extract || null;
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * Obtiene los detalles completos de un Pokémon por su nombre con Fallback Robusto.
  */
 export async function getPokemonByName(name: string): Promise<{ detail: PokemonDetail, species: PokemonSpecies }> {
     const cleanName = name.toLowerCase();
     
+    let result: { detail: PokemonDetail, species: PokemonSpecies };
+
     try {
-        // 1. Intentar obtener el detalle del Pokémon (funciona para nombres exactos y variedades específicas)
+        // 1. Intentar obtener el detalle del Pokémon
         const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
         const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
-        return { detail, species };
+        result = { detail, species };
     } catch (error) {
-        // 2. Si falla, el nombre puede ser una especie pero no el nombre del Pokémon/variedad (ej: basculin, gourgeist)
+        // 2. Si falla, intentar con especie
         try {
-            // Consultar el endpoint de especie primero
             const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${cleanName}`);
-            
-            // Buscar la variedad por defecto de esa especie
             const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
             const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
-            
-            return { detail, species };
+            result = { detail, species };
         } catch (innerError) {
-            // 3. Fallback desesperado: intentar con la primera palabra (ej: basculegion-male -> basculegion)
             const baseName = cleanName.split('-')[0];
-            if (baseName !== cleanName) {
-                try {
-                    const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${baseName}`);
-                    const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
-                    const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
-                    return { detail, species };
-                } catch (lastError) {
-                    throw new Error(`Pokemon not found: ${cleanName}`);
-                }
-            }
-            throw new Error(`Pokemon not found: ${cleanName}`);
+            const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${baseName}`);
+            const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
+            const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
+            result = { detail, species };
         }
     }
-}
 
-/**
- * Otros servicios auxiliares.
- */
-export async function getItemDetail(urlOrName: string) {
-    const url = urlOrName.startsWith('http') ? urlOrName : `https://pokeapi.co/api/v2/item/${urlOrName}`;
-    return fetchWithCache<any>(url);
-}
+    // APLICAR PARCHES EN ESPAÑOL
+    if (SPANISH_PATCHES[cleanName]) {
+        const patch = SPANISH_PATCHES[cleanName];
+        if (patch.description) {
+            result.species.flavor_text_entries.unshift({
+                flavor_text: patch.description,
+                language: { name: 'es' }
+            } as any);
+        }
+    }
 
-export async function getAllItems(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/item?limit=2000');
-    const { isRealItem } = await import('../utils/pokemon');
-    return data.results.filter((item: any) => isRealItem(item.name));
-}
+    // FALLBACK DINÁMICO WIKIDEX (Si no hay descripción en español)
+    const hasSpanish = result.species.flavor_text_entries.some(e => e.language.name === 'es');
+    if (!hasSpanish) {
+        const wikiDesc = await getWikiDexFallback(result.species.name);
+        if (wikiDesc) {
+            result.species.flavor_text_entries.push({
+                flavor_text: wikiDesc,
+                language: { name: 'es' }
+            } as any);
+        }
+    }
 
-export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
-    return fetchWithCache<AbilityDetail>(url);
+    return result;
 }
 
 export async function getMoveDetail(url: string): Promise<MoveDetail> {
-    return fetchWithCache<MoveDetail>(url);
+    const data = await fetchWithCache<any>(url);
+    const cleanName = data.name.toLowerCase();
+
+    // Aplicar parches de nombres y descripciones para movimientos
+    if (SPANISH_PATCHES[cleanName]) {
+        const patch = SPANISH_PATCHES[cleanName];
+        if (patch.name) {
+            data.names.unshift({ name: patch.name, language: { name: 'es' } });
+        }
+        if (patch.description) {
+            data.flavor_text_entries.unshift({ flavor_text: patch.description, language: { name: 'es' } });
+        }
+    }
+
+    return data;
 }
 
 export async function getAllAbilities(): Promise<{ name: string, url: string }[]> {

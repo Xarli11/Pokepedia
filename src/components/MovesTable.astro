@@ -128,9 +128,26 @@ const initialVersion = versionGroups.length > 0
             const res = await fetch(url);
             if (!res.ok) return null;
             const data = await res.json();
-            const localizedName = data.names.find(n => n.language.name === lang)?.name || data.name;
-            const localizedDesc = data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+            
+            // Parches manuales locales para el cliente (Sincronizados con el servidor)
+            const patches = {
+                'dire-claw': { name: 'Garra Nociva', desc: 'El usuario ataca al objetivo con garras destructoras, con el objetivo de asestar un golpe crítico. Esto también puede dejar al objetivo envenenado, paralizado o somnoliento.' },
+                'victory-dance': { name: 'Danza Victoria', desc: 'El usuario realiza una danza mística que aumenta su Ataque, Defensa y Velocidad.' },
+                'ceaseless-edge': { name: 'Tajo Ceñudo', desc: 'El usuario ataca con un tajo imbuido de resentimiento. Deja púas en el campo de batalla del oponente.' },
+                'chloroblast': { name: 'Clorobofogata', desc: 'El usuario lanza una explosión de clorofila. Reduce sus propios PS a la mitad.' },
+                'barrage-fang': { name: 'Colmillo Alud', desc: 'Ataca con colmillos cargados de energía. Puede retroceder al objetivo.' }
+            };
+
+            const cleanName = data.name.toLowerCase();
+            const patch = patches[cleanName];
+
+            const localizedName = patch?.name || data.names.find(n => n.language.name === lang)?.name || data.name;
+            let localizedDesc = patch?.desc || data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
                                 data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+            
+            // Si después del fallback a inglés seguimos en español y la descripción es muy técnica o falta,
+            // podríamos intentar un fallback a WikiDex aquí también si fuera necesario.
+
             const category = data.damage_class?.name || 'status';
             const priority = data.priority || 0;
             const result = { name: localizedName, description: localizedDesc, category, priority };
