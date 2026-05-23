@@ -3,7 +3,7 @@
 const cache = new Map<string, { data: any, timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 
-async function fetchWithCache<T>(url: string, timeoutMs = 10000): Promise<T | null> {
+async function fetchWithCache<T>(url: string, timeoutMs = 8000): Promise<T | null> {
     const cached = cache.get(url);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.data;
 
@@ -11,20 +11,36 @@ async function fetchWithCache<T>(url: string, timeoutMs = 10000): Promise<T | nu
         const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
         if (!response.ok) return null;
         const text = await response.text();
+        
         // Limpiar el JSON si viene con formato de variable de JS
-        const data = JSON.parse(text.replace(/^var \w+ = /i, '').replace(/;$/, ''));
+        const cleanText = text.replace(/^var \w+ = /i, '').replace(/;$/, '').trim();
+        
+        // Verificación de tamaño: Si el texto es masivo (> 10MB), mejor no parsearlo en el Worker
+        if (cleanText.length > 10 * 1024 * 1024) {
+            console.warn(`Smogon data too large: ${url}`);
+            return null;
+        }
+
+        const data = JSON.parse(cleanText);
         cache.set(url, { data, timestamp: Date.now() });
         return data;
     } catch (e) {
+        console.error(`Smogon fetch error: ${url}`, e);
         return cached ? cached.data : null;
     }
 }
 
 export async function getShowdownPokemon(name: string): Promise<any | null> {
-    const pokedex = await fetchWithCache<any>('https://play.pokemonshowdown.com/data/pokedex.json');
-    if (!pokedex) return null;
-    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return pokedex[cleanName] || null;
+    try {
+        const pokedex = await fetchWithCache<any>('https://play.pokemonshowdown.com/data/pokedex.json');
+        if (!pokedex) return null;
+        
+        const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return pokedex[cleanName] || null;
+    } catch (e) {
+        // Silenciamos fallos críticos de memoria/CPU para permitir que la página cargue sin datos de Smogon
+        return null;
+    }
 }
 
 export async function getPokemonTier(name: string): Promise<string> {

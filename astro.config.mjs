@@ -6,8 +6,12 @@ import cloudflare from '@astrojs/cloudflare';
 export default defineConfig({
   site: 'https://pokepedia.app',
   output: 'server',
-  adapter: cloudflare(),
-  // Dejamos que Cloudflare maneje las barras finales para evitar conflictos 404
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: true,
+    },
+  }),
+  trailingSlash: 'always',
   image: {
     service: { entrypoint: 'astro/assets/services/noop' }
   },
