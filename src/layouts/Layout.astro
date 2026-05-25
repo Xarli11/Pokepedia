@@ -113,10 +113,26 @@ if (Astro.locals.cacheControl) {
         </script>
         
         <script is:inline define:vars={{ lang }}>
-            const savedTheme = localStorage.getItem('theme');
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            const theme = savedTheme || systemTheme;
-            if (theme === 'dark') document.documentElement.classList.add('dark');
+            const getTheme = () => {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme) return savedTheme;
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            };
+
+            const applyTheme = () => {
+                const theme = getTheme();
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            };
+
+            // Initial apply to prevent flash
+            applyTheme();
+
+            // Re-apply after View Transitions swap
+            document.addEventListener('astro:after-swap', applyTheme);
         </script>
         <ViewTransitions />
 	</head>
