@@ -240,15 +240,15 @@ const getStatColor = (baseStat: number) => {
                             <p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.abilities}</p>
                             <div class="space-y-3 mt-3">
                                 {abilitiesWithTranslation.map((a: any) => (
-                                    <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+                                    <a href={`/${lang}/habilidades/${a.ability.name}`} class="block bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-white dark:hover:bg-slate-700/50 transition-all group/ability no-underline">
                                         <div class="flex items-center gap-2 mb-1">
-                                            <a href={`/${lang}/habilidades/${a.ability.name}`} class="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+                                            <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400 group-hover/ability:underline">
                                                 {a.displayName}
-                                            </a>
+                                            </span>
                                             {a.is_hidden && <span class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded-md">{t.hidden}</span>}
                                         </div>
                                         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">{a.description}</p>
-                                    </div>
+                                    </a>
                                 ))}
                             </div>
                         </div>

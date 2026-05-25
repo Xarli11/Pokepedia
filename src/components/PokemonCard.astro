@@ -60,14 +60,14 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         {pokemon.name.replace(/-/g, ' ')}
     </h2>
     
-    <div class="relative flex gap-3 mt-6 z-10">
+    <div class="relative flex flex-wrap justify-center gap-3 mt-6 z-10 px-4">
         {pokemon.types.map((t) => {
             const typeName = t.type.name;
             const bgColor = typeColors[typeName] || '#777';
             const label = typeTranslations[lang][typeName] || typeName;
             
             return (
-                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105">
+                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
                     <div class="w-2 h-2 rounded-full" style={`background-color: ${bgColor}; box-shadow: 0 0 10px ${bgColor}88;`}></div>
                     <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
                         {label}

@@ -44,7 +44,8 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Optimización de rendimiento en tablas de movimientos**: Investigar la lentitud al cargar traducciones en Pokémon con sets masivos (ej: Mew / Razor Wind).
 - [x] **Corrección Visual**: Ajuste de contenedores de imágenes en tarjetas para evitar desbordamiento.
 - [x] **Mejora de UX**: Enlaces directos a habilidades desde la ficha del Pokémon.
-- [x] **Optimización de Objetos**: Carga ultrarrápida de sprites y visibilidad de contenido optimizada.
+- [x] **Mejora de UX**: Tarjetas de habilidades totalmente clickables.
+- [x] **Corrección de Layout**: Ajuste de etiquetas de tipo con wrap para evitar desbordamiento en tarjetas.
 
 ## 🚀 Próximos Pasos
 - [ ] Comparador técnico entre dos Pokémon.
