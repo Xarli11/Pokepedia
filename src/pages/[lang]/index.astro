@@ -67,6 +67,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 <option value="id-desc">{lang === 'es' ? 'Nº Pokédex (Mayor a Menor)' : 'Pokédex No. (High to Low)'}</option>
                 <option value="name-asc">{lang === 'es' ? 'Nombre (A-Z)' : 'Name (A-Z)'}</option>
                 <option value="name-desc">{lang === 'es' ? 'Nombre (Z-A)' : 'Name (Z-A)'}</option>
+                <option value="hp-desc">{t.stat_hp || 'HP'} ↓</option>
+                <option value="atk-desc">{t.stat_atk || 'ATK'} ↓</option>
+                <option value="def-desc">{t.stat_def || 'DEF'} ↓</option>
+                <option value="spa-desc">{t.stat_spatk || 'SP.ATK'} ↓</option>
+                <option value="spd-desc">{t.stat_spdef || 'SP.DEF'} ↓</option>
+                <option value="spe-desc">{t.stat_spd || 'SPD'} ↓</option>
+                <option value="total-desc">{t.total || 'Total'} ↓</option>
             </select>
             
             <a href={`/${lang}/comparar/charizard/venusaur`} class="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[10px] hover:bg-emerald-500 hover:text-white transition-all group no-underline">
@@ -173,14 +180,20 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
         const typesCache = new Map();
 
-        // Lógica para cargar tipos desde el cliente (Navegador)
-        async function loadTypes() {
+        // Lógica para cargar tipos y stats desde el cliente (Navegador)
+        async function loadPokemonData() {
             const containers = document.querySelectorAll('.types-container');
             
             const fetchPromises = Array.from(containers).map(async (container) => {
                 const url = container.dataset.url;
+                const card = container.closest('.pokemon-card');
                 if (typesCache.has(url)) {
-                    renderTypes(container, typesCache.get(url));
+                    const data = typesCache.get(url);
+                    renderTypes(container, data.types);
+                    if (card) {
+                        card.dataset.types = data.types.join(',');
+                        Object.entries(data.stats).forEach(([key, val]) => card.dataset[key] = val);
+                    }
                     return;
                 }
 
@@ -188,10 +201,23 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     const res = await fetch(url);
                     const data = await res.json();
                     const types = data.types.map(t => t.type.name);
-                    typesCache.set(url, types);
                     
-                    const card = container.closest('.pokemon-card');
-                    if (card) card.dataset.types = types.join(',');
+                    const stats = {
+                        hp: data.stats.find(s => s.stat.name === 'hp').base_stat,
+                        atk: data.stats.find(s => s.stat.name === 'attack').base_stat,
+                        def: data.stats.find(s => s.stat.name === 'defense').base_stat,
+                        spa: data.stats.find(s => s.stat.name === 'special-attack').base_stat,
+                        spd: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
+                        spe: data.stats.find(s => s.stat.name === 'speed').base_stat
+                    };
+                    stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
+
+                    typesCache.set(url, { types, stats });
+                    
+                    if (card) {
+                        card.dataset.types = types.join(',');
+                        Object.entries(stats).forEach(([key, val]) => card.dataset[key] = val);
+                    }
                     
                     renderTypes(container, types);
                 } catch (e) {
@@ -199,7 +225,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 }
             });
             await Promise.all(fetchPromises);
-            // Re-aplicar filtros por si hay alguno de tipo activo
             applyFilters();
         }
 
@@ -213,7 +238,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             container.classList.add('flex-wrap', 'justify-center');
         }
 
-        loadTypes();
+        loadPokemonData();
         const searchInput = document.getElementById('global-search');
         const typeFilter = document.getElementById('type-filter');
         const sortOrder = document.getElementById('sort-order');
@@ -340,10 +365,25 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             // Ordenación
             const sortedCards = currentCards.sort((a, b) => {
+                const getStat = (card, stat) => parseInt(card.dataset[stat] || '0');
+
                 if (currentSort === 'id-asc') return parseInt(a.dataset.id) - parseInt(b.dataset.id);
                 if (currentSort === 'id-desc') return parseInt(b.dataset.id) - parseInt(a.dataset.id);
                 if (currentSort === 'name-asc') return a.dataset.name.localeCompare(b.dataset.name);
                 if (currentSort === 'name-desc') return b.dataset.name.localeCompare(a.dataset.name);
+                
+                // Sorting por estadísticas (Descendente por defecto)
+                const statMap = {
+                    'hp-desc': 'hp', 'atk-desc': 'atk', 'def-desc': 'def',
+                    'spa-desc': 'spa', 'spd-desc': 'spd', 'spe-desc': 'spe',
+                    'total-desc': 'total'
+                };
+                
+                if (statMap[currentSort]) {
+                    const stat = statMap[currentSort];
+                    return getStat(b, stat) - getStat(a, stat);
+                }
+                
                 return 0;
             });
 

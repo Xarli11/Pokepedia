@@ -48,7 +48,8 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Corrección de Layout**: Ajuste de etiquetas de tipo con wrap para evitar desbordamiento en tarjetas.
 
 ## 🚀 Próximos Pasos
-- [x] **Filtros Avanzados**: Búsqueda por tipo y ordenación dinámica (ID/Nombre) en la Pokedex.
+- [x] **Filtros Avanzados**: Búsqueda por tipo y ordenación dinámica (ID/Nombre/Estadísticas) en la Pokedex.
+- [x] **UX Premium**: Navegación fluida entre secciones mediante Astro View Transitions.
 
 ## 🚀 Próximos Pasos
 - [ ] Implementar limitación de concurrencia o batching para peticiones a PokeAPI desde el cliente.
