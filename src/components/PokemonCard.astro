@@ -90,7 +90,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             updateTiers();
         }
 
-        function updateTiers() {
+        window.updateTiers = function() {
             if (!window.psPokedex) return;
             const colors = {
                 'Uber': 'bg-red-500', 'OU': 'bg-emerald-500', 'UU': 'bg-blue-500',
@@ -110,36 +110,6 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         }
 
         loadTiers();
-
-        function updateFavButtons() {
-            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-            document.querySelectorAll('.fav-btn').forEach(btn => {
-                const isFav = favorites.includes(btn.dataset.pokemon);
-                const heart = btn.querySelector('.heart-icon');
-                const currentlyFav = heart.getAttribute('fill') === 'currentColor';
-
-                if (isFav) {
-                    heart.setAttribute('fill', 'currentColor');
-                    btn.classList.add('text-rose-500');
-                    btn.classList.remove('text-slate-400');
-                    // Solo efecto pop si cambia de estado a favorito
-                    if (!currentlyFav) {
-                        btn.style.transform = 'scale(1.2)';
-                        setTimeout(() => btn.style.transform = 'scale(1)', 200);
-                    }
-                } else {
-                    heart.setAttribute('fill', 'none');
-                    btn.classList.remove('text-rose-500');
-                    btn.classList.add('text-slate-400');
-                }
-            });
-        }
-
-        updateFavButtons();
-        document.addEventListener('astro:after-swap', () => {
-            updateTiers();
-            updateFavButtons();
-        });
-        document.addEventListener('favorites-updated', updateFavButtons);
+        document.addEventListener('astro:page-load', window.updateTiers);
     }
 </script>

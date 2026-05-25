@@ -382,6 +382,25 @@ if (Astro.locals.cacheControl) {
                 };
             }
 
+            window.updateFavButtons = () => {
+                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+                document.querySelectorAll('.fav-btn').forEach(btn => {
+                    const isFav = favorites.includes(btn.dataset.pokemon);
+                    const heart = btn.querySelector('.heart-icon');
+                    if (!heart) return;
+                    
+                    if (isFav) {
+                        heart.setAttribute('fill', 'currentColor');
+                        btn.classList.add('text-rose-500');
+                        btn.classList.remove('text-slate-400');
+                    } else {
+                        heart.setAttribute('fill', 'none');
+                        btn.classList.remove('text-rose-500');
+                        btn.classList.add('text-slate-400');
+                    }
+                });
+            };
+
             window.toggleFavorite = (pokemonName) => {
                 const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
                 const index = favorites.indexOf(pokemonName);
@@ -395,6 +414,7 @@ if (Astro.locals.cacheControl) {
                 }
                 
                 localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
+                window.updateFavButtons();
                 document.dispatchEvent(new CustomEvent('favorites-updated'));
 
                 // Google Analytics Event Tracking
@@ -443,10 +463,6 @@ if (Astro.locals.cacheControl) {
                 };
             }
 
-            initTheme();
-            initRandom();
-            initBackToTop();
-
             function initGlobalSearch() {
                 const trigger = document.getElementById('global-search-trigger');
                 const modal = document.getElementById('global-search-modal');
@@ -455,6 +471,8 @@ if (Astro.locals.cacheControl) {
                 const overlay = document.getElementById('modal-overlay');
                 const content = document.getElementById('modal-content');
                 let selectedIndex = -1;
+
+                if (!trigger || !modal) return;
 
                 function toggleModal(show) {
                     if (show) {
@@ -479,8 +497,8 @@ if (Astro.locals.cacheControl) {
                     }
                 }
 
-                trigger?.addEventListener('click', () => toggleModal(true));
-                overlay?.addEventListener('click', () => toggleModal(false));
+                trigger.onclick = () => toggleModal(true);
+                overlay.onclick = () => toggleModal(false);
 
                 document.addEventListener('keydown', (e) => {
                     if (e.key === '/' && document.activeElement !== input) {
@@ -520,7 +538,7 @@ if (Astro.locals.cacheControl) {
                 }
 
                 let searchTimeout;
-                input?.addEventListener('input', () => {
+                input.oninput = () => {
                     const query = input.value.trim().toLowerCase();
                     clearTimeout(searchTimeout);
                     if (query.length < 2) {
@@ -565,17 +583,25 @@ if (Astro.locals.cacheControl) {
                             results.innerHTML = '';
                         }
                     }, 150);
-                });
+                };
             }
 
-            initGlobalSearch();
-
-            document.addEventListener('astro:after-swap', () => {
+            function initAll() {
                 initTheme();
                 initRandom();
                 initBackToTop();
                 initGlobalSearch();
-            });
+                window.updateFavButtons();
+            }
+
+            // Initial load
+            initAll();
+
+            // After every view transition
+            document.addEventListener('astro:page-load', initAll);
+            
+            // Listen for favorite updates across components
+            document.addEventListener('favorites-updated', window.updateFavButtons);
         </script>
 	</body>
 </html>
