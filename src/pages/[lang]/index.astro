@@ -242,25 +242,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             container.classList.add('flex-wrap', 'justify-center');
         }
 
-        loadPokemonData();
-        const searchInput = document.getElementById('global-search');
-        const typeFilter = document.getElementById('type-filter');
-        const sortOrder = document.getElementById('sort-order');
-        const suggestionsContainer = document.getElementById('search-suggestions');
-        const suggestionsList = document.getElementById('suggestions-list');
-        const grid = document.getElementById('pokemon-grid');
-        const noResults = document.getElementById('no-results');
-        const genPills = document.querySelectorAll('.gen-pill');
-
-        const t = uiTranslations[lang] || uiTranslations.es;
-
-        // Si estamos en la vista de favoritos al cargar
-        if (gen === 'favorites') {
-            loadFavoritesView();
-        }
-
         async function loadFavoritesView() {
+            const grid = document.getElementById('pokemon-grid');
+            const noResults = document.getElementById('no-results');
             const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            
+            if (!grid) return;
             grid.innerHTML = '';
             
             if (favorites.length === 0) {
@@ -348,6 +335,14 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         function applyFilters() {
+            const searchInput = document.getElementById('global-search');
+            const typeFilter = document.getElementById('type-filter');
+            const sortOrder = document.getElementById('sort-order');
+            const grid = document.getElementById('pokemon-grid');
+            const noResults = document.getElementById('no-results');
+
+            if (!searchInput || !typeFilter || !sortOrder || !grid) return;
+
             const query = normalize(searchInput.value);
             const selectedType = typeFilter.value;
             const currentSort = sortOrder.value;
@@ -403,6 +398,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         async function handleSearch() {
+            const searchInput = document.getElementById('global-search');
+            const suggestionsContainer = document.getElementById('search-suggestions');
+            const suggestionsList = document.getElementById('suggestions-list');
+            
+            if (!searchInput || !suggestionsContainer || !suggestionsList) return;
+
             const query = normalize(searchInput.value);
             applyFilters();
             
@@ -456,39 +457,66 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        // Event Listeners
-        searchInput.addEventListener('input', handleSearch);
-        typeFilter.addEventListener('change', applyFilters);
-        sortOrder.addEventListener('change', applyFilters);
+        const t = uiTranslations[lang] || uiTranslations.es;
 
-        searchInput.addEventListener('focus', () => {
-            if (normalize(searchInput.value).length >= 2) {
-                suggestionsContainer.classList.remove('hidden');
+        function init() {
+            loadPokemonData();
+            if (gen === 'favorites') {
+                loadFavoritesView();
             }
-        });
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === '/' && document.activeElement !== searchInput) {
-                e.preventDefault();
-                searchInput.focus();
-                window.scrollTo({ top: searchInput.offsetTop - 100, behavior: 'smooth' });
+            const searchInput = document.getElementById('global-search');
+            const typeFilter = document.getElementById('type-filter');
+            const sortOrder = document.getElementById('sort-order');
+            const suggestionsContainer = document.getElementById('search-suggestions');
+            const genPills = document.querySelectorAll('.gen-pill');
+
+            if (searchInput) {
+                searchInput.addEventListener('input', handleSearch);
+                searchInput.addEventListener('focus', () => {
+                    if (normalize(searchInput.value).length >= 2) {
+                        suggestionsContainer?.classList.remove('hidden');
+                    }
+                });
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const suggestionsList = document.getElementById('suggestions-list');
+                        const firstResult = suggestionsList?.querySelector('a');
+                        if (firstResult) {
+                            window.location.href = firstResult.href;
+                        }
+                    }
+                });
             }
-        });
 
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const firstResult = suggestionsList.querySelector('a');
-                if (firstResult) {
-                    window.location.href = firstResult.href;
+            if (typeFilter) typeFilter.addEventListener('change', applyFilters);
+            if (sortOrder) sortOrder.addEventListener('change', applyFilters);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '/' && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput?.focus();
+                    if (searchInput) window.scrollTo({ top: searchInput.offsetTop - 100, behavior: 'smooth' });
                 }
-            }
-        });
+            });
 
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                suggestionsContainer.classList.add('hidden');
-            }
-        });
+            document.addEventListener('click', (e) => {
+                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.classList.add('hidden');
+                }
+            });
+
+            genPills.forEach(pill => {
+                pill.onclick = () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('gen', pill.dataset.gen);
+                    window.location.href = url.toString();
+                };
+            });
+        }
+
+        // Ejecutar después de cada transición de página (incluyendo la carga inicial)
+        document.addEventListener('astro:page-load', init);
 
         document.addEventListener('favorites-updated', () => {
             if (gen === 'favorites') {
@@ -496,12 +524,5 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         });
 
-        genPills.forEach(pill => {
-            pill.onclick = () => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('gen', pill.dataset.gen);
-                window.location.href = url.toString();
-            };
-        });
     </script>
 </Layout>
