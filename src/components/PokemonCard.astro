@@ -109,7 +109,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             });
         }
 
-        loadTiers();
-        document.addEventListener('astro:page-load', window.updateTiers);
+        // Ejecutar carga inicial y en cada navegación
+        document.addEventListener('astro:page-load', loadTiers);
     }
 </script>
