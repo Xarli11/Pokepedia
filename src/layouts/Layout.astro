@@ -59,6 +59,16 @@ if (Astro.locals.cacheControl) {
 
                 // Re-apply after View Transitions swap
                 document.addEventListener('astro:after-swap', applyTheme);
+
+                // Pre-apply to the new document to prevent flash during swap
+                document.addEventListener('astro:before-swap', (ev) => {
+                    const theme = getTheme();
+                    if (theme === 'dark') {
+                        ev.newDocument.documentElement.classList.add('dark');
+                    } else {
+                        ev.newDocument.documentElement.classList.remove('dark');
+                    }
+                });
             })();
         </script>
         
@@ -146,7 +156,7 @@ if (Astro.locals.cacheControl) {
 	</head>
 	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col">
         <header 
-            class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300"
+            class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800"
             transition:persist
         >
             <div class="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -259,7 +269,10 @@ if (Astro.locals.cacheControl) {
 		    <slot />
         </main>
 
-        <nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between transition-all duration-300">
+        <nav 
+            class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between"
+            transition:persist
+        >
             <a href={`/${lang}`} class={`flex flex-col items-center gap-1 group ${currentPath === `/${lang}` || (currentPath === '/' && lang === 'es') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
