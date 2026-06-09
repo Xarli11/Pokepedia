@@ -174,7 +174,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         ))}
     </div>
 
-    <script define:vars={{ lang, uiTranslations, gen }}>
+    <div id="index-data" data-lang={lang} data-gen={gen} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
+
+    <script>
         const typeColors = {
             normal: '#A8A878', fire: '#F08030', water: '#6890F0', electric: '#F8D030', grass: '#78C850',
             ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0', ground: '#E0C068', flying: '#A890F0',
@@ -183,162 +185,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         };
 
         const typesCache = new Map();
-        const t = uiTranslations[lang] || uiTranslations.es;
-
-        // Lógica para cargar tipos y stats desde el cliente (Navegador) con límite de concurrencia
-        async function loadPokemonData() {
-            const containers = Array.from(document.querySelectorAll('.types-container'));
-            const batchSize = 15;
-            
-            for (let i = 0; i < containers.length; i += batchSize) {
-                const batch = containers.slice(i, i + batchSize);
-                await Promise.all(batch.map(async (container) => {
-                    const url = container.dataset.url;
-                    const card = container.closest('.pokemon-card');
-                    if (typesCache.has(url)) {
-                        const data = typesCache.get(url);
-                        renderTypes(container, data.types);
-                        if (card) {
-                            card.dataset.types = data.types.join(',');
-                            Object.entries(data.stats).forEach(([key, val]) => card.dataset[key] = val);
-                        }
-                        return;
-                    }
-
-                    try {
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        const types = data.types.map(t => t.type.name);
-                        
-                        const stats = {
-                            hp: data.stats.find(s => s.stat.name === 'hp').base_stat,
-                            atk: data.stats.find(s => s.stat.name === 'attack').base_stat,
-                            def: data.stats.find(s => s.stat.name === 'defense').base_stat,
-                            spa: data.stats.find(s => s.stat.name === 'special-attack').base_stat,
-                            spd: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
-                            spe: data.stats.find(s => s.stat.name === 'speed').base_stat
-                        };
-                        stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
-
-                        typesCache.set(url, { types, stats });
-                        
-                        if (card) {
-                            card.dataset.types = types.join(',');
-                            Object.entries(stats).forEach(([key, val]) => card.dataset[key] = val);
-                        }
-                        
-                        renderTypes(container, types);
-                    } catch (e) {
-                        container.innerHTML = '';
-                    }
-                }));
-            }
-            applyFilters();
-        }
-
-        function renderTypes(container, types) {
-            container.innerHTML = types.map(typeName => `
-                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
-                    <div class="w-2 h-2 rounded-full" style="background-color: ${typeColors[typeName] || '#777'}; box-shadow: 0 0 10px ${typeColors[typeName] || '#777'}88;"></div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${typeName}</span>
-                </div>
-            `).join('');
-            container.classList.add('flex-wrap', 'justify-center');
-        }
-
-        async function loadFavoritesView() {
-            const grid = document.getElementById('pokemon-grid');
-            const noResults = document.getElementById('no-results');
-            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-            
-            if (!grid) return;
-            grid.innerHTML = '';
-            
-            if (favorites.length === 0) {
-                noResults.classList.remove('hidden');
-                noResults.querySelector('h3').textContent = t.no_favorites;
-                noResults.querySelector('p').textContent = '';
-                return;
-            }
-
-            noResults.classList.add('hidden');
-            grid.classList.remove('hidden');
-
-            // Mostrar esqueletos de carga
-            grid.innerHTML = Array(6).fill(0).map(() => `
-                <div class="h-[500px] bg-white dark:bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-100 dark:border-slate-800"></div>
-            `).join('');
-
-            try {
-                const pokemonData = await Promise.all(
-                    favorites.map(name => fetch(`https://pokeapi.co/api/v2/pokemon/${name}`).then(res => res.json()))
-                );
-
-                grid.innerHTML = '';
-                pokemonData.forEach(p => {
-                    const card = createPokemonCard(p);
-                    grid.appendChild(card);
-                });
-
-                applyFilters(); // Aplicar filtros/ordenación tras cargar favoritos
-                if (window.updateTiers) window.updateTiers();
-
-            } catch (e) {
-                console.error('Error loading favorites:', e);
-            }
-        }
-
-        function createPokemonCard(p) {
-            const card = document.createElement('a');
-            card.href = `/${lang}/pokemon/${p.name}`;
-            card.className = "group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card";
-            card.dataset.name = p.name;
-            card.dataset.id = p.id;
-            const types = p.types.map(t => t.type.name);
-            card.dataset.types = types.join(',');
-            
-            const typesHtml = types.map(typeName => `
-                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
-                    <div class="w-2 h-2 rounded-full" style="background-color: ${typeColors[typeName] || '#777'}; box-shadow: 0 0 10px ${typeColors[typeName] || '#777'}88;"></div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${typeName}</span>
-                </div>
-            `).join('');
-
-            card.innerHTML = `
-                <div class="w-full flex items-center justify-between mb-10 z-30">
-                    <div class="flex items-center gap-4">
-                        <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">#${p.id.toString().padStart(4, '0')}</span>
-                        <div class="tier-badge" data-tier-for="${p.name.toLowerCase().replace(/[^a-z0-0]/g, '')}"></div>
-                    </div>
-                    <button class="fav-btn p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500" data-pokemon="${p.name}">
-                        <svg class="w-6 h-6 heart-icon transition-all duration-500 ease-out group-hover/fav-btn:scale-125 group-active/fav-btn:scale-90" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="relative w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
-                    <div class="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700"></div>
-                    <img src="${p.sprites?.other?.["official-artwork"]?.front_default || p.sprites?.front_default}" alt="${p.name}" width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl relative z-20" loading="lazy">
-                </div>
-                <h2 class="relative mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tighter text-center">${p.name.replace(/-/g, ' ')}</h2>
-                <div class="relative flex flex-wrap justify-center gap-3 mt-6 z-10 px-4">${typesHtml}</div>
-            `;
-
-            card.querySelector('.fav-btn').onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.toggleFavorite(p.name);
-            };
-            return card;
-        }
-
         let searchTimeout;
 
         function normalize(str) {
             return str.toLowerCase().replace(/-/g, ' ').trim();
         }
 
-        function applyFilters() {
+        function applyFilters(lang, t) {
             const searchInput = document.getElementById('global-search');
             const typeFilter = document.getElementById('type-filter');
             const sortOrder = document.getElementById('sort-order');
@@ -401,77 +254,225 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function handleSearch() {
-            const searchInput = document.getElementById('global-search');
-            const suggestionsContainer = document.getElementById('search-suggestions');
-            const suggestionsList = document.getElementById('suggestions-list');
-            
-            if (!searchInput || !suggestionsContainer || !suggestionsList) return;
+        function renderTypes(container, types) {
+            container.innerHTML = types.map(typeName => `
+                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
+                    <div class="w-2 h-2 rounded-full" style="background-color: ${typeColors[typeName] || '#777'}; box-shadow: 0 0 10px ${typeColors[typeName] || '#777'}88;"></div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${typeName}</span>
+                </div>
+            `).join('');
+            container.classList.add('flex-wrap', 'justify-center');
+        }
 
-            const query = normalize(searchInput.value);
-            applyFilters();
+        function createPokemonCard(p, lang) {
+            const card = document.createElement('a');
+            card.href = `/${lang}/pokemon/${p.name}`;
+            card.className = "group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card";
+            card.dataset.name = p.name;
+            card.dataset.id = p.id;
+            const types = p.types.map(t => t.type.name);
+            card.dataset.types = types.join(',');
             
-            // Sugerencias Globales vía API
-            clearTimeout(searchTimeout);
-            if (query.length >= 2) {
-                searchTimeout = setTimeout(async () => {
-                    // Mostrar Skeletons de Carga
-                    suggestionsContainer.classList.remove('hidden');
-                    suggestionsList.innerHTML = Array(3).fill(0).map(() => `
-                        <div class="flex items-center gap-5 px-6 py-4 animate-pulse">
-                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl"></div>
-                            <div class="flex flex-col gap-2">
-                                <div class="w-10 h-2 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                                <div class="w-24 h-4 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                            </div>
-                        </div>
-                    `).join('');
+            const typesHtml = types.map(typeName => `
+                <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm transition-transform group-hover:scale-105 shrink-0">
+                    <div class="w-2 h-2 rounded-full" style="background-color: ${typeColors[typeName] || '#777'}; box-shadow: 0 0 10px ${typeColors[typeName] || '#777'}88;"></div>
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">${typeName}</span>
+                </div>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="w-full flex items-center justify-between mb-10 z-30">
+                    <div class="flex items-center gap-4">
+                        <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">#${p.id.toString().padStart(4, '0')}</span>
+                        <div class="tier-badge" data-tier-for="${p.name.toLowerCase().replace(/[^a-z0-0]/g, '')}"></div>
+                    </div>
+                    <button class="fav-btn p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500" data-pokemon="${p.name}">
+                        <svg class="w-6 h-6 heart-icon transition-all duration-500 ease-out group-hover/fav-btn:scale-125 group-active/fav-btn:scale-90" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="relative w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3 z-10">
+                    <div class="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700"></div>
+                    <img src="${p.sprites?.other?.["official-artwork"]?.front_default || p.sprites?.front_default}" alt="${p.name}" width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl relative z-20" loading="lazy">
+                </div>
+                <h2 class="relative mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize z-10 group-hover:text-emerald-500 transition-colors tracking-tighter text-center">${p.name.replace(/-/g, ' ')}</h2>
+                <div class="relative flex flex-wrap justify-center gap-3 mt-6 z-10 px-4">${typesHtml}</div>
+            `;
+
+            card.querySelector('.fav-btn').onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.toggleFavorite(p.name);
+            };
+            return card;
+        }
+
+        async function loadPokemonData(lang, t) {
+            const containers = Array.from(document.querySelectorAll('.types-container'));
+            const batchSize = 15;
+            
+            for (let i = 0; i < containers.length; i += batchSize) {
+                const batch = containers.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (container) => {
+                    const url = container.dataset.url;
+                    const card = container.closest('.pokemon-card');
+                    if (typesCache.has(url)) {
+                        const data = typesCache.get(url);
+                        renderTypes(container, data.types);
+                        if (card) {
+                            card.dataset.types = data.types.join(',');
+                            Object.entries(data.stats).forEach(([key, val]) => card.dataset[key] = val);
+                        }
+                        return;
+                    }
 
                     try {
-                        const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
-                        const matches = await res.json();
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        const types = data.types.map(t => t.type.name);
+                        
+                        const stats = {
+                            hp: data.stats.find(s => s.stat.name === 'hp').base_stat,
+                            atk: data.stats.find(s => s.stat.name === 'attack').base_stat,
+                            def: data.stats.find(s => s.stat.name === 'defense').base_stat,
+                            spa: data.stats.find(s => s.stat.name === 'special-attack').base_stat,
+                            spd: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
+                            spe: data.stats.find(s => s.stat.name === 'speed').base_stat
+                        };
+                        stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
 
-                        if (matches.length > 0) {
-                            suggestionsList.innerHTML = matches.map(p => {
-                                const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-                                const isVariety = p.id > 10000;
-                                
-                                return `
-                                <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
-                                    <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
-                                        <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? t.special_form : '#' + p.id.toString().padStart(4, '0')}</span>
-                                        <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
-                                    </div>
-                                    <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
-                                </a>
-                            `}).join('');
-                        } else {
-                            suggestionsContainer.classList.add('hidden');
+                        typesCache.set(url, { types, stats });
+                        
+                        if (card) {
+                            card.dataset.types = types.join(',');
+                            Object.entries(stats).forEach(([key, val]) => card.dataset[key] = val);
                         }
+                        
+                        renderTypes(container, types);
                     } catch (e) {
-                        console.error('Error fetching suggestions:', e);
-                        suggestionsContainer.classList.add('hidden');
+                        container.innerHTML = '';
                     }
-                }, 300);
-            } else {
-                suggestionsContainer.classList.add('hidden');
+                }));
+            }
+            applyFilters(lang, t);
+        }
+
+        async function loadFavoritesView(lang, t) {
+            const grid = document.getElementById('pokemon-grid');
+            const noResults = document.getElementById('no-results');
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            if (favorites.length === 0) {
+                noResults.classList.remove('hidden');
+                noResults.querySelector('h3').textContent = t.no_favorites || 'No favorites';
+                noResults.querySelector('p').textContent = '';
+                return;
+            }
+
+            noResults.classList.add('hidden');
+            grid.classList.remove('hidden');
+
+            // Mostrar esqueletos de carga
+            grid.innerHTML = Array(6).fill(0).map(() => `
+                <div class="h-[500px] bg-white dark:bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-100 dark:border-slate-800"></div>
+            `).join('');
+
+            try {
+                const pokemonData = await Promise.all(
+                    favorites.map(name => fetch(`https://pokeapi.co/api/v2/pokemon/${name}`).then(res => res.json()))
+                );
+
+                grid.innerHTML = '';
+                pokemonData.forEach(p => {
+                    const card = createPokemonCard(p, lang);
+                    grid.appendChild(card);
+                });
+
+                applyFilters(lang, t);
+                if (window.updateTiers) window.updateTiers();
+
+            } catch (e) {
+                console.error('Error loading favorites:', e);
             }
         }
 
         function init() {
-            loadPokemonData();
+            const dataEl = document.getElementById('index-data');
+            if (!dataEl) return;
+            const lang = dataEl.dataset.lang;
+            const gen = dataEl.dataset.gen;
+            const uiTranslations = JSON.parse(dataEl.dataset.translations);
+            const t = uiTranslations[lang] || uiTranslations.es;
+
+            loadPokemonData(lang, t);
             if (gen === 'favorites') {
-                loadFavoritesView();
+                loadFavoritesView(lang, t);
             }
 
             const searchInput = document.getElementById('global-search');
             const typeFilter = document.getElementById('type-filter');
             const sortOrder = document.getElementById('sort-order');
             const suggestionsContainer = document.getElementById('search-suggestions');
+            const suggestionsList = document.getElementById('suggestions-list');
             const genPills = document.querySelectorAll('.gen-pill');
+
+            async function handleSearch() {
+                if (!searchInput || !suggestionsContainer || !suggestionsList) return;
+
+                const query = normalize(searchInput.value);
+                applyFilters(lang, t);
+                
+                clearTimeout(searchTimeout);
+                if (query.length >= 2) {
+                    searchTimeout = setTimeout(async () => {
+                        suggestionsContainer.classList.remove('hidden');
+                        suggestionsList.innerHTML = Array(3).fill(0).map(() => `
+                            <div class="flex items-center gap-5 px-6 py-4 animate-pulse">
+                                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl"></div>
+                                <div class="flex flex-col gap-2">
+                                    <div class="w-10 h-2 bg-slate-100 dark:bg-slate-700 rounded"></div>
+                                    <div class="w-24 h-4 bg-slate-100 dark:bg-slate-700 rounded"></div>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        try {
+                            const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+                            const matches = await res.json();
+
+                            if (matches.length > 0) {
+                                suggestionsList.innerHTML = matches.map(p => {
+                                    const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+                                    const isVariety = p.id > 10000;
+                                    
+                                    return `
+                                    <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group">
+                                        <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm">
+                                            <img src="${spriteUrl}" alt="${p.name}" class="w-10 h-10 object-contain image-render-pixel" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (t.special_form || 'SPECIAL') : '#' + p.id.toString().padStart(4, '0')}</span>
+                                            <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
+                                        </div>
+                                        <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver Ficha' : 'View Info'} →</span>
+                                    </a>
+                                `}).join('');
+                            } else {
+                                suggestionsContainer.classList.add('hidden');
+                            }
+                        } catch (e) {
+                            console.error('Error fetching suggestions:', e);
+                            suggestionsContainer.classList.add('hidden');
+                        }
+                    }, 300);
+                } else {
+                    suggestionsContainer.classList.add('hidden');
+                }
+            }
 
             if (searchInput) {
                 searchInput.addEventListener('input', handleSearch);
@@ -491,8 +492,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 });
             }
 
-            if (typeFilter) typeFilter.addEventListener('change', applyFilters);
-            if (sortOrder) sortOrder.addEventListener('change', applyFilters);
+            if (typeFilter) typeFilter.addEventListener('change', () => applyFilters(lang, t));
+            if (sortOrder) sortOrder.addEventListener('change', () => applyFilters(lang, t));
 
             document.addEventListener('keydown', (e) => {
                 if (e.key === '/' && document.activeElement !== searchInput) {
@@ -506,8 +507,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
 
             document.addEventListener('click', (e) => {
-                const suggestionsContainer = document.getElementById('search-suggestions');
-                const searchInput = document.getElementById('global-search');
                 if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                     suggestionsContainer.classList.add('hidden');
                 }
@@ -522,12 +521,15 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
         }
 
-        // Ejecutar después de cada transición de página (incluyendo la carga inicial)
         document.addEventListener('astro:page-load', init);
 
         document.addEventListener('favorites-updated', () => {
-            if (gen === 'favorites') {
-                loadFavoritesView();
+            const dataEl = document.getElementById('index-data');
+            if (dataEl && dataEl.dataset.gen === 'favorites') {
+                const lang = dataEl.dataset.lang;
+                const uiTranslations = JSON.parse(dataEl.dataset.translations);
+                const t = uiTranslations[lang] || uiTranslations.es;
+                loadFavoritesView(lang, t);
             }
         });
     </script>

@@ -61,43 +61,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         </div>
     </div>
 
-    <script define:vars={{ lang }}>
+    <div id="habilidades-data" data-lang={lang} class="hidden"></div>
+
+    <script>
         let searchInput, suggestionsContainer, cards, itemsData;
         const cache = new Map();
 
-        function init() {
-            searchInput = document.getElementById('ability-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            cards = document.querySelectorAll('.ability-card');
-
-            if (!searchInput) return;
-
-            itemsData = Array.from(cards).map(card => ({
-                name: card.dataset.name,
-                el: card,
-                url: card.querySelector('[data-ability-url]').dataset.abilityUrl
-            }));
-
-            searchInput.addEventListener('input', () => {
-                applyFilters(true);
-                updateSuggestions(searchInput.value);
-            });
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        loadCard(entry.target);
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { rootMargin: '200px' });
-
-            cards.forEach(card => observer.observe(card));
-        }
-
-        document.addEventListener('astro:page-load', init);
-
-        async function fetchAbilityInfo(url) {
+        async function fetchAbilityInfo(url, lang) {
             if (cache.has(url)) return cache.get(url);
             try {
                 const res = await fetch(url);
@@ -127,13 +97,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             } catch (e) { return null; }
         }
 
-        async function loadCard(card) {
+        async function loadCard(card, lang) {
             if (card.dataset.loaded === "true") return;
             const nameEl = card.querySelector('[data-ability-url]');
             const descEl = card.querySelector('[data-ability-desc-url]');
             const url = nameEl.dataset.abilityUrl;
             
-            const info = await fetchAbilityInfo(url);
+            const info = await fetchAbilityInfo(url, lang);
             if (info) {
                 if (info.hide) {
                     card.remove();
@@ -143,11 +113,11 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
                 card.dataset.translatedName = info.name.toLowerCase();
                 card.dataset.loaded = "true";
-                applyFilters(false);
+                applyFilters(false, lang);
             }
         }
 
-        async function updateSuggestions(query) {
+        async function updateSuggestions(query, lang) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -168,7 +138,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             suggestionsContainer.classList.remove('hidden');
 
             for (const item of matches) {
-                const info = await fetchAbilityInfo(item.url);
+                const info = await fetchAbilityInfo(item.url, lang);
                 if (!info || info.hide) continue;
                 const div = document.createElement('div');
                 div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
@@ -184,13 +154,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 div.onclick = () => {
                     searchInput.value = info.name;
                     suggestionsContainer.classList.add('hidden');
-                    applyFilters(true);
+                    applyFilters(true, lang);
                 };
                 suggestionsContainer.appendChild(div);
             }
         }
 
-        async function applyFilters(forceLoad = true) {
+        async function applyFilters(forceLoad, lang) {
             const query = searchInput.value.toLowerCase().trim();
             for (const card of cards) {
                 if (!card.parentElement) continue;
@@ -201,7 +171,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 const matchesSearch = englishName.includes(query) || translatedName.includes(query);
                 
                 if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
-                    await loadCard(card);
+                    await loadCard(card, lang);
                     const newTranslatedName = card.dataset.translatedName || '';
                     card.style.display = newTranslatedName.includes(query) ? 'block' : 'none';
                 } else {
@@ -210,10 +180,46 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        document.addEventListener('click', (e) => {
-            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                suggestionsContainer.classList.add('hidden');
-            }
-        });
+        function init() {
+            const dataEl = document.getElementById('habilidades-data');
+            if (!dataEl) return;
+            const lang = dataEl.dataset.lang;
+
+            searchInput = document.getElementById('ability-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            cards = document.querySelectorAll('.ability-card');
+
+            if (!searchInput) return;
+
+            itemsData = Array.from(cards).map(card => ({
+                name: card.dataset.name,
+                el: card,
+                url: card.querySelector('[data-ability-url]').dataset.abilityUrl
+            }));
+
+            searchInput.addEventListener('input', () => {
+                applyFilters(true, lang);
+                updateSuggestions(searchInput.value, lang);
+            });
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        loadCard(entry.target, lang);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '200px' });
+
+            cards.forEach(card => observer.observe(card));
+
+            document.addEventListener('click', (e) => {
+                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('astro:page-load', init);
     </script>
 </Layout>

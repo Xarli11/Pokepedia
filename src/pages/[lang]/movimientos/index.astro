@@ -86,15 +86,11 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         </div>
     </div>
 
-    <script define:vars={{ lang, typeColors, typeTranslations }}>
+    <div id="movimientos-data" data-lang={lang} data-colors={JSON.stringify(typeColors)} data-translations={JSON.stringify(typeTranslations)} class="hidden"></div>
+
+    <script>
         let searchInput, suggestionsContainer, typeFilter, rows, itemsData;
         const cache = new Map();
-
-        const catTranslations = {
-            physical: lang === 'es' ? 'Físico' : 'Physical',
-            special: lang === 'es' ? 'Especial' : 'Special',
-            status: lang === 'es' ? 'Estado' : 'Status'
-        };
 
         const catColors = {
             physical: 'bg-orange-500',
@@ -102,43 +98,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             status: 'bg-slate-400'
         };
 
-        function init() {
-            searchInput = document.getElementById('move-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            typeFilter = document.getElementById('type-filter');
-            rows = document.querySelectorAll('.move-row');
-
-            if (!searchInput) return;
-
-            itemsData = Array.from(rows).map(row => ({
-                name: row.dataset.name,
-                el: row,
-                url: row.dataset.url
-            }));
-
-            searchInput.addEventListener('input', () => {
-                filterTable();
-                updateSuggestions(searchInput.value);
-            });
-
-            typeFilter.addEventListener('change', filterTable);
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const row = entry.target;
-                        loadRow(row);
-                        observer.unobserve(row);
-                    }
-                });
-            }, { rootMargin: '100px' });
-
-            rows.forEach(row => observer.observe(row));
-        }
-
-        document.addEventListener('astro:page-load', init);
-
-        async function fetchMoveInfo(url) {
+        async function fetchMoveInfo(url, lang) {
             if (cache.has(url)) return cache.get(url);
             try {
                 const res = await fetch(url);
@@ -159,7 +119,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function updateSuggestions(query) {
+        async function updateSuggestions(query, lang, typeColors, typeTranslations, catTranslations) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -179,7 +139,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             suggestionsContainer.classList.remove('hidden');
 
             for (const item of matches) {
-                const info = await fetchMoveInfo(item.url);
+                const info = await fetchMoveInfo(item.url, lang);
                 if (!info) continue;
                 const div = document.createElement('div');
                 div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
@@ -205,9 +165,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function loadRow(row) {
+        async function loadRow(row, lang, typeColors, typeTranslations, catTranslations) {
             const url = row.dataset.url;
-            const info = await fetchMoveInfo(url);
+            const info = await fetchMoveInfo(url, lang);
             if (info) {
                 row.querySelector('[data-move-name-url]').textContent = info.name;
                 row.querySelector('[data-move-type-url]').innerHTML = `
@@ -251,10 +211,58 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
         }
 
-        document.addEventListener('click', (e) => {
-            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                suggestionsContainer.classList.add('hidden');
-            }
-        });
+        function init() {
+            const dataEl = document.getElementById('movimientos-data');
+            if (!dataEl) return;
+            const lang = dataEl.dataset.lang;
+            const typeColors = JSON.parse(dataEl.dataset.colors);
+            const typeTranslations = JSON.parse(dataEl.dataset.translations);
+            
+            const catTranslations = {
+                physical: lang === 'es' ? 'Físico' : 'Physical',
+                special: lang === 'es' ? 'Especial' : 'Special',
+                status: lang === 'es' ? 'Estado' : 'Status'
+            };
+
+            searchInput = document.getElementById('move-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            typeFilter = document.getElementById('type-filter');
+            rows = document.querySelectorAll('.move-row');
+
+            if (!searchInput) return;
+
+            itemsData = Array.from(rows).map(row => ({
+                name: row.dataset.name,
+                el: row,
+                url: row.dataset.url
+            }));
+
+            searchInput.addEventListener('input', () => {
+                filterTable();
+                updateSuggestions(searchInput.value, lang, typeColors, typeTranslations, catTranslations);
+            });
+
+            typeFilter.addEventListener('change', filterTable);
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const row = entry.target;
+                        loadRow(row, lang, typeColors, typeTranslations, catTranslations);
+                        observer.unobserve(row);
+                    }
+                });
+            }, { rootMargin: '100px' });
+
+            rows.forEach(row => observer.observe(row));
+
+            document.addEventListener('click', (e) => {
+                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('astro:page-load', init);
     </script>
 </Layout>

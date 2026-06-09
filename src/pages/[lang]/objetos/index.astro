@@ -99,7 +99,9 @@ const mainCategories = [
         .pixelated { image-rendering: pixelated; }
     </style>
 
-    <script define:vars={{ lang, i18nItems }}>
+    <div id="objetos-data" data-lang={lang} data-i18n={JSON.stringify(i18nItems)} class="hidden"></div>
+
+    <script>
         let searchInput, suggestionsContainer, categoryFilter, cards;
         const cache = new Map();
 
@@ -119,36 +121,7 @@ const mainCategories = [
             return rawCat;
         }
 
-        function init() {
-            searchInput = document.getElementById('item-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            categoryFilter = document.getElementById('category-filter');
-            cards = document.querySelectorAll('.item-card');
-
-            if (!searchInput) return;
-
-            searchInput.addEventListener('input', () => {
-                applyFilters(true);
-                updateSuggestions(searchInput.value);
-            });
-
-            categoryFilter.addEventListener('change', () => applyFilters(true));
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        loadCard(entry.target);
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { rootMargin: '300px' });
-
-            cards.forEach(card => observer.observe(card));
-        }
-
-        document.addEventListener('astro:page-load', init);
-
-        async function fetchItemInfo(url) {
+        async function fetchItemInfo(url, lang, i18nItems) {
             if (cache.has(url)) return cache.get(url);
             try {
                 const res = await fetch(url);
@@ -176,7 +149,7 @@ const mainCategories = [
             } catch (e) { return null; }
         }
 
-        async function updateSuggestions(query) {
+        async function updateSuggestions(query, lang, i18nItems) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -199,7 +172,7 @@ const mainCategories = [
 
             for (const card of matches) {
                 const url = card.querySelector('[data-item-url]').dataset.itemUrl;
-                const info = await fetchItemInfo(url);
+                const info = await fetchItemInfo(url, lang, i18nItems);
                 if (!info) continue;
 
                 const div = document.createElement('div');
@@ -216,16 +189,16 @@ const mainCategories = [
                 div.onclick = () => {
                     searchInput.value = info.name;
                     suggestionsContainer.classList.add('hidden');
-                    applyFilters(true);
+                    applyFilters(true, lang, i18nItems);
                 };
                 suggestionsContainer.appendChild(div);
             }
         }
 
-        async function loadCard(card) {
+        async function loadCard(card, lang, i18nItems) {
             if (card.dataset.loaded === 'true') return;
             const url = card.querySelector('[data-item-url]').dataset.itemUrl;
-            const info = await fetchItemInfo(url);
+            const info = await fetchItemInfo(url, lang, i18nItems);
             if (info) {
                 card.querySelector('[data-item-url]').textContent = info.name;
                 card.querySelector('[data-item-desc-url]').textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
@@ -233,11 +206,11 @@ const mainCategories = [
                 card.dataset.superCategory = info.superCategory;
                 card.dataset.loaded = "true";
                 card.dataset.translatedName = info.name.toLowerCase();
-                applyFilters(false); 
+                applyFilters(false, lang, i18nItems); 
             }
         }
 
-        async function applyFilters(forceLoad = true) {
+        async function applyFilters(forceLoad, lang, i18nItems) {
             const query = searchInput.value.toLowerCase().trim();
             const selectedSuperCat = categoryFilter.value;
             for (const card of cards) {
@@ -247,7 +220,7 @@ const mainCategories = [
                 const matchesSearch = name.includes(query) || translated.includes(query);
                 const matchesCategory = selectedSuperCat === 'all' || superCat === selectedSuperCat;
                 if (selectedSuperCat !== 'all' && superCat === 'unknown' && matchesSearch && forceLoad) {
-                    await loadCard(card);
+                    await loadCard(card, lang, i18nItems);
                     const newSuperCat = card.dataset.superCategory;
                     card.style.display = (matchesSearch && (selectedSuperCat === 'all' || newSuperCat === selectedSuperCat)) ? 'block' : 'none';
                 } else {
@@ -256,10 +229,44 @@ const mainCategories = [
             }
         }
 
-        document.addEventListener('click', (e) => {
-            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                suggestionsContainer.classList.add('hidden');
-            }
-        });
+        function init() {
+            const dataEl = document.getElementById('objetos-data');
+            if (!dataEl) return;
+            const lang = dataEl.dataset.lang;
+            const i18nItems = JSON.parse(dataEl.dataset.i18n);
+
+            searchInput = document.getElementById('item-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            categoryFilter = document.getElementById('category-filter');
+            cards = document.querySelectorAll('.item-card');
+
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', () => {
+                applyFilters(true, lang, i18nItems);
+                updateSuggestions(searchInput.value, lang, i18nItems);
+            });
+
+            categoryFilter.addEventListener('change', () => applyFilters(true, lang, i18nItems));
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        loadCard(entry.target, lang, i18nItems);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '300px' });
+
+            cards.forEach(card => observer.observe(card));
+
+            document.addEventListener('click', (e) => {
+                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        document.addEventListener('astro:page-load', init);
     </script>
 </Layout>

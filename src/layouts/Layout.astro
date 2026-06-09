@@ -146,7 +146,7 @@ if (Astro.locals.cacheControl) {
         }
         </script>
         
-        <script is:inline define:vars={{ lang }}>
+        <script is:inline>
             // Listen for favorite updates across components
             document.addEventListener('favorites-updated', () => {
                 if (window.updateFavButtons) window.updateFavButtons();
@@ -412,233 +412,233 @@ if (Astro.locals.cacheControl) {
             </div>
         </footer>
 
-        <script is:inline define:vars={{ lang }}>
-            function initTheme() {
-                const btn = document.getElementById('theme-switch');
-                if (!btn) return;
-                btn.onclick = () => {
-                    const isDark = document.documentElement.classList.toggle('dark');
-                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                };
-            }
-
-            window.updateFavButtons = () => {
-                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-                document.querySelectorAll('.fav-btn').forEach(btn => {
-                    const isFav = favorites.includes(btn.dataset.pokemon);
-                    const heart = btn.querySelector('.heart-icon');
-                    if (!heart) return;
-                    
-                    if (isFav) {
-                        heart.setAttribute('fill', 'currentColor');
-                        btn.classList.add('text-rose-500');
-                        btn.classList.remove('text-slate-400');
-                    } else {
-                        heart.setAttribute('fill', 'none');
-                        btn.classList.remove('text-rose-500');
-                        btn.classList.add('text-slate-400');
-                    }
-                });
+    <div id="layout-data" data-lang={lang} class="hidden"></div>
+    <script>
+        function initTheme() {
+            const btn = document.getElementById('theme-switch');
+            if (!btn) return;
+            btn.onclick = () => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
             };
+        }
 
-            window.toggleFavorite = (pokemonName) => {
-                const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-                const index = favorites.indexOf(pokemonName);
-                let action = 'add';
+        window.updateFavButtons = () => {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                const isFav = favorites.includes(btn.dataset.pokemon);
+                const heart = btn.querySelector('.heart-icon');
+                if (!heart) return;
                 
-                if (index > -1) {
-                    favorites.splice(index, 1);
-                    action = 'remove';
+                if (isFav) {
+                    heart.setAttribute('fill', 'currentColor');
+                    btn.classList.add('text-rose-500');
+                    btn.classList.remove('text-slate-400');
                 } else {
-                    favorites.push(pokemonName);
+                    heart.setAttribute('fill', 'none');
+                    btn.classList.remove('text-rose-500');
+                    btn.classList.add('text-slate-400');
                 }
-                
-                localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
-                window.updateFavButtons();
-                document.dispatchEvent(new CustomEvent('favorites-updated'));
+            });
+        };
 
-                // Google Analytics Event Tracking
-                if (typeof gtag === 'function') {
-                    gtag('event', 'pokemon_favorite', {
-                        'pokemon_name': pokemonName,
-                        'action': action
-                    });
+        window.toggleFavorite = (pokemonName) => {
+            const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
+            const index = favorites.indexOf(pokemonName);
+            let action = 'add';
+            
+            if (index > -1) {
+                favorites.splice(index, 1);
+                action = 'remove';
+            } else {
+                favorites.push(pokemonName);
+            }
+            
+            localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
+            window.updateFavButtons();
+            document.dispatchEvent(new CustomEvent('favorites-updated'));
+
+            if (typeof window.gtag === 'function') {
+                window.gtag('event', 'pokemon_favorite', {
+                    'pokemon_name': pokemonName,
+                    'action': action
+                });
+            }
+        };
+
+        function initRandom(lang) {
+            const btn = document.getElementById('random-pokemon-btn');
+            if (!btn) return;
+            btn.onclick = async () => {
+                btn.disabled = true;
+                btn.classList.add('animate-pulse', 'opacity-50');
+                const randomId = Math.floor(Math.random() * 1025) + 1;
+                try {
+                    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+                    const data = await res.json();
+                    window.location.href = `/${lang}/pokemon/${data.name}`;
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.classList.remove('animate-pulse', 'opacity-50');
+                }
+            };
+        }
+
+        function initBackToTop() {
+            const btn = document.getElementById('back-to-top');
+            if (!btn) return;
+            
+            window.onscroll = () => {
+                if (window.scrollY > 500) {
+                    btn.classList.remove('translate-y-32', 'opacity-0');
+                    btn.classList.add('translate-y-0', 'opacity-100');
+                } else {
+                    btn.classList.add('translate-y-32', 'opacity-0');
+                    btn.classList.remove('translate-y-0', 'opacity-100');
                 }
             };
 
-            function initRandom() {
-                const btn = document.getElementById('random-pokemon-btn');
-                if (!btn) return;
-                btn.onclick = async () => {
-                    btn.disabled = true;
-                    btn.classList.add('animate-pulse', 'opacity-50');
-                    const randomId = Math.floor(Math.random() * 1025) + 1;
-                    try {
-                        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-                        const data = await res.json();
-                        window.location.href = `/${lang}/pokemon/${data.name}`;
-                    } catch (e) {
-                        btn.disabled = false;
-                        btn.classList.remove('animate-pulse', 'opacity-50');
-                    }
-                };
+            btn.onclick = () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+        }
+
+        function initGlobalSearch(lang) {
+            const trigger = document.getElementById('global-search-trigger');
+            const modal = document.getElementById('global-search-modal');
+            const input = document.getElementById('global-search-input');
+            const results = document.getElementById('global-search-results');
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            let selectedIndex = -1;
+
+            if (!trigger || !modal) return;
+
+            function toggleModal(show) {
+                if (show) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                    setTimeout(() => {
+                        content.classList.remove('scale-95', 'opacity-0');
+                        content.classList.add('scale-100', 'opacity-100');
+                        input.focus();
+                    }, 10);
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    content.classList.add('scale-95', 'opacity-0');
+                    content.classList.remove('scale-100', 'opacity-100');
+                    setTimeout(() => {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    }, 300);
+                    document.body.style.overflow = '';
+                    input.value = '';
+                    results.innerHTML = '';
+                }
             }
 
-            function initBackToTop() {
-                const btn = document.getElementById('back-to-top');
-                if (!btn) return;
-                
-                window.onscroll = () => {
-                    if (window.scrollY > 500) {
-                        btn.classList.remove('translate-y-32', 'opacity-0');
-                        btn.classList.add('translate-y-0', 'opacity-100');
-                    } else {
-                        btn.classList.add('translate-y-32', 'opacity-0');
-                        btn.classList.remove('translate-y-0', 'opacity-100');
-                    }
-                };
+            trigger.onclick = () => toggleModal(true);
+            overlay.onclick = () => toggleModal(false);
 
-                btn.onclick = () => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                };
-            }
-
-            function initGlobalSearch() {
-                const trigger = document.getElementById('global-search-trigger');
-                const modal = document.getElementById('global-search-modal');
-                const input = document.getElementById('global-search-input');
-                const results = document.getElementById('global-search-results');
-                const overlay = document.getElementById('modal-overlay');
-                const content = document.getElementById('modal-content');
-                let selectedIndex = -1;
-
-                if (!trigger || !modal) return;
-
-                function toggleModal(show) {
-                    if (show) {
-                        modal.classList.remove('hidden');
-                        modal.classList.add('flex');
-                        setTimeout(() => {
-                            content.classList.remove('scale-95', 'opacity-0');
-                            content.classList.add('scale-100', 'opacity-100');
-                            input.focus();
-                        }, 10);
-                        document.body.style.overflow = 'hidden';
-                    } else {
-                        content.classList.add('scale-95', 'opacity-0');
-                        content.classList.remove('scale-100', 'opacity-100');
-                        setTimeout(() => {
-                            modal.classList.add('hidden');
-                            modal.classList.remove('flex');
-                        }, 300);
-                        document.body.style.overflow = '';
-                        input.value = '';
-                        results.innerHTML = '';
-                    }
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '/' && document.activeElement !== input) {
+                    e.preventDefault();
+                    toggleModal(true);
+                }
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                    toggleModal(false);
                 }
 
-                trigger.onclick = () => toggleModal(true);
-                overlay.onclick = () => toggleModal(false);
-
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === '/' && document.activeElement !== input) {
+                if (!modal.classList.contains('hidden')) {
+                    const items = results.querySelectorAll('a');
+                    if (e.key === 'ArrowDown') {
                         e.preventDefault();
-                        toggleModal(true);
+                        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                        updateSelection(items);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedIndex = Math.max(selectedIndex - 1, -1);
+                        updateSelection(items);
+                    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                        e.preventDefault();
+                        items[selectedIndex].click();
                     }
-                    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-                        toggleModal(false);
-                    }
+                }
+            });
 
-                    if (!modal.classList.contains('hidden')) {
-                        const items = results.querySelectorAll('a');
-                        if (e.key === 'ArrowDown') {
-                            e.preventDefault();
-                            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-                            updateSelection(items);
-                        } else if (e.key === 'ArrowUp') {
-                            e.preventDefault();
-                            selectedIndex = Math.max(selectedIndex - 1, -1);
-                            updateSelection(items);
-                        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-                            e.preventDefault();
-                            items[selectedIndex].click();
-                        }
+            function updateSelection(items) {
+                items.forEach((item, idx) => {
+                    if (idx === selectedIndex) {
+                        item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
                     }
                 });
+            }
 
-                function updateSelection(items) {
-                    items.forEach((item, idx) => {
-                        if (idx === selectedIndex) {
-                            item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
-                            item.scrollIntoView({ block: 'nearest' });
-                        } else {
-                            item.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
-                        }
-                    });
+            let searchTimeout;
+            input.oninput = () => {
+                const query = input.value.trim().toLowerCase();
+                clearTimeout(searchTimeout);
+                if (query.length < 2) {
+                    results.innerHTML = '';
+                    return;
                 }
 
-                let searchTimeout;
-                input.oninput = () => {
-                    const query = input.value.trim().toLowerCase();
-                    clearTimeout(searchTimeout);
-                    if (query.length < 2) {
-                        results.innerHTML = '';
-                        return;
-                    }
+                searchTimeout = setTimeout(async () => {
+                    results.innerHTML = Array(3).fill(0).map(() => `
+                        <div class="p-6 animate-pulse flex items-center gap-4">
+                            <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl"></div>
+                            <div class="space-y-2"><div class="w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded"></div><div class="w-12 h-2 bg-slate-100 dark:bg-slate-800 rounded"></div></div>
+                        </div>
+                    `).join('');
 
-                    searchTimeout = setTimeout(async () => {
-                        results.innerHTML = Array(3).fill(0).map(() => `
-                            <div class="p-6 animate-pulse flex items-center gap-4">
-                                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl"></div>
-                                <div class="space-y-2"><div class="w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded"></div><div class="w-12 h-2 bg-slate-100 dark:bg-slate-800 rounded"></div></div>
-                            </div>
-                        `).join('');
+                    try {
+                        const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+                        const matches = await res.json();
+                        selectedIndex = -1;
 
-                        try {
-                            const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
-                            const matches = await res.json();
-                            selectedIndex = -1;
-
-                            if (matches.length > 0) {
-                                results.innerHTML = matches.map((p, idx) => {
-                                    const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-                                    const isVariety = p.id > 10000;
-                                    return `
-                                        <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group">
-                                            <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800">
-                                                <img src="${spriteUrl}" alt="${p.name}" class="w-full h-full object-contain drop-shadow-md" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
-                                            </div>
-                                            <div class="flex flex-col">
-                                                <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + p.id.toString().padStart(4, '0')}</span>
-                                                <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
-                                            </div>
-                                            <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver' : 'View'} →</span>
-                                        </a>
-                                    `;
-                                }).join('');
-                            } else {
-                                results.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">${lang === 'es' ? 'Sin resultados' : 'No results found'}</div>`;
-                            }
-                        } catch (e) {
-                            results.innerHTML = '';
+                        if (matches.length > 0) {
+                            results.innerHTML = matches.map((p, idx) => {
+                                const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
+                                const isVariety = p.id > 10000;
+                                return `
+                                    <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group">
+                                        <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800">
+                                            <img src="${spriteUrl}" alt="${p.name}" class="w-full h-full object-contain drop-shadow-md" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + p.id.toString().padStart(4, '0')}</span>
+                                            <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
+                                        </div>
+                                        <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver' : 'View'} →</span>
+                                    </a>
+                                `;
+                            }).join('');
+                        } else {
+                            results.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">${lang === 'es' ? 'Sin resultados' : 'No results found'}</div>`;
                         }
-                    }, 150);
-                };
-            }
+                    } catch (e) {
+                        results.innerHTML = '';
+                    }
+                }, 150);
+            };
+        }
 
-            function initAll() {
-                initTheme();
-                initRandom();
-                initBackToTop();
-                initGlobalSearch();
-                window.updateFavButtons();
-            }
+        function initAll() {
+            const dataEl = document.getElementById('layout-data');
+            if (!dataEl) return;
+            const lang = dataEl.dataset.lang || 'es';
 
-            // After every page load (including initial)
-            document.addEventListener('astro:page-load', initAll);
-            
-            // Listen for favorite updates across components
-            document.addEventListener('favorites-updated', window.updateFavButtons);
-        </script>
+            initTheme();
+            initRandom(lang);
+            initBackToTop();
+            initGlobalSearch(lang);
+            if (window.updateFavButtons) window.updateFavButtons();
+        }
+
+        document.addEventListener('astro:page-load', initAll);
+    </script>
 	</body>
 </html>
