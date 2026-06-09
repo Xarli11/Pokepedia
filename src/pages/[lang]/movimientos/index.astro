@@ -87,17 +87,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     </div>
 
     <script define:vars={{ lang, typeColors, typeTranslations }}>
-        const searchInput = document.getElementById('move-search');
-        const suggestionsContainer = document.getElementById('search-suggestions');
-        const typeFilter = document.getElementById('type-filter');
-        const rows = document.querySelectorAll('.move-row');
+        let searchInput, suggestionsContainer, typeFilter, rows, itemsData;
         const cache = new Map();
-
-        const itemsData = Array.from(rows).map(row => ({
-            name: row.dataset.name,
-            el: row,
-            url: row.dataset.url
-        }));
 
         const catTranslations = {
             physical: lang === 'es' ? 'Físico' : 'Physical',
@@ -110,6 +101,42 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             special: 'bg-indigo-500',
             status: 'bg-slate-400'
         };
+
+        function init() {
+            searchInput = document.getElementById('move-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            typeFilter = document.getElementById('type-filter');
+            rows = document.querySelectorAll('.move-row');
+
+            if (!searchInput) return;
+
+            itemsData = Array.from(rows).map(row => ({
+                name: row.dataset.name,
+                el: row,
+                url: row.dataset.url
+            }));
+
+            searchInput.addEventListener('input', () => {
+                filterTable();
+                updateSuggestions(searchInput.value);
+            });
+
+            typeFilter.addEventListener('change', filterTable);
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const row = entry.target;
+                        loadRow(row);
+                        observer.unobserve(row);
+                    }
+                });
+            }, { rootMargin: '100px' });
+
+            rows.forEach(row => observer.observe(row));
+        }
+
+        document.addEventListener('astro:page-load', init);
 
         async function fetchMoveInfo(url) {
             if (cache.has(url)) return cache.get(url);
@@ -178,18 +205,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const row = entry.target;
-                    loadRow(row);
-                    observer.unobserve(row);
-                }
-            });
-        }, { rootMargin: '100px' });
-
-        rows.forEach(row => observer.observe(row));
-
         async function loadRow(row) {
             const url = row.dataset.url;
             const info = await fetchMoveInfo(url);
@@ -236,15 +251,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
         }
 
-        searchInput.addEventListener('input', () => {
-            filterTable();
-            updateSuggestions(searchInput.value);
-        });
-
-        typeFilter.addEventListener('change', filterTable);
-
         document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.classList.add('hidden');
             }
         });

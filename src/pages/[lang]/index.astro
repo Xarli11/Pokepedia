@@ -184,51 +184,54 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
         const typesCache = new Map();
 
-        // Lógica para cargar tipos y stats desde el cliente (Navegador)
+        // Lógica para cargar tipos y stats desde el cliente (Navegador) con límite de concurrencia
         async function loadPokemonData() {
-            const containers = document.querySelectorAll('.types-container');
+            const containers = Array.from(document.querySelectorAll('.types-container'));
+            const batchSize = 15;
             
-            const fetchPromises = Array.from(containers).map(async (container) => {
-                const url = container.dataset.url;
-                const card = container.closest('.pokemon-card');
-                if (typesCache.has(url)) {
-                    const data = typesCache.get(url);
-                    renderTypes(container, data.types);
-                    if (card) {
-                        card.dataset.types = data.types.join(',');
-                        Object.entries(data.stats).forEach(([key, val]) => card.dataset[key] = val);
+            for (let i = 0; i < containers.length; i += batchSize) {
+                const batch = containers.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (container) => {
+                    const url = container.dataset.url;
+                    const card = container.closest('.pokemon-card');
+                    if (typesCache.has(url)) {
+                        const data = typesCache.get(url);
+                        renderTypes(container, data.types);
+                        if (card) {
+                            card.dataset.types = data.types.join(',');
+                            Object.entries(data.stats).forEach(([key, val]) => card.dataset[key] = val);
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                try {
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    const types = data.types.map(t => t.type.name);
-                    
-                    const stats = {
-                        hp: data.stats.find(s => s.stat.name === 'hp').base_stat,
-                        atk: data.stats.find(s => s.stat.name === 'attack').base_stat,
-                        def: data.stats.find(s => s.stat.name === 'defense').base_stat,
-                        spa: data.stats.find(s => s.stat.name === 'special-attack').base_stat,
-                        spd: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
-                        spe: data.stats.find(s => s.stat.name === 'speed').base_stat
-                    };
-                    stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
+                    try {
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        const types = data.types.map(t => t.type.name);
+                        
+                        const stats = {
+                            hp: data.stats.find(s => s.stat.name === 'hp').base_stat,
+                            atk: data.stats.find(s => s.stat.name === 'attack').base_stat,
+                            def: data.stats.find(s => s.stat.name === 'defense').base_stat,
+                            spa: data.stats.find(s => s.stat.name === 'special-attack').base_stat,
+                            spd: data.stats.find(s => s.stat.name === 'special-defense').base_stat,
+                            spe: data.stats.find(s => s.stat.name === 'speed').base_stat
+                        };
+                        stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
 
-                    typesCache.set(url, { types, stats });
-                    
-                    if (card) {
-                        card.dataset.types = types.join(',');
-                        Object.entries(stats).forEach(([key, val]) => card.dataset[key] = val);
+                        typesCache.set(url, { types, stats });
+                        
+                        if (card) {
+                            card.dataset.types = types.join(',');
+                            Object.entries(stats).forEach(([key, val]) => card.dataset[key] = val);
+                        }
+                        
+                        renderTypes(container, types);
+                    } catch (e) {
+                        container.innerHTML = '';
                     }
-                    
-                    renderTypes(container, types);
-                } catch (e) {
-                    container.innerHTML = '';
-                }
-            });
-            await Promise.all(fetchPromises);
+                }));
+            }
             applyFilters();
         }
 
@@ -242,24 +245,62 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             container.classList.add('flex-wrap', 'justify-center');
         }
 
-        loadPokemonData();
-        const searchInput = document.getElementById('global-search');
-        const typeFilter = document.getElementById('type-filter');
-        const sortOrder = document.getElementById('sort-order');
-        const suggestionsContainer = document.getElementById('search-suggestions');
-        const suggestionsList = document.getElementById('suggestions-list');
-        const grid = document.getElementById('pokemon-grid');
-        const noResults = document.getElementById('no-results');
-        const genPills = document.querySelectorAll('.gen-pill');
+        let searchInput, typeFilter, sortOrder, suggestionsContainer, suggestionsList, grid, noResults, genPills;
+
+        function init() {
+            searchInput = document.getElementById('global-search');
+            typeFilter = document.getElementById('type-filter');
+            sortOrder = document.getElementById('sort-order');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            suggestionsList = document.getElementById('suggestions-list');
+            grid = document.getElementById('pokemon-grid');
+            noResults = document.getElementById('no-results');
+            genPills = document.querySelectorAll('.gen-pill');
+
+            if (!searchInput) return;
+
+            // Event Listeners
+            searchInput.addEventListener('input', handleSearch);
+            typeFilter.addEventListener('change', applyFilters);
+            sortOrder.addEventListener('change', applyFilters);
+
+            searchInput.addEventListener('focus', () => {
+                if (normalize(searchInput.value).length >= 2) {
+                    suggestionsContainer.classList.remove('hidden');
+                }
+            });
+
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const firstResult = suggestionsList.querySelector('a');
+                    if (firstResult) {
+                        window.location.href = firstResult.href;
+                    }
+                }
+            });
+
+            genPills.forEach(pill => {
+                pill.onclick = () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('gen', pill.dataset.gen);
+                    window.location.href = url.toString();
+                };
+            });
+
+            loadPokemonData();
+            
+            if (gen === 'favorites') {
+                loadFavoritesView();
+            }
+        }
+
+        // Inicialización con soporte para View Transitions
+        document.addEventListener('astro:page-load', init);
 
         const t = uiTranslations[lang] || uiTranslations.es;
 
-        // Si estamos en la vista de favoritos al cargar
-        if (gen === 'favorites') {
-            loadFavoritesView();
-        }
-
         async function loadFavoritesView() {
+            if (!grid) return;
             const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
             grid.innerHTML = '';
             
@@ -456,36 +497,21 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        // Event Listeners
-        searchInput.addEventListener('input', handleSearch);
-        typeFilter.addEventListener('change', applyFilters);
-        sortOrder.addEventListener('change', applyFilters);
-
-        searchInput.addEventListener('focus', () => {
-            if (normalize(searchInput.value).length >= 2) {
-                suggestionsContainer.classList.remove('hidden');
-            }
-        });
-
         document.addEventListener('keydown', (e) => {
-            if (e.key === '/' && document.activeElement !== searchInput) {
-                e.preventDefault();
-                searchInput.focus();
-                window.scrollTo({ top: searchInput.offsetTop - 100, behavior: 'smooth' });
-            }
-        });
-
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const firstResult = suggestionsList.querySelector('a');
-                if (firstResult) {
-                    window.location.href = firstResult.href;
+            if (e.key === '/' && (document.activeElement?.tagName !== 'INPUT')) {
+                const searchInput = document.getElementById('global-search');
+                if (searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                    window.scrollTo({ top: searchInput.offsetTop - 100, behavior: 'smooth' });
                 }
             }
         });
 
         document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            const suggestionsContainer = document.getElementById('search-suggestions');
+            const searchInput = document.getElementById('global-search');
+            if (suggestionsContainer && searchInput && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.classList.add('hidden');
             }
         });
@@ -494,14 +520,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             if (gen === 'favorites') {
                 loadFavoritesView();
             }
-        });
-
-        genPills.forEach(pill => {
-            pill.onclick = () => {
-                const url = new URL(window.location.href);
-                url.searchParams.set('gen', pill.dataset.gen);
-                window.location.href = url.toString();
-            };
         });
     </script>
 </Layout>

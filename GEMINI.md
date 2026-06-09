@@ -46,10 +46,12 @@ Enciclopedia Pokémon de alto nivel con integración competitiva (Smogon/Showdow
 - [x] **Mejora de UX**: Enlaces directos a habilidades desde la ficha del Pokémon.
 - [x] **Mejora de UX**: Tarjetas de habilidades totalmente clickables.
 - [x] **Corrección de Layout**: Ajuste de etiquetas de tipo con wrap para evitar desbordamiento en tarjetas.
+- [x] **Optimización de Navegación**: Soporte completo para View Transitions en todas las secciones (fix de carga de datos en navegación hacia atrás).
 
 ## 🚀 Próximos Pasos
 - [x] **Filtros Avanzados**: Búsqueda por tipo y ordenación dinámica (ID/Nombre/Estadísticas) en la Pokedex.
 - [x] **UX Premium**: Navegación fluida entre secciones mediante Astro View Transitions.
+- [x] **Rendimiento Cliente**: Implementar limitación de concurrencia (batching) para peticiones a PokeAPI desde el cliente.
 
 ## 🚀 Próximos Pasos
-- [ ] Implementar limitación de concurrencia o batching para peticiones a PokeAPI desde el cliente.
+- [ ] Implementar sistema de comparación avanzada entre múltiples Pokémon (Radar Chart comparativo).

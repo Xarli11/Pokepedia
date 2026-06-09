@@ -62,16 +62,40 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     </div>
 
     <script define:vars={{ lang }}>
-        const searchInput = document.getElementById('ability-search');
-        const suggestionsContainer = document.getElementById('search-suggestions');
-        const cards = document.querySelectorAll('.ability-card');
+        let searchInput, suggestionsContainer, cards, itemsData;
         const cache = new Map();
 
-        const itemsData = Array.from(cards).map(card => ({
-            name: card.dataset.name,
-            el: card,
-            url: card.querySelector('[data-ability-url]').dataset.abilityUrl
-        }));
+        function init() {
+            searchInput = document.getElementById('ability-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            cards = document.querySelectorAll('.ability-card');
+
+            if (!searchInput) return;
+
+            itemsData = Array.from(cards).map(card => ({
+                name: card.dataset.name,
+                el: card,
+                url: card.querySelector('[data-ability-url]').dataset.abilityUrl
+            }));
+
+            searchInput.addEventListener('input', () => {
+                applyFilters(true);
+                updateSuggestions(searchInput.value);
+            });
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        loadCard(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '200px' });
+
+            cards.forEach(card => observer.observe(card));
+        }
+
+        document.addEventListener('astro:page-load', init);
 
         async function fetchAbilityInfo(url) {
             if (cache.has(url)) return cache.get(url);
@@ -79,11 +103,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                // Si la habilidad no tiene Pokémon asignados en PokeAPI, probablemente es CAP o dummy
-                // EXCEPCIÓN: Algunas habilidades nuevas pueden tener pocos pokemon pero son oficiales. 
-                // Bajamos el criterio o lo eliminamos si queremos ver todo.
-                // if (data.pokemon.length === 0) return { hide: true };
-
                 const name = data.names.find(n => n.language.name === lang)?.name || 
                              data.names.find(n => n.language.name === 'es')?.name || 
                              data.name;
@@ -101,7 +120,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     desc = enFlavor?.flavor_text || enEffect?.short_effect || "";
                 }
                 
-                // Si no hay ni inglés, no ocultamos, solo dejamos vacío
                 desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
                 const result = { name, desc, hide: false };
                 cache.set(url, result);
@@ -183,7 +201,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 const matchesSearch = englishName.includes(query) || translatedName.includes(query);
                 
                 if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
-                    // Si no coincide con el inglés pero no está cargado, forzamos carga para ver si coincide con el español
                     await loadCard(card);
                     const newTranslatedName = card.dataset.translatedName || '';
                     card.style.display = newTranslatedName.includes(query) ? 'block' : 'none';
@@ -193,26 +210,10 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        searchInput.addEventListener('input', () => {
-            applyFilters(true);
-            updateSuggestions(searchInput.value);
-        });
-
         document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.classList.add('hidden');
             }
         });
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    loadCard(entry.target);
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { rootMargin: '200px' });
-
-        cards.forEach(card => observer.observe(card));
     </script>
 </Layout>

@@ -100,10 +100,7 @@ const mainCategories = [
     </style>
 
     <script define:vars={{ lang, i18nItems }}>
-        const searchInput = document.getElementById('item-search');
-        const suggestionsContainer = document.getElementById('search-suggestions');
-        const categoryFilter = document.getElementById('category-filter');
-        const cards = document.querySelectorAll('.item-card');
+        let searchInput, suggestionsContainer, categoryFilter, cards;
         const cache = new Map();
 
         const SUPER_CAT_MAP = {
@@ -121,6 +118,35 @@ const mainCategories = [
             }
             return rawCat;
         }
+
+        function init() {
+            searchInput = document.getElementById('item-search');
+            suggestionsContainer = document.getElementById('search-suggestions');
+            categoryFilter = document.getElementById('category-filter');
+            cards = document.querySelectorAll('.item-card');
+
+            if (!searchInput) return;
+
+            searchInput.addEventListener('input', () => {
+                applyFilters(true);
+                updateSuggestions(searchInput.value);
+            });
+
+            categoryFilter.addEventListener('change', () => applyFilters(true));
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        loadCard(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '300px' });
+
+            cards.forEach(card => observer.observe(card));
+        }
+
+        document.addEventListener('astro:page-load', init);
 
         async function fetchItemInfo(url) {
             if (cache.has(url)) return cache.get(url);
@@ -211,17 +237,6 @@ const mainCategories = [
             }
         }
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    loadCard(entry.target);
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { rootMargin: '300px' });
-
-        cards.forEach(card => observer.observe(card));
-
         async function applyFilters(forceLoad = true) {
             const query = searchInput.value.toLowerCase().trim();
             const selectedSuperCat = categoryFilter.value;
@@ -241,15 +256,8 @@ const mainCategories = [
             }
         }
 
-        searchInput.addEventListener('input', () => {
-            applyFilters(true);
-            updateSuggestions(searchInput.value);
-        });
-
-        categoryFilter.addEventListener('change', () => applyFilters(true));
-
         document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.classList.add('hidden');
             }
         });
