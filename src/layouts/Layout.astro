@@ -38,6 +38,22 @@ if (Astro.locals.cacheControl) {
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
         
+        <script is:inline>
+            (function() {
+                const getTheme = () => {
+                    const savedTheme = localStorage.getItem('theme');
+                    if (savedTheme) return savedTheme;
+                    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                };
+                const theme = getTheme();
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            })();
+        </script>
+        
         <!-- Google tag (gtag.js) -->
         <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-J7Z6HJMYWD"></script>
         <script is:inline>
@@ -113,30 +129,14 @@ if (Astro.locals.cacheControl) {
         </script>
         
         <script is:inline define:vars={{ lang }}>
-            const getTheme = () => {
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme) return savedTheme;
-                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            };
-
-            const applyTheme = () => {
-                const theme = getTheme();
-                if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            };
-
-            // Initial apply to prevent flash
-            applyTheme();
-
-            // Re-apply after View Transitions swap
-            document.addEventListener('astro:after-swap', applyTheme);
+            // Listen for favorite updates across components
+            document.addEventListener('favorites-updated', () => {
+                if (window.updateFavButtons) window.updateFavButtons();
+            });
         </script>
         <ViewTransitions />
 	</head>
-	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col transition-colors duration-500">
+	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col">
         <header class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 transition-all duration-300">
             <div class="container mx-auto px-4 py-3 flex items-center justify-between">
                 <!-- Logo Edition -->
