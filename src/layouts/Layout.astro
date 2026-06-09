@@ -45,12 +45,20 @@ if (Astro.locals.cacheControl) {
                     if (savedTheme) return savedTheme;
                     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                 };
-                const theme = getTheme();
-                if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
+                const applyTheme = () => {
+                    const theme = getTheme();
+                    if (theme === 'dark') {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                };
+                
+                // Initial apply
+                applyTheme();
+
+                // Re-apply after View Transitions swap
+                document.addEventListener('astro:after-swap', applyTheme);
             })();
         </script>
         
