@@ -634,10 +634,7 @@ if (Astro.locals.cacheControl) {
                 window.updateFavButtons();
             }
 
-            // Initial load
-            initAll();
-
-            // After every view transition
+            // After every page load (including initial)
             document.addEventListener('astro:page-load', initAll);
             
             // Listen for favorite updates across components
