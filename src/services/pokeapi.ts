@@ -117,7 +117,7 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
         return cached.data;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
     const data = await response.json();
 

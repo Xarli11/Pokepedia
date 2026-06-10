@@ -93,7 +93,7 @@ try {
         species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
         Promise.all(detail.abilities.map(async (a: any) => {
             try {
-                const res = await fetch(a.ability.url);
+                const res = await fetch(a.ability.url, { signal: AbortSignal.timeout(5000) });
                 if (!res.ok) throw new Error();
                 const ad = await res.json();
                 return {
@@ -106,7 +106,7 @@ try {
                 return { ...a, displayName: formatName(a.ability.name), description: "" };
             }
         })),
-        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => fetch(v.pokemon.url).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
+        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => fetch(v.pokemon.url, { signal: AbortSignal.timeout(5000) }).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
     ]);
 
     evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -150,12 +150,12 @@ const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
 let prevPokemon: any = null;
 let nextPokemon: any = null;
 try {
-    const navResults = await Promise.all([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`).then(res => res.ok ? res.json() : null),
-        fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`).then(res => res.ok ? res.json() : null)
+    const navResults = await Promise.allSettled([
+        fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null),
+        fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null)
     ]);
-    prevPokemon = navResults[0];
-    nextPokemon = navResults[1];
+    prevPokemon = navResults[0].status === 'fulfilled' ? navResults[0].value : null;
+    nextPokemon = navResults[1].status === 'fulfilled' ? navResults[1].value : null;
 } catch (e) {}
 
 const hasNavigation = prevPokemon && nextPokemon;

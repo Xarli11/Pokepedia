@@ -3,24 +3,32 @@
 const cache = new Map<string, { data: any, timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 
-async function fetchWithCache<T>(url: string, timeoutMs = 8000): Promise<T | null> {
+async function fetchWithCache<T>(url: string, timeoutMs = 5000): Promise<T | null> {
     const cached = cache.get(url);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.data;
 
     try {
         const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
         if (!response.ok) return null;
+        
+        // Verificación de Content-Length antes de descargar el cuerpo si es posible
+        const contentLength = response.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+             console.warn(`Smogon data too large (Header): ${url}`);
+             return null;
+        }
+
         const text = await response.text();
         
-        // Limpiar el JSON si viene con formato de variable de JS
-        const cleanText = text.replace(/^var \w+ = /i, '').replace(/;$/, '').trim();
-        
-        // Verificación de tamaño: Si el texto es masivo (> 10MB), mejor no parsearlo en el Worker
-        if (cleanText.length > 10 * 1024 * 1024) {
-            console.warn(`Smogon data too large: ${url}`);
+        // Verificación de tamaño real del texto
+        if (text.length > 10 * 1024 * 1024) {
+            console.warn(`Smogon data too large (Body): ${url}`);
             return null;
         }
 
+        // Limpiar el JSON si viene con formato de variable de JS
+        const cleanText = text.replace(/^var \w+ = /i, '').replace(/;$/, '').trim();
+        
         const data = JSON.parse(cleanText);
         cache.set(url, { data, timestamp: Date.now() });
         return data;

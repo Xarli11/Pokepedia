@@ -84,8 +84,13 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         
         async function loadTiers() {
             if (!window.psPokedex) {
-                const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json');
-                window.psPokedex = await res.json();
+                try {
+                    const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json', { signal: AbortSignal.timeout(8000) });
+                    window.psPokedex = await res.json();
+                } catch (e) {
+                    console.warn('Could not load tiers:', e);
+                    return;
+                }
             }
             updateTiers();
         }

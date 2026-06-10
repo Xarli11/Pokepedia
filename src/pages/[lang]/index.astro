@@ -328,7 +328,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     }
 
                     try {
-                        const res = await fetch(url);
+                        const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
                         const data = await res.json();
                         const types = data.types.map(t => t.type.name);
                         
