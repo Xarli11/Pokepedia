@@ -168,26 +168,32 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 data-spe={p.stats.spe ?? ''}
                 data-total={p.types.length > 0 ? Object.values(p.stats).reduce((a: number, b: any) => a + (b || 0), 0) : ''}
             >
-                {/* Enlace invisible que cubre toda la card — evita button-inside-a (HTML inválido) */}
-                <a href={`/${lang}/pokemon/${p.name}`} class="absolute inset-0 z-0 rounded-[3rem]" aria-label={p.name.replace(/-/g, ' ')}></a>
+                {/* Enlace invisible que cubre toda la card */}
+                <a href={`/${lang}/pokemon/${p.name}`} class="absolute inset-0 z-10 rounded-[3rem]" aria-label={p.name.replace(/-/g, ' ')}></a>
+                {/* Top accent bar con color del tipo primario */}
+                {p.types.length > 0 && (
+                    <div class="absolute top-0 left-0 right-0 h-0.5 opacity-60 pointer-events-none" style={`background-color: ${(typeColors as Record<string,string>)[p.types[0]] || '#10b981'}`} aria-hidden="true"></div>
+                )}
 
-                <div class="relative z-10 w-full flex items-center justify-between mb-10">
+                {/* Fav button — único elemento interactivo, z-20 por encima del link */}
+                <div class="relative z-20 w-full flex items-center justify-between mb-10 pointer-events-none">
                     <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em]">#{p.id.toString().padStart(4, '0')}</span>
                     <button
-                        class="fav-btn relative z-20 p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500"
+                        class="fav-btn pointer-events-auto p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500"
                         data-pokemon={p.name}
-                        onclick="window.toggleFavorite(this.dataset.pokemon)"
+                        onclick="event.preventDefault(); window.toggleFavorite(this.dataset.pokemon);"
                         aria-label={`${lang === 'es' ? 'Favorito' : 'Favorite'} ${p.name.replace(/-/g, ' ')}`}
                     >
                         <svg class="w-6 h-6 heart-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
                 </div>
-                <div class="relative z-10 w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3">
-                    <div class="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700" aria-hidden="true"></div>
-                    <img src={p.sprite} alt={p.name.replace(/-/g, ' ')} width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl relative z-20" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                {/* Sprite + glow — pointer-events-none para que el click pase al <a> */}
+                <div class="pointer-events-none relative z-10 w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3">
+                    <img src={p.sprite} alt={p.name.replace(/-/g, ' ')} width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                    <div class="absolute inset-0 blur-[60px] rounded-full opacity-0 group-hover:opacity-50 transition-opacity duration-700" style={p.types.length > 0 ? `background-color: ${(typeColors as Record<string,string>)[p.types[0]] || '#10b981'}` : 'background-color: #10b981'} aria-hidden="true"></div>
                 </div>
-                <p class="relative z-10 mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize group-hover:text-emerald-500 transition-colors tracking-tighter text-center">{p.name.replace(/-/g, ' ')}</p>
-                <div class="relative z-10 flex flex-wrap justify-center gap-3 mt-6">
+                <p class="pointer-events-none relative z-10 mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize group-hover:text-emerald-500 transition-colors tracking-tighter text-center">{p.name.replace(/-/g, ' ')}</p>
+                <div class="pointer-events-none relative z-10 flex flex-wrap justify-center gap-3 mt-6">
                     {p.types.length > 0 ? p.types.map(typeName => (
                         <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm shrink-0">
                             <div class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as any)[typeName] || '#777'};`} aria-hidden="true"></div>
@@ -303,21 +309,23 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const safeName = escHtml(p.name);
             const safeDisplayName = escHtml(p.name.replace(/-/g, ' '));
 
+            const accentColor = typeColorsClient[types[0]] || '#10b981';
             // Link covers entire card; fav button sits above it via z-index
             card.innerHTML = `
-                <a href="/${lang}/pokemon/${safeName}" class="absolute inset-0 z-0 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
-                <div class="relative z-10 w-full flex items-center justify-between mb-10">
+                <a href="/${lang}/pokemon/${safeName}" class="absolute inset-0 z-10 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
+                <div class="absolute top-0 left-0 right-0 h-0.5 opacity-60 pointer-events-none" style="background-color: ${accentColor}" aria-hidden="true"></div>
+                <div class="relative z-20 w-full flex items-center justify-between mb-10 pointer-events-none">
                     <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em]">#${String(p.id).padStart(4, '0')}</span>
-                    <button class="fav-btn relative z-20 p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500" data-pokemon="${safeName}" aria-label="Favorite ${safeDisplayName}">
+                    <button class="fav-btn pointer-events-auto p-3 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all duration-300 group/fav-btn text-rose-500" data-pokemon="${safeName}" aria-label="Favorite ${safeDisplayName}">
                         <svg class="w-6 h-6 heart-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
                 </div>
-                <div class="relative z-10 w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3">
-                    <div class="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full opacity-0 group-hover:opacity-60 transition-opacity duration-700" aria-hidden="true"></div>
-                    <img src="${spriteUrl}" alt="${safeDisplayName}" width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl relative z-20" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                <div class="pointer-events-none relative w-56 h-56 flex items-center justify-center transition-all duration-700 group-hover:scale-110 group-hover:-rotate-3">
+                    <img src="${spriteUrl}" alt="${safeDisplayName}" width="220" height="220" class="w-full h-full object-contain drop-shadow-2xl" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
+                    <div class="absolute inset-0 blur-[60px] rounded-full opacity-0 group-hover:opacity-50 transition-opacity duration-700" style="background-color: ${typeColorsClient[types[0]] || '#10b981'}" aria-hidden="true"></div>
                 </div>
-                <p class="relative z-10 mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize group-hover:text-emerald-500 transition-colors tracking-tighter text-center">${safeDisplayName}</p>
-                <div class="relative z-10 flex flex-wrap justify-center gap-3 mt-6 px-4">${typesHtml}</div>
+                <p class="pointer-events-none mt-10 text-3xl font-[1000] text-slate-800 dark:text-white capitalize group-hover:text-emerald-500 transition-colors tracking-tighter text-center">${safeDisplayName}</p>
+                <div class="pointer-events-none flex flex-wrap justify-center gap-3 mt-6 px-4">${typesHtml}</div>
             `;
 
             const favBtn = card.querySelector('.fav-btn') as HTMLButtonElement;
