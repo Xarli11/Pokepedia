@@ -31,18 +31,20 @@ detail.stats = detail.stats || [];
 detail.types = detail.types || [];
 
 // 1. Enriquecer con Showdown
+let showdownData: any = null;
 try {
-    const showdownData = await getShowdownPokemon(name);
+    showdownData = await getShowdownPokemon(name);
     if (showdownData) {
         // Habilidades desde Showdown (Fuente principal de verdad técnica)
+        // La key "H" en el objeto de Showdown indica habilidad oculta
         if (showdownData.abilities) {
-            detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
-                ability: { 
-                    name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
-                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` 
+            detail.abilities = Object.entries(showdownData.abilities).map(([key, abilityName]: [string, any]) => ({
+                ability: {
+                    name: abilityName.toLowerCase().replace(/\s+/g, '-'),
+                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}`
                 },
-                is_hidden: index > 0,
-                slot: index + 1
+                is_hidden: key === 'H',
+                slot: key === 'H' ? 3 : parseInt(key) + 1
             }));
         }
 
@@ -173,8 +175,12 @@ const points = statsValues.map((stat: number, i: number) => {
 
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 const gridLevels = [0.25, 0.5, 0.75, 1];
-const seoTitle = `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`;
-const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`;
+const seoTitle = lang === 'es'
+    ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
+    : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
+const seoDescription = lang === 'es'
+    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`
+    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses and competitive strategies.`;
 
 const getStatColor = (baseStat: number) => {
     if (baseStat < 70) return 'from-red-400 to-red-600';
@@ -205,7 +211,7 @@ const getStatColor = (baseStat: number) => {
                 {hasNavigation ? (
                     <>
                         <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
-                            <img src={prevPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
@@ -217,7 +223,7 @@ const getStatColor = (baseStat: number) => {
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <img src={nextPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={nextPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                         </a>
                     </>
                 ) : <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">{t.navigation_unavailable || 'Navigation unavailable'}</div>}
@@ -267,7 +273,7 @@ const getStatColor = (baseStat: number) => {
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>
                 </div>
-                <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
+                <h2 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h2>
                 <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">"{description}"</p>
 
                 <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
@@ -325,7 +331,7 @@ const getStatColor = (baseStat: number) => {
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <CompetitiveSets pokemonName={detail.name} lang={lang as string} />
+        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} />
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 

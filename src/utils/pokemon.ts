@@ -1,5 +1,14 @@
 // src/utils/pokemon.ts
 
+export function escapeHtml(str: string): string {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 export const typeTranslations: Record<string, Record<string, string>> = {
     es: {
         normal: 'Normal',
@@ -141,7 +150,18 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'select_pokemon': 'Seleccionar Pokémon',
         'vs': 'VS',
         'stat_winner': 'Superior',
-        'no_advantage': 'Sin ventaja'
+        'no_advantage': 'Sin ventaja',
+        'navigation_unavailable': 'Navegación no disponible',
+        'back_to_top': 'Volver arriba',
+        'type_analysis': 'Análisis de Tipos',
+        'weaknesses': 'Debilidades',
+        'tier_legend': 'Leyenda de Categorías (Tiers)',
+        'priority': 'Prioridad',
+        'pp': 'PP',
+        'version': 'Versión',
+        'moves_col_level': 'Nivel',
+        'moves_col_effect': 'Efecto / Descripción',
+        'view_on_poketypes': 'Ver análisis completo en PokeTypes'
         },
         en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -241,7 +261,18 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'select_pokemon': 'Select Pokémon',
         'vs': 'VS',
         'stat_winner': 'Superior',
-        'no_advantage': 'No advantage'
+        'no_advantage': 'No advantage',
+        'navigation_unavailable': 'Navigation unavailable',
+        'back_to_top': 'Back to top',
+        'type_analysis': 'Type Analysis',
+        'weaknesses': 'Weaknesses',
+        'tier_legend': 'Tier Categories Legend',
+        'priority': 'Priority',
+        'pp': 'PP',
+        'version': 'Version',
+        'moves_col_level': 'Lv.',
+        'moves_col_effect': 'Effect / Description',
+        'view_on_poketypes': 'Full type analysis on PokeTypes'
     }
 };
 

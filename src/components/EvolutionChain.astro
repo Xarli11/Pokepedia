@@ -56,7 +56,7 @@ async function getEvolutionRequirement(details: any) {
     if (details.needs_overworld_rain) parts.push(t.condition_rain);
     if (details.time_of_day) parts.push(details.time_of_day === 'day' ? t.condition_day : t.condition_night);
     
-    if (details.relative_physical_stats !== null) {
+    if (details.relative_physical_stats != null) {
         if (details.relative_physical_stats === 1) parts.push("Atk > Def");
         else if (details.relative_physical_stats === -1) parts.push("Def > Atk");
         else parts.push("Atk = Def");

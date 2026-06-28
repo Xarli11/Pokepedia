@@ -27,7 +27,7 @@ const mt = methodTranslations[lang] || methodTranslations.es;
 const safeMoves = moves || [];
 const versionGroups = [...new Set(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)))].sort();
 
-const processedMoves = safeMoves.flatMap(m => 
+const processedMoves = safeMoves.flatMap(m =>
     (m.version_group_details || []).map(d => ({
         name: formatName(m.move?.name || ""),
         slug: m.move?.name || "",
@@ -40,7 +40,6 @@ const processedMoves = safeMoves.flatMap(m =>
     }))
 ).filter(m => m.slug);
 
-// Deduplicar movimientos por versión, nombre y nivel para evitar duplicados visuales
 const movesByVersion = versionGroups.reduce((acc, version) => {
     const versionMoves = processedMoves.filter(m => m.version === version);
     const seen = new Set();
@@ -53,27 +52,29 @@ const movesByVersion = versionGroups.reduce((acc, version) => {
     return acc;
 }, {} as Record<string, any[]>);
 
-const initialVersion = versionGroups.length > 0 
+const initialVersion = versionGroups.length > 0
     ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
     : '';
 ---
 
-<div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300" 
-     data-moves={JSON.stringify(movesByVersion)} 
+<div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300"
      data-initial-version={initialVersion}
      data-lang={lang}>
-    
+
+    <!-- Moves data embedded in a script tag to avoid data-* attribute overhead -->
+    <script type="application/json" id="moves-data">{JSON.stringify(movesByVersion)}</script>
+
     <div class="p-8 md:p-10 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div>
                 <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.moves}</h3>
                 <p class="text-slate-900 dark:text-white font-black text-2xl mt-1">{t.moves_subtitle}</p>
             </div>
-            
+
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto flex-grow lg:flex-grow-0 lg:min-w-[650px]">
                 <div class="relative">
                     <input type="text" id="moveSearch" placeholder={t.search_move} class="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all dark:text-white dark:placeholder-slate-500"/>
-                    <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-600" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
 
                 <div class="relative">
@@ -81,10 +82,10 @@ const initialVersion = versionGroups.length > 0
                         <option value="all">{t.all_methods}</option>
                         <option value="level-up">{t.by_level}</option>
                         <option value="machine">MT/MO</option>
-                        <option value="egg">Huevo</option>
+                        <option value="egg">{lang === 'es' ? 'Huevo' : 'Egg'}</option>
                         <option value="tutor">Tutor</option>
                     </select>
-                    <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
 
                 <div class="relative">
@@ -93,7 +94,7 @@ const initialVersion = versionGroups.length > 0
                             <option value={v} selected={v === initialVersion}>{versionTranslations[v] || v.replace(/-/g, ' ')}</option>
                         ))}
                     </select>
-                    <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
             </div>
         </div>
@@ -103,13 +104,13 @@ const initialVersion = versionGroups.length > 0
         <table class="w-full text-left border-collapse table-fixed min-w-[1000px]" id="movesTable">
             <thead>
                 <tr class="bg-slate-50/50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-700">
-                    <th class="px-4 py-6 w-16">Nivel</th>
-                    <th class="px-6 py-6 w-48">Ataque</th>
-                    <th class="px-4 py-6 w-24">Categoría</th>
-                    <th class="px-4 py-6 w-16">Prior.</th>
-                    <th class="px-4 py-6 w-24">Método</th>
-                    <th class="px-4 py-6 w-32">Versión</th>
-                    <th class="px-8 py-6">Efecto / Descripción</th>
+                    <th class="px-4 py-6 w-16">{t.moves_col_level}</th>
+                    <th class="px-6 py-6 w-48">{t.move}</th>
+                    <th class="px-4 py-6 w-24">{t.category}</th>
+                    <th class="px-4 py-6 w-16">{t.priority}</th>
+                    <th class="px-4 py-6 w-24">{t.method}</th>
+                    <th class="px-4 py-6 w-32">{t.version}</th>
+                    <th class="px-8 py-6">{t.moves_col_effect}</th>
                 </tr>
             </thead>
             <tbody id="movesTableBody" class="divide-y divide-slate-50 dark:divide-slate-700/50"></tbody>
@@ -121,16 +122,15 @@ const initialVersion = versionGroups.length > 0
 <script>
     const moveCache = new Map();
 
-    async function fetchMoveInfo(url, lang) {
+    async function fetchMoveInfo(url: string, lang: string) {
         if (!url) return null;
         if (moveCache.has(url)) return moveCache.get(url);
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
             if (!res.ok) return null;
             const data = await res.json();
-            
-            // Parches manuales locales para el cliente (Sincronizados con el servidor)
-            const patches = {
+
+            const patches: Record<string, { name: string; desc: string }> = {
                 'dire-claw': { name: 'Garra Nociva', desc: 'El usuario ataca al objetivo con garras destructoras, con el objetivo de asestar un golpe crítico. Esto también puede dejar al objetivo envenenado, paralizado o somnoliento.' },
                 'victory-dance': { name: 'Danza Victoria', desc: 'El usuario realiza una danza mística que aumenta su Ataque, Defensa y Velocidad.' },
                 'ceaseless-edge': { name: 'Tajo Ceñudo', desc: 'El usuario ataca con un tajo imbuido de resentimiento. Deja púas en el campo de batalla del oponente.' },
@@ -138,15 +138,11 @@ const initialVersion = versionGroups.length > 0
                 'barrage-fang': { name: 'Colmillo Alud', desc: 'Ataca con colmillos cargados de energía. Puede retroceder al objetivo.' }
             };
 
-            const cleanName = data.name.toLowerCase();
-            const patch = patches[cleanName];
-
-            const localizedName = patch?.name || data.names.find(n => n.language.name === lang)?.name || data.name;
-            let localizedDesc = patch?.desc || data.flavor_text_entries.find(f => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                                data.flavor_text_entries.find(f => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
-            
-            // Si después del fallback a inglés seguimos en español y la descripción es muy técnica o falta,
-            // podríamos intentar un fallback a WikiDex aquí también si fuera necesario.
+            const patch = patches[data.name.toLowerCase()];
+            const localizedName = patch?.name || data.names.find((n: any) => n.language.name === lang)?.name || data.name;
+            const localizedDesc = patch?.desc ||
+                data.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
+                data.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
 
             const category = data.damage_class?.name || 'status';
             const priority = data.priority || 0;
@@ -159,11 +155,15 @@ const initialVersion = versionGroups.length > 0
     function setupMovesTable() {
         const container = document.querySelector('.moves-container') as HTMLElement;
         if (!container) return;
-        
-        const movesByVersion = JSON.parse(container.dataset.moves || '{}');
+
+        // Read data from script tag instead of data-* attribute
+        const dataScript = document.getElementById('moves-data');
+        const movesByVersion: Record<string, any[]> = dataScript ? JSON.parse(dataScript.textContent || '{}') : {};
+
         const lang = container.dataset.lang || 'es';
         let currentVersion = container.dataset.initialVersion || '';
-        
+        let prefetchRequestId = 0; // A9: track request ID to cancel stale fetches
+
         const searchInput = document.getElementById('moveSearch') as HTMLInputElement;
         const methodFilter = document.getElementById('methodFilter') as HTMLSelectElement;
         const versionFilter = document.getElementById('versionFilter') as HTMLSelectElement;
@@ -179,7 +179,7 @@ const initialVersion = versionGroups.length > 0
             moves = moves.filter(m => {
                 const cached = moveCache.get(m.url);
                 const searchableName = cached ? cached.name.toLowerCase() : m.name.toLowerCase();
-                return searchableName.includes(searchTerm) && 
+                return searchableName.includes(searchTerm) &&
                        (methodValue === 'all' || m.method === methodValue);
             });
 
@@ -227,34 +227,29 @@ const initialVersion = versionGroups.length > 0
 
         async function prefetch() {
             if (!currentVersion) return;
+            const requestId = ++prefetchRequestId; // A9: stamp this batch
             const currentMoves = movesByVersion[currentVersion] || [];
             await Promise.all(currentMoves.map(async m => {
                 const info = await fetchMoveInfo(m.url, lang);
+                if (requestId !== prefetchRequestId) return; // A9: stale, discard
                 if (info && tableBody) {
-                    const names = tableBody.querySelectorAll(`[data-move-url="${m.url}"]`);
-                    const descs = tableBody.querySelectorAll(`[data-move-desc-url="${m.url}"]`);
-                    const cats = tableBody.querySelectorAll(`[data-move-cat-url="${m.url}"]`);
-                    const priorities = tableBody.querySelectorAll(`[data-move-priority-url="${m.url}"]`);
-
-                    names.forEach(n => { n.textContent = info.name; });
-                    descs.forEach(d => { d.textContent = info.description; });
-                    
-                    cats.forEach(c => { 
+                    tableBody.querySelectorAll(`[data-move-url="${m.url}"]`).forEach(n => { n.textContent = info.name; });
+                    tableBody.querySelectorAll(`[data-move-desc-url="${m.url}"]`).forEach(d => { d.textContent = info.description; });
+                    tableBody.querySelectorAll(`[data-move-cat-url="${m.url}"]`).forEach(c => {
                         c.textContent = info.category;
-                        c.className = `category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm ${
-                            info.category === 'physical' ? 'bg-red-500' : 
+                        (c as HTMLElement).className = `category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm ${
+                            info.category === 'physical' ? 'bg-red-500' :
                             info.category === 'special' ? 'bg-blue-500' : 'bg-slate-400'
                         }`;
                     });
-
-                    priorities.forEach(p => {
+                    tableBody.querySelectorAll(`[data-move-priority-url="${m.url}"]`).forEach(p => {
                         const prio = info.priority;
                         p.textContent = `${prio > 0 ? '+' : ''}${prio}`;
-                        p.className = `px-4 py-6 font-mono text-xs ${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}`;
+                        (p as HTMLElement).className = `px-4 py-6 font-mono text-xs ${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}`;
                     });
                 }
             }));
-            if (searchInput?.value || methodFilter?.value !== 'all') renderMoves();
+            if (requestId === prefetchRequestId && (searchInput?.value || methodFilter?.value !== 'all')) renderMoves();
         }
 
         searchInput?.addEventListener('input', renderMoves);
@@ -264,7 +259,7 @@ const initialVersion = versionGroups.length > 0
             renderMoves();
             prefetch();
         });
-        
+
         renderMoves();
         prefetch();
     }

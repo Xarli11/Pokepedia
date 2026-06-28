@@ -310,7 +310,8 @@ if (Astro.locals.cacheControl) {
         </nav>
 
         <!-- Buscador Global Modal -->
-        <div id="global-search-modal" class="fixed inset-0 z-[100] hidden items-start justify-center pt-24 px-4 backdrop-blur-2xl bg-slate-950/40 transition-all duration-300">
+        <div id="global-search-modal" class="fixed inset-0 z-[100] hidden items-start justify-center pt-24 px-4 backdrop-blur-2xl bg-slate-950/40 transition-all duration-300"
+             role="dialog" aria-modal="true" aria-labelledby="global-search-input">
             <div class="absolute inset-0" id="modal-overlay"></div>
             <div class="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all scale-95 opacity-0 duration-300" id="modal-content">
                 <div class="p-6 border-b border-slate-100 dark:border-slate-800">
@@ -345,10 +346,10 @@ if (Astro.locals.cacheControl) {
             </div>
         </div>
 
-        <button 
+        <button
             id="back-to-top"
             class="fixed bottom-28 right-6 sm:bottom-8 sm:right-8 z-[100] h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 shadow-2xl transition-all duration-300 translate-y-32 opacity-0 hover:scale-110 active:scale-95 group"
-            title="Volver Arriba"
+            aria-label={uiTranslations[lang]?.back_to_top || (lang === 'es' ? 'Volver Arriba' : 'Back to Top')}
         >
             <svg class="w-5 h-5 sm:w-6 sm:h-6 mx-auto group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"></path>
@@ -487,8 +488,10 @@ if (Astro.locals.cacheControl) {
         function initBackToTop() {
             const btn = document.getElementById('back-to-top');
             if (!btn) return;
-            
-            window.onscroll = () => {
+
+            // Replace prior scroll listener cleanly
+            if (window._backToTopHandler) window.removeEventListener('scroll', window._backToTopHandler);
+            window._backToTopHandler = () => {
                 if (window.scrollY > 500) {
                     btn.classList.remove('translate-y-32', 'opacity-0');
                     btn.classList.add('translate-y-0', 'opacity-100');
@@ -497,10 +500,13 @@ if (Astro.locals.cacheControl) {
                     btn.classList.remove('translate-y-0', 'opacity-100');
                 }
             };
+            window.addEventListener('scroll', window._backToTopHandler, { passive: true });
 
-            btn.onclick = () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
+            btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function escHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function initGlobalSearch(lang) {
@@ -512,21 +518,27 @@ if (Astro.locals.cacheControl) {
             const content = document.getElementById('modal-content');
             let selectedIndex = -1;
 
-            if (!trigger || !modal) return;
+            if (!trigger || !modal || !input || !results) return;
+
+            // A5: abort previous listeners to avoid accumulation across page-loads
+            if (window._searchAbortController) window._searchAbortController.abort();
+            const ac = new AbortController();
+            window._searchAbortController = ac;
+            const { signal } = ac;
 
             function toggleModal(show) {
                 if (show) {
                     modal.classList.remove('hidden');
                     modal.classList.add('flex');
                     setTimeout(() => {
-                        content.classList.remove('scale-95', 'opacity-0');
-                        content.classList.add('scale-100', 'opacity-100');
+                        content?.classList.remove('scale-95', 'opacity-0');
+                        content?.classList.add('scale-100', 'opacity-100');
                         input.focus();
                     }, 10);
                     document.body.style.overflow = 'hidden';
                 } else {
-                    content.classList.add('scale-95', 'opacity-0');
-                    content.classList.remove('scale-100', 'opacity-100');
+                    content?.classList.add('scale-95', 'opacity-0');
+                    content?.classList.remove('scale-100', 'opacity-100');
                     setTimeout(() => {
                         modal.classList.add('hidden');
                         modal.classList.remove('flex');
@@ -534,21 +546,37 @@ if (Astro.locals.cacheControl) {
                     document.body.style.overflow = '';
                     input.value = '';
                     results.innerHTML = '';
+                    selectedIndex = -1;
                 }
             }
 
             trigger.onclick = () => toggleModal(true);
-            overlay.onclick = () => toggleModal(false);
+            if (overlay) overlay.onclick = () => toggleModal(false);
+
+            // B8: focus trap — keep Tab inside modal
+            modal.addEventListener('keydown', (e) => {
+                if (modal.classList.contains('hidden')) return;
+                if (e.key === 'Tab') {
+                    const focusable = modal.querySelectorAll('input, a, button, [tabindex]:not([tabindex="-1"])');
+                    if (focusable.length === 0) return;
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+                    if (e.shiftKey && document.activeElement === first) {
+                        e.preventDefault(); last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        e.preventDefault(); first.focus();
+                    }
+                }
+            }, { signal });
 
             document.addEventListener('keydown', (e) => {
-                if (e.key === '/' && document.activeElement !== input) {
+                if (e.key === '/' && document.activeElement !== input && document.activeElement?.tagName !== 'INPUT') {
                     e.preventDefault();
                     toggleModal(true);
                 }
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
                     toggleModal(false);
                 }
-
                 if (!modal.classList.contains('hidden')) {
                     const items = results.querySelectorAll('a');
                     if (e.key === 'ArrowDown') {
@@ -564,7 +592,7 @@ if (Astro.locals.cacheControl) {
                         items[selectedIndex].click();
                     }
                 }
-            });
+            }, { signal });
 
             function updateSelection(items) {
                 items.forEach((item, idx) => {
@@ -581,10 +609,7 @@ if (Astro.locals.cacheControl) {
             input.oninput = () => {
                 const query = input.value.trim().toLowerCase();
                 clearTimeout(searchTimeout);
-                if (query.length < 2) {
-                    results.innerHTML = '';
-                    return;
-                }
+                if (query.length < 2) { results.innerHTML = ''; return; }
 
                 searchTimeout = setTimeout(async () => {
                     results.innerHTML = Array(3).fill(0).map(() => `
@@ -598,26 +623,48 @@ if (Astro.locals.cacheControl) {
                         const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
                         const matches = await res.json();
                         selectedIndex = -1;
+                        results.innerHTML = '';
 
                         if (matches.length > 0) {
-                            results.innerHTML = matches.map((p, idx) => {
+                            // A1: DOM construction — no innerHTML with API data
+                            matches.forEach(p => {
                                 const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                                 const isVariety = p.id > 10000;
-                                return `
-                                    <a href="/${lang}/pokemon/${p.name}" class="flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group">
-                                        <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800">
-                                            <img src="${spriteUrl}" alt="${p.name}" class="w-full h-full object-contain drop-shadow-md" loading="lazy" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');">
-                                        </div>
-                                        <div class="flex flex-col">
-                                            <span class="text-[10px] font-black text-slate-300 dark:text-slate-600">${isVariety ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + p.id.toString().padStart(4, '0')}</span>
-                                            <span class="text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">${p.name.replace(/-/g, ' ')}</span>
-                                        </div>
-                                        <span class="ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">${lang === 'es' ? 'Ver' : 'View'} →</span>
-                                    </a>
-                                `;
-                            }).join('');
+                                const a = document.createElement('a');
+                                a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
+                                a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group';
+                                const imgWrap = document.createElement('div');
+                                imgWrap.className = 'w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800';
+                                const img = document.createElement('img');
+                                img.src = spriteUrl;
+                                img.alt = p.name;
+                                img.className = 'w-full h-full object-contain drop-shadow-md';
+                                img.loading = 'lazy';
+                                img.onerror = function() { this.src = '/pokeball.png'; this.classList.add('opacity-20'); };
+                                imgWrap.appendChild(img);
+                                const textWrap = document.createElement('div');
+                                textWrap.className = 'flex flex-col';
+                                const idSpan = document.createElement('span');
+                                idSpan.className = 'text-[10px] font-black text-slate-300 dark:text-slate-600';
+                                idSpan.textContent = isVariety ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + String(p.id).padStart(4, '0');
+                                const nameSpan = document.createElement('span');
+                                nameSpan.className = 'text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors';
+                                nameSpan.textContent = p.name.replace(/-/g, ' ');
+                                textWrap.appendChild(idSpan);
+                                textWrap.appendChild(nameSpan);
+                                const arrow = document.createElement('span');
+                                arrow.className = 'ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0';
+                                arrow.textContent = lang === 'es' ? 'Ver →' : 'View →';
+                                a.appendChild(imgWrap);
+                                a.appendChild(textWrap);
+                                a.appendChild(arrow);
+                                results.appendChild(a);
+                            });
                         } else {
-                            results.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">${lang === 'es' ? 'Sin resultados' : 'No results found'}</div>`;
+                            const empty = document.createElement('div');
+                            empty.className = 'p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs';
+                            empty.textContent = lang === 'es' ? 'Sin resultados' : 'No results found';
+                            results.appendChild(empty);
                         }
                     } catch (e) {
                         results.innerHTML = '';
