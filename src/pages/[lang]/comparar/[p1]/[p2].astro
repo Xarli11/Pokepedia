@@ -156,7 +156,7 @@ const seoTitle = lang === 'es'
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
                 <div class="space-y-6">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon1.detail.name} — {t.weaknesses}</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon1.detail.name} — {t.pokemon_types}</p>
                     <div class="flex flex-wrap gap-2 mb-6">
                         {pokemon1.detail.types.map(tp => (
                             <span class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[tp.type.name]}`}>
@@ -173,7 +173,7 @@ const seoTitle = lang === 'es'
                 </div>
 
                 <div class="space-y-6">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon2.detail.name} — {t.weaknesses}</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon2.detail.name} — {t.pokemon_types}</p>
                     <div class="flex flex-wrap gap-2 mb-6">
                         {pokemon2.detail.types.map(tp => (
                             <span class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[tp.type.name]}`}>
