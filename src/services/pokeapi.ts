@@ -315,6 +315,25 @@ export function getLocalizedName(names: PokemonName[] | undefined, lang: string)
     return names.find(n => n.language.name === lang)?.name || names.find(n => n.language.name === 'en')?.name || '';
 }
 
+export async function getLocalizedNames(
+    slugs: string[],
+    endpoint: 'move' | 'item',
+    lang: string
+): Promise<Record<string, string>> {
+    if (lang !== 'es' || slugs.length === 0) return {};
+    const results = await Promise.allSettled(
+        slugs.map(slug => fetchWithCache<any>(`https://pokeapi.co/api/v2/${endpoint}/${slug}/`))
+    );
+    const map: Record<string, string> = {};
+    results.forEach((r, i) => {
+        if (r.status === 'fulfilled') {
+            const name = r.value?.names?.find((n: any) => n.language.name === 'es')?.name;
+            if (name) map[slugs[i]] = name;
+        }
+    });
+    return map;
+}
+
 export async function getAllPokemonNames(): Promise<{ name: string, id: number | string, sprite?: string }[]> {
     try {
         const cacheKey = 'global-pokemon-names-list';
