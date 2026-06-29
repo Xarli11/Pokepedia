@@ -4,7 +4,7 @@ import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../services/pokeapi';
-import { getShowdownPokemon } from '../../../services/smogon';
+import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
 
 const { lang = 'es', name: rawName } = Astro.params;
@@ -67,6 +67,14 @@ try {
                 return { ...s, base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat };
             });
         }
+    }
+} catch (e) {}
+
+// 1b. Sets competitivos de Smogon
+let smogonSets = null;
+try {
+    if (showdownData) {
+        smogonSets = await getSmogonSets(detail.name, showdownData.tier || 'Untiered');
     }
 } catch (e) {}
 
@@ -346,7 +354,7 @@ const getStatBarColor = (baseStat: number): string => {
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} />
+        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} smogonSets={smogonSets} />
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 
@@ -366,5 +374,16 @@ const getStatBarColor = (baseStat: number): string => {
         }
         initShiny();
         document.addEventListener('astro:after-swap', initShiny);
+    </script>
+
+    <script is:inline define:vars={{ _pokemonName: detail.name, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+        (function() {
+            try {
+                const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                const filtered = history.filter(h => h.name !== _pokemonName);
+                filtered.unshift({ name: _pokemonName, id: _pokemonId, sprite: _pokemonSprite });
+                localStorage.setItem('pokepedia_history', JSON.stringify(filtered.slice(0, 8)));
+            } catch {}
+        })();
     </script>
 </Layout>

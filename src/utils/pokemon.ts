@@ -162,7 +162,15 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'version': 'Versión',
         'moves_col_level': 'Nivel',
         'moves_col_effect': 'Efecto / Descripción',
-        'view_on_poketypes': 'Ver análisis completo en PokeTypes'
+        'view_on_poketypes': 'Ver análisis completo en PokeTypes',
+        'recent_searches': 'Búsquedas Recientes',
+        'clear_history': 'Limpiar',
+        'comp_sets': 'Sets Competitivos',
+        'comp_sets_moves': 'Movimientos',
+        'comp_sets_item': 'Objeto',
+        'comp_sets_ability': 'Habilidad',
+        'comp_sets_nature': 'Naturaleza',
+        'no_recent_searches': 'Sin búsquedas recientes'
         },
         en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -274,7 +282,15 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'version': 'Version',
         'moves_col_level': 'Lv.',
         'moves_col_effect': 'Effect / Description',
-        'view_on_poketypes': 'Full type analysis on PokeTypes'
+        'view_on_poketypes': 'Full type analysis on PokeTypes',
+        'recent_searches': 'Recent Searches',
+        'clear_history': 'Clear',
+        'comp_sets': 'Competitive Sets',
+        'comp_sets_moves': 'Moves',
+        'comp_sets_item': 'Item',
+        'comp_sets_ability': 'Ability',
+        'comp_sets_nature': 'Nature',
+        'no_recent_searches': 'No recent searches'
     }
 };
 
