@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-06-29 (Sesión 3)
+
+**Objetivos:** Continuar mejoras UI/UX y cerrar release v0.5.0.
+
+**Cambios realizados:**
+
+### fix: bug click en cards (index.astro)
+- `<a>` invisible subido de `z-0` a `z-10` — ahora cubre toda la card para clicks.
+- Sprite wrapper, nombre `<p>` y tipos `<div>`: añadido `pointer-events-none` — clicks caen al `<a>` sin interceptarse.
+- Header div (ID + fav): `pointer-events-none` en el contenedor, `pointer-events-auto` solo en el botón fav.
+- `onclick` del fav button en SSR: añadido `event.preventDefault()`.
+- Mismo fix aplicado en `createPokemonCard()` JS (cards de favoritos cargadas dinámicamente).
+
+### Release v0.5.0
+- `package.json`: bump `0.4.4` → `0.5.0`.
+- Merge `feature/ui-ux-improvements` → `develop` → `main`.
+- Tag anotado `v0.5.0` publicado en remoto con changelog completo.
+
+**Decisiones:**
+- La solución al bug de click fue `pointer-events-none` en decorativos + `<a z-10>` sobre ellos, en lugar de `pointer-events-none` en el `<a>` y gestionar clicks via JS (más frágil).
+- Confirmado: no se eliminan ramas integradas (`feature/ui-ux-improvements` sigue en remoto).
+
+**Próximos pasos:**
+- Elegir una feature de la Sección C del TODO.md para la siguiente sesión.
+- Candidatos prioritarios: C8 (historial búsqueda, bajo coste) o C1 (type calculator inline).
+
+---
+
 ## 2026-06-28 (Sesión 2)
 
 **Objetivos:** Frontend audit completo — corregir todos los bugs (A) y mejoras (B) identificadas por el agente frontend-developer. Rama: `feature/frontend-audit-fixes`.
