@@ -2,6 +2,68 @@
 
 ---
 
+## 2026-06-29 (Sesión 4 — hotfix)
+
+**Objetivos:** Corregir dos bugs post-release detectados antes de dormir.
+
+**Cambios realizados:**
+
+### fix: middleware siempre redirigía a inglés (`src/middleware.ts`)
+- `acceptLang.includes('en')` matcheaba cualquier header que contuviera la cadena `'en'`, incluyendo `es-ES,es;q=0.9,en-US;q=0.8,...`.
+- Reemplazado por `parsePreferredLang()` que parsea los q-values correctamente y elige el idioma de mayor prioridad.
+
+### fix: botón de idioma apuntaba a página errónea (`src/layouts/Layout.astro`)
+- El header tiene `transition:persist`, lo que congela el `href` SSR del botón de idioma al primer page load.
+- Navegar a `/es/pokemon/charizard` y volver al home dejaba el botón apuntando a `/en/pokemon/charizard`.
+- Solución: `id="lang-switch-btn"` + `updateLangSwitch(lang)` en `initAll()` recalcula el href usando `window.location.pathname` en cada `astro:page-load`.
+
+### fix: tipos no se traducían en el grid del index (`src/pages/[lang]/index.astro`)
+- Las cards renderizaban `{typeName}` (slug crudo Smogon: `fire`, `water`...) en vez de `typeTranslations[lang][typeName]`.
+- Una línea de fix.
+
+### Release v0.5.1
+- `package.json`: bump `0.5.0` → `0.5.1`.
+- Merge `develop` → `main`.
+- Tag anotado `v0.5.1`.
+
+**Decisiones:**
+- Hotfix directo en `develop` → `main` dado que todos los bugs afectaban al usuario en producción.
+- `transition:persist` se mantiene en el header (evita flash); el href del lang switch se actualiza por JS en su lugar.
+
+**Próximos pasos:**
+- Elegir una feature de la Sección C del TODO.md para la siguiente sesión.
+- Candidatos prioritarios: C8 (historial búsqueda, bajo coste) o C1 (type calculator inline).
+
+---
+
+## 2026-06-29 (Sesión 3)
+
+**Objetivos:** Continuar mejoras UI/UX y cerrar release v0.5.0.
+
+**Cambios realizados:**
+
+### fix: bug click en cards (index.astro)
+- `<a>` invisible subido de `z-0` a `z-10` — ahora cubre toda la card para clicks.
+- Sprite wrapper, nombre `<p>` y tipos `<div>`: añadido `pointer-events-none` — clicks caen al `<a>` sin interceptarse.
+- Header div (ID + fav): `pointer-events-none` en el contenedor, `pointer-events-auto` solo en el botón fav.
+- `onclick` del fav button en SSR: añadido `event.preventDefault()`.
+- Mismo fix aplicado en `createPokemonCard()` JS (cards de favoritos cargadas dinámicamente).
+
+### Release v0.5.0
+- `package.json`: bump `0.4.4` → `0.5.0`.
+- Merge `feature/ui-ux-improvements` → `develop` → `main`.
+- Tag anotado `v0.5.0` publicado en remoto con changelog completo.
+
+**Decisiones:**
+- La solución al bug de click fue `pointer-events-none` en decorativos + `<a z-10>` sobre ellos, en lugar de `pointer-events-none` en el `<a>` y gestionar clicks via JS (más frágil).
+- Confirmado: no se eliminan ramas integradas (`feature/ui-ux-improvements` sigue en remoto).
+
+**Próximos pasos:**
+- Elegir una feature de la Sección C del TODO.md para la siguiente sesión.
+- Candidatos prioritarios: C8 (historial búsqueda, bajo coste) o C1 (type calculator inline).
+
+---
+
 ## 2026-06-28 (Sesión 2)
 
 **Objetivos:** Frontend audit completo — corregir todos los bugs (A) y mejoras (B) identificadas por el agente frontend-developer. Rama: `feature/frontend-audit-fixes`.

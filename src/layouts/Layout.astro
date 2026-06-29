@@ -260,7 +260,7 @@ if (Astro.locals.cacheControl) {
                             </svg>
                         </a>
 
-                        <a href={otherLangPath} class="h-8 px-3 md:h-9 md:px-4 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 shrink-0">
+                        <a id="lang-switch-btn" href={otherLangPath} class="h-8 px-3 md:h-9 md:px-4 flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 shrink-0">
                             {otherLang}
                         </a>
                     </div>
@@ -676,6 +676,18 @@ if (Astro.locals.cacheControl) {
             };
         }
 
+        function updateLangSwitch(lang) {
+            const btn = document.getElementById('lang-switch-btn');
+            if (!btn) return;
+            const otherLang = lang === 'es' ? 'en' : 'es';
+            const path = window.location.pathname;
+            const search = window.location.search;
+            let otherPath = path.replace(`/${lang}/`, `/${otherLang}/`).replace(new RegExp(`^/${lang}$`), `/${otherLang}`) + search;
+            if (otherPath.startsWith('?')) otherPath = `/${otherLang}/` + otherPath;
+            btn.href = otherPath;
+            btn.textContent = otherLang.toUpperCase();
+        }
+
         function initAll() {
             const dataEl = document.getElementById('layout-data');
             if (!dataEl) return;
@@ -685,6 +697,7 @@ if (Astro.locals.cacheControl) {
             initRandom(lang);
             initBackToTop();
             initGlobalSearch(lang);
+            updateLangSwitch(lang);
             if (window.updateFavButtons) window.updateFavButtons();
         }
 

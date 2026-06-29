@@ -197,7 +197,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     {p.types.length > 0 ? p.types.map(typeName => (
                         <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 shadow-sm shrink-0">
                             <div class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as any)[typeName] || '#777'};`} aria-hidden="true"></div>
-                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeName}</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeTranslations[lang as string]?.[typeName] || typeName}</span>
                         </div>
                     )) : (
                         <div class="h-8 w-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl"></div>
