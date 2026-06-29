@@ -3,7 +3,7 @@ import Layout from '../../../../layouts/Layout.astro';
 import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
 import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
 import { getPokemonByName } from '../../../../services/pokeapi';
-import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber } from '../../../../utils/pokemon';
+import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber, getPoketypesName } from '../../../../utils/pokemon';
 
 const { lang, p1, p2 } = Astro.params;
 
@@ -124,7 +124,10 @@ const seoTitle = lang === 'es'
                     {pokemon1.detail.stats.map((s1, i) => {
                         const s2 = pokemon2.detail.stats[i];
                         const winner = s1.base_stat > s2.base_stat ? 1 : (s2.base_stat > s1.base_stat ? 2 : 0);
-                        
+                        const total = s1.base_stat + s2.base_stat || 1;
+                        const pct1 = Math.round((s1.base_stat / total) * 100);
+                        const pct2 = 100 - pct1;
+
                         return (
                             <div class="group/row">
                                 <div class="flex justify-between items-center mb-2">
@@ -135,9 +138,9 @@ const seoTitle = lang === 'es'
                                         <span class={`text-lg font-black ${winner === 2 ? 'text-rose-500' : 'text-slate-300 dark:text-slate-700'}`}>{s2.base_stat}</span>
                                     </div>
                                 </div>
-                                <div class="flex gap-2 h-1.5 w-full bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden">
-                                    <div class={`h-full transition-all duration-1000 ${winner === 1 ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: 50%`}></div>
-                                    <div class={`h-full transition-all duration-1000 ${winner === 2 ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: 50%`}></div>
+                                <div class="flex h-1.5 w-full bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden">
+                                    <div class={`h-full transition-all duration-1000 ${winner === 1 ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: ${pct1}%`}></div>
+                                    <div class={`h-full transition-all duration-1000 ${winner === 2 ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-800'}`} style={`width: ${pct2}%`}></div>
                                 </div>
                             </div>
                         );
@@ -148,34 +151,42 @@ const seoTitle = lang === 'es'
 
         <!-- Type Matchup Section -->
         <div class="mt-20 bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden relative">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32"></div>
-            <h3 class="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-12 relative z-10">{lang === 'es' ? 'Análisis de Tipos' : 'Type Analysis'}</h3>
-            
+            <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32" aria-hidden="true"></div>
+            <h3 class="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-12 relative z-10">{t.type_analysis}</h3>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
                 <div class="space-y-6">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{pokemon1.detail.name} Weaknesses</p>
-                    <div class="flex flex-wrap gap-2">
-                        {/* Aquí podríamos integrar la lógica de debilidades de utils/pokemon si estuviera disponible, 
-                            por ahora mostramos los tipos actuales como placeholder avanzado */}
-                        {pokemon1.detail.types.map(t => (
-                             <div class="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                                <div class="w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={`background-color: ${typeColors[t.type.name]}`}></div>
-                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeTranslations[lang as string][t.type.name]}</span>
-                             </div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon1.detail.name} — {t.pokemon_types}</p>
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        {pokemon1.detail.types.map(tp => (
+                            <span class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[tp.type.name]}`}>
+                                {typeTranslations[lang as string][tp.type.name]}
+                            </span>
                         ))}
                     </div>
+                    <a href={`https://www.poketypes.app/?t1=${pokemon1.detail.types[0]?.type.name}${pokemon1.detail.types[1] ? `&t2=${pokemon1.detail.types[1].type.name}` : ''}&p=${getPoketypesName(pokemon1.detail.name)}`}
+                       target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline group">
+                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_on_poketypes}</span>
+                        <svg class="w-3 h-3 text-emerald-500 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
                 </div>
 
                 <div class="space-y-6">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{pokemon2.detail.name} Weaknesses</p>
-                    <div class="flex flex-wrap gap-2">
-                        {pokemon2.detail.types.map(t => (
-                             <div class="px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                                <div class="w-2 h-2 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]" style={`background-color: ${typeColors[t.type.name]}`}></div>
-                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{typeTranslations[lang as string][t.type.name]}</span>
-                             </div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{pokemon2.detail.name} — {t.pokemon_types}</p>
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        {pokemon2.detail.types.map(tp => (
+                            <span class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[tp.type.name]}`}>
+                                {typeTranslations[lang as string][tp.type.name]}
+                            </span>
                         ))}
                     </div>
+                    <a href={`https://www.poketypes.app/?t1=${pokemon2.detail.types[0]?.type.name}${pokemon2.detail.types[1] ? `&t2=${pokemon2.detail.types[1].type.name}` : ''}&p=${getPoketypesName(pokemon2.detail.name)}`}
+                       target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-rose-500/10 border-2 border-rose-500/20 hover:border-rose-500 transition-all no-underline group">
+                        <span class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">{t.view_on_poketypes}</span>
+                        <svg class="w-3 h-3 text-rose-500 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
                 </div>
             </div>
         </div>

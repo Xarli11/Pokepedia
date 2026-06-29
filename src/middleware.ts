@@ -1,7 +1,8 @@
-export function onRequest(context: any, next: any) {
+import type { APIContext, MiddlewareNext } from 'astro';
+
+export function onRequest(context: APIContext, next: MiddlewareNext) {
     const url = new URL(context.request.url);
-    
-    // Si el usuario entra en la raíz pura, lo mandamos a su idioma asegurando el trailing slash
+
     if (url.pathname === '/' || url.pathname === '') {
         let preferredLang = 'es';
         const acceptLang = context.request.headers.get('accept-language') || '';
@@ -10,6 +11,6 @@ export function onRequest(context: any, next: any) {
         }
         return context.redirect(`/${preferredLang}/`, 308);
     }
-    
+
     return next();
 }

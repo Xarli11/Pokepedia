@@ -31,18 +31,20 @@ detail.stats = detail.stats || [];
 detail.types = detail.types || [];
 
 // 1. Enriquecer con Showdown
+let showdownData: any = null;
 try {
-    const showdownData = await getShowdownPokemon(name);
+    showdownData = await getShowdownPokemon(name);
     if (showdownData) {
         // Habilidades desde Showdown (Fuente principal de verdad técnica)
+        // La key "H" en el objeto de Showdown indica habilidad oculta
         if (showdownData.abilities) {
-            detail.abilities = Object.values(showdownData.abilities).map((abilityName: any, index) => ({
-                ability: { 
-                    name: abilityName.toLowerCase().replace(/\s+/g, '-'), 
-                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}` 
+            detail.abilities = Object.entries(showdownData.abilities).map(([key, abilityName]: [string, any]) => ({
+                ability: {
+                    name: abilityName.toLowerCase().replace(/\s+/g, '-'),
+                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}`
                 },
-                is_hidden: index > 0,
-                slot: index + 1
+                is_hidden: key === 'H',
+                slot: key === 'H' ? 3 : parseInt(key) + 1
             }));
         }
 
@@ -173,13 +175,30 @@ const points = statsValues.map((stat: number, i: number) => {
 
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 const gridLevels = [0.25, 0.5, 0.75, 1];
-const seoTitle = `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`;
-const seoDescription = `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`;
+const seoTitle = lang === 'es'
+    ? `${localizedName}: Stats, Debilidades y Estrategia | Pokepedia`
+    : `${localizedName}: Stats, Weaknesses & Strategy | Pokepedia`;
+const seoDescription = lang === 'es'
+    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`
+    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses and competitive strategies.`;
 
-const getStatColor = (baseStat: number) => {
-    if (baseStat < 70) return 'from-red-400 to-red-600';
-    if (baseStat < 100) return 'from-yellow-400 to-yellow-600';
-    return 'from-emerald-400 to-emerald-600';
+// Type theming
+const primaryType = detail.types[0]?.type.name || 'normal';
+const typeColor = (typeColors as Record<string, string>)[primaryType] || '#10b981';
+const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+};
+const typeColorBg = hexToRgba(typeColor, 0.08);
+const typeColorFill = hexToRgba(typeColor, 0.2);
+const typeColorBorder = hexToRgba(typeColor, 0.35);
+
+const getStatBarColor = (baseStat: number): string => {
+    if (baseStat < 70) return '#f87171';
+    if (baseStat < 100) return '#fbbf24';
+    return typeColor;
 };
 ---
 
@@ -205,7 +224,7 @@ const getStatColor = (baseStat: number) => {
                 {hasNavigation ? (
                     <>
                         <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
-                            <img src={prevPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{prevPokemon.name.replace(/-/g, ' ')}</span>
@@ -217,7 +236,7 @@ const getStatColor = (baseStat: number) => {
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
                             </div>
-                            <img src={nextPokemon.sprites?.front_default} alt="" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                            <img src={nextPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                         </a>
                     </>
                 ) : <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl">{t.navigation_unavailable || 'Navigation unavailable'}</div>}
@@ -226,10 +245,12 @@ const getStatColor = (baseStat: number) => {
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-12">
             <div class="md:col-span-5 flex flex-col items-center">
-                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl border border-slate-100 dark:border-slate-800 flex items-center justify-center p-12 mb-8">
-                    <img id="pokemon-image" src={officialArtwork} data-default={officialArtwork} data-shiny={officialArtworkShiny} alt={localizedName} class="w-full h-full object-contain drop-shadow-2xl transition-all duration-500" />
-                    <span class="absolute top-8 right-8 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(pokemonId)}</span>
-                    <button id="shiny-toggle" class="absolute bottom-6 right-6 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 text-slate-400 hover:text-amber-500 transition-all"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+                <div class="relative w-full aspect-square bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl overflow-hidden flex items-center justify-center p-12 mb-8" style={`border: 2px solid ${typeColorBorder}`}>
+                    <img id="pokemon-image" src={officialArtwork} data-default={officialArtwork} data-shiny={officialArtworkShiny} alt={localizedName} class="relative z-10 w-full h-full object-contain drop-shadow-2xl transition-all duration-500" />
+                    <span class="absolute top-8 right-8 z-10 text-2xl font-black text-slate-200 dark:text-slate-800">{formatPokemonNumber(pokemonId)}</span>
+                    <button id="shiny-toggle" class="absolute bottom-6 right-6 z-10 p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-100 text-slate-400 hover:text-amber-500 transition-all"><svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></button>
+                    <!-- Ambient type glow — last in DOM, no z-index → behind z-10 siblings -->
+                    <div class="absolute inset-0 pointer-events-none" style={`background: radial-gradient(ellipse at 50% 65%, ${typeColorBg} 0%, transparent 70%)`} aria-hidden="true"></div>
                 </div>
                 <div class="w-full bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-100 dark:border-slate-800 shadow-sm">
                     <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.basic_info}</h3>
@@ -267,10 +288,10 @@ const getStatColor = (baseStat: number) => {
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>
                 </div>
-                <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h1>
+                <h2 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h2>
                 <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">"{description}"</p>
 
-                <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
                     <div class="flex justify-between items-center mb-10"><h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest">{t.base_stats}</h3><div class="flex items-center gap-2"><span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.total}</span><span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{totalStats}</span></div></div>
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
                         <div class="lg:col-span-5 relative flex justify-center">
@@ -287,29 +308,29 @@ const getStatColor = (baseStat: number) => {
                                     const y = center - r * Math.cos(i * angleStep); 
                                     return <text x={x} y={y} text-anchor="middle" dominant-baseline="middle" class="fill-slate-400 dark:fill-slate-500 text-[10px] font-black tracking-tighter">{label}</text>; 
                                 })}
-                                <polygon points={points} class="fill-emerald-500/20 stroke-emerald-500" stroke-width="3" stroke-linejoin="round" />
+                                <polygon points={points} fill={typeColorFill} stroke={typeColor} stroke-width="3" stroke-linejoin="round" />
                                 {points.split(' ').map((p: string) => (
-                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" class="fill-emerald-500" />
+                                    <circle cx={p.split(',')[0]} cy={p.split(',')[1]} r="3" fill={typeColor} />
                                 ))}
                             </svg>
                         </div>
                         <div class="lg:col-span-7 space-y-4">
-                            {detail.stats.map((s: any) => { 
-                                const percentage = (s.base_stat / 255) * 100; 
-                                const colorClass = getStatColor(s.base_stat); 
+                            {detail.stats.map((s: any) => {
+                                const percentage = (s.base_stat / 255) * 100;
+                                const barColor = getStatBarColor(s.base_stat);
                                 return (
                                     <div>
                                         <div class="flex justify-between mb-1 text-sm font-bold"><span class="text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t[s.stat.name] || s.stat.name}</span><span class="text-slate-900 dark:text-white">{s.base_stat}</span></div>
-                                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${colorClass}`} style={`width: ${percentage}%`}></div></div>
+                                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden"><div class="h-full rounded-full transition-all duration-1000" style={`width: ${percentage}%; background-color: ${barColor}`}></div></div>
                                     </div>
-                                ); 
+                                );
                             })}
                         </div>
                     </div>
                 </div>
 
                 {varieties && varieties.length > 0 && (
-                    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map((v: any) => (
@@ -325,7 +346,7 @@ const getStatColor = (baseStat: number) => {
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <CompetitiveSets pokemonName={detail.name} lang={lang as string} />
+        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} />
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 

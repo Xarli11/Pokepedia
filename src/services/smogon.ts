@@ -56,6 +56,23 @@ export async function getPokemonTier(name: string): Promise<string> {
     return pokemon?.tier || 'Untiered';
 }
 
+export async function getSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
+    const pokedex = await fetchWithCache<any>('https://play.pokemonshowdown.com/data/pokedex.json');
+    if (!pokedex) return {};
+    const result: Record<string, { types: string[], baseStats: Record<string, number> }> = {};
+    for (const name of names) {
+        const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const data = pokedex[key];
+        if (data) {
+            result[name] = {
+                types: (data.types || []).map((t: string) => t.toLowerCase()),
+                baseStats: data.baseStats || {}
+            };
+        }
+    }
+    return result;
+}
+
 export const TIER_DEFINITIONS: Record<string, { label: string, desc: string, color: string }> = {
     'Uber': { label: 'Uber', desc: 'Pokémon demasiado poderosos para el estándar.', color: 'bg-red-500' },
     'OU': { label: 'Overused', desc: 'El estándar competitivo.', color: 'bg-emerald-500' },
