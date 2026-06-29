@@ -1,14 +1,16 @@
 ---
 import { formatName, uiTranslations } from '../utils/pokemon';
 import TierLegend from './TierLegend.astro';
+import type { SmogonSet } from '../services/smogon';
 
 interface Props {
     pokemonName: string;
     lang: string;
     showdownData?: { tier?: string; abilities?: Record<string, string> } | null;
+    smogonSets?: SmogonSet[] | null;
 }
 
-const { pokemonName, lang = 'es', showdownData = null } = Astro.props;
+const { pokemonName, lang = 'es', showdownData = null, smogonSets = null } = Astro.props;
 const t = uiTranslations[lang] || uiTranslations.es;
 
 // Pre-compute tier and ability names in SSR when showdownData is available
@@ -40,6 +42,32 @@ const ssrAbilities = showdownData?.abilities ? Object.entries(showdownData.abili
             <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
         </div>
     </div>
+
+    {smogonSets && smogonSets.length > 0 && (
+        <div class="mt-10 border-t border-slate-100 dark:border-slate-700 pt-10">
+            <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">{t.comp_sets}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {smogonSets.map(set => (
+                    <div class="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/50">
+                        <p class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">{set.name}</p>
+                        <ul class="space-y-1 mb-3">
+                            {set.moves.map(move => (
+                                <li class="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden="true"></span>
+                                    {move}
+                                </li>
+                            ))}
+                        </ul>
+                        <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                            {set.item && <span class="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-lg">{t.comp_sets_item}: {set.item}</span>}
+                            {set.ability && <span class="text-[10px] font-bold bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-lg">{t.comp_sets_ability}: {set.ability}</span>}
+                            {set.nature && <span class="text-[10px] font-bold bg-violet-100 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 px-2 py-0.5 rounded-lg">{t.comp_sets_nature}: {set.nature}</span>}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )}
 
     <TierLegend lang={lang} />
 </div>
