@@ -197,7 +197,7 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'special-attack': 'Sp. Atk.',
         'special-defense': 'Sp. Def.',
         'speed': 'Speed',
-        'desc_hero': 'The Ultimate',
+        'desc_hero': 'The Encyclopedia',
         'desc_subtitle': 'Technical Pokémon Encyclopedia with competitive meta analysis, type calculators, weakness charts, and advanced base stats.',
         'evolution_chain': 'Evolution Chain',
         'evolves_at': 'Level',
