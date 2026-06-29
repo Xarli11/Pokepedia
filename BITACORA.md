@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-06-29 (Sesión 4 — hotfix)
+
+**Objetivos:** Corregir dos bugs post-release detectados antes de dormir.
+
+**Cambios realizados:**
+
+### fix: middleware siempre redirigía a inglés (`src/middleware.ts`)
+- `acceptLang.includes('en')` matcheaba cualquier header que contuviera la cadena `'en'`, incluyendo `es-ES,es;q=0.9,en-US;q=0.8,...`.
+- Reemplazado por `parsePreferredLang()` que parsea los q-values correctamente y elige el idioma de mayor prioridad.
+
+### fix: botón de idioma apuntaba a página errónea (`src/layouts/Layout.astro`)
+- El header tiene `transition:persist`, lo que congela el `href` SSR del botón de idioma al primer page load.
+- Navegar a `/es/pokemon/charizard` y volver al home dejaba el botón apuntando a `/en/pokemon/charizard`.
+- Solución: `id="lang-switch-btn"` + `updateLangSwitch(lang)` en `initAll()` recalcula el href usando `window.location.pathname` en cada `astro:page-load`.
+
+### fix: tipos no se traducían en el grid del index (`src/pages/[lang]/index.astro`)
+- Las cards renderizaban `{typeName}` (slug crudo Smogon: `fire`, `water`...) en vez de `typeTranslations[lang][typeName]`.
+- Una línea de fix.
+
+### Release v0.5.1
+- `package.json`: bump `0.5.0` → `0.5.1`.
+- Merge `develop` → `main`.
+- Tag anotado `v0.5.1`.
+
+**Decisiones:**
+- Hotfix directo en `develop` → `main` dado que todos los bugs afectaban al usuario en producción.
+- `transition:persist` se mantiene en el header (evita flash); el href del lang switch se actualiza por JS en su lugar.
+
+**Próximos pasos:**
+- Elegir una feature de la Sección C del TODO.md para la siguiente sesión.
+- Candidatos prioritarios: C8 (historial búsqueda, bajo coste) o C1 (type calculator inline).
+
+---
+
 ## 2026-06-29 (Sesión 3)
 
 **Objetivos:** Continuar mejoras UI/UX y cerrar release v0.5.0.
