@@ -3,9 +3,9 @@ import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
-import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName } from '../../../utils/pokemon';
+import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName, natureTranslations } from '../../../utils/pokemon';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -123,6 +123,31 @@ try {
     abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
     varieties = (results[2].status === 'fulfilled' ? (results[2].value as any[]) : []).filter(Boolean);
 } catch (e) {}
+
+// 4. Traducir smogonSets al idioma actual
+if (smogonSets && smogonSets.length > 0 && lang === 'es') {
+    try {
+        const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const abilityMap: Record<string, string> = {};
+        (abilitiesWithTranslation as any[]).forEach(a => { abilityMap[a.ability.name] = a.displayName; });
+
+        const uniqueMoveSlugs = [...new Set(smogonSets.flatMap(s => s.moves).map(toSlug))];
+        const uniqueItemSlugs = [...new Set(smogonSets.map(s => s.item).filter(Boolean).map(i => toSlug(i as string)))];
+
+        const [moveNames, itemNames] = await Promise.all([
+            getLocalizedNames(uniqueMoveSlugs, 'move', lang as string),
+            getLocalizedNames(uniqueItemSlugs, 'item', lang as string),
+        ]);
+
+        smogonSets = smogonSets.map(set => ({
+            ...set,
+            moves: set.moves.map(m => moveNames[toSlug(m)] || m),
+            ability: set.ability ? (abilityMap[toSlug(set.ability)] || set.ability) : null,
+            item: set.item ? (itemNames[toSlug(set.item)] || set.item) : null,
+            nature: set.nature ? (natureTranslations[set.nature] || set.nature) : null,
+        }));
+    } catch (e) {}
+}
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = species ? (getLocalizedName(species.names, lang as string) || species.name) : detail.name;

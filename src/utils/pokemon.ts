@@ -294,6 +294,14 @@ export const uiTranslations: Record<string, Record<string, string>> = {
     }
 };
 
+export const natureTranslations: Record<string, string> = {
+    'Hardy': 'Fuerte', 'Lonely': 'Huraño', 'Brave': 'Audaz', 'Adamant': 'Firme', 'Naughty': 'Pícaro',
+    'Bold': 'Osado', 'Docile': 'Dócil', 'Relaxed': 'Plácido', 'Impish': 'Pillo', 'Lax': 'Flojo',
+    'Timid': 'Miedoso', 'Hasty': 'Activo', 'Serious': 'Serio', 'Jolly': 'Alegre', 'Naive': 'Ingenuo',
+    'Modest': 'Modesto', 'Mild': 'Afable', 'Quiet': 'Quieto', 'Bashful': 'Tímido', 'Rash': 'Alocado',
+    'Calm': 'Sereno', 'Gentle': 'Amable', 'Sassy': 'Grosero', 'Careful': 'Cauto', 'Quirky': 'Raro'
+};
+
 export const evolutionTranslations: Record<string, Record<string, string>> = {
     es: {
         'level-up': 'Subir nivel',
