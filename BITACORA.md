@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-06-30 (Sesión 5 — features C6 + C8)
+
+**Objetivos:** Implementar historial de búsqueda y sets competitivos de Smogon con i18n completo.
+
+**Cambios realizados:**
+
+### fix: título hero EN usaba "The Ultimate" en vez de "The Encyclopedia" (`src/utils/pokemon.ts`)
+- Inconsistencia cosmética detectada al arrancar la sesión. Una línea de fix. Release `v0.5.2`.
+
+### feat: C8 — Historial de búsqueda (`src/layouts/Layout.astro`, `src/pages/[lang]/pokemon/[name].astro`)
+- Al visitar cualquier página de Pokémon, se guarda `{name, id, sprite}` en `pokepedia_history` (localStorage, máx 8, FIFO).
+- Al abrir el modal de búsqueda global o cuando el input queda con < 2 chars, se renderiza el historial con sprites, IDs y badge "RECIENTE".
+- Botón "Limpiar" borra el historial y refresca la vista.
+
+### feat: C6 — Sets competitivos Smogon (`src/services/smogon.ts`, `src/components/CompetitiveSets.astro`)
+- Nueva función `getSmogonSets(pokemonName, tier)` en `smogon.ts`. Descarga `https://pkmn.github.io/smogon/data/sets/{format}.json` (caché 24h en memoria). Mapea tier → formato Gen 9.
+- Los sets (nombre, movimientos, objeto, habilidad, naturaleza) se renderizan SSR en `CompetitiveSets.astro` sin JS adicional en cliente.
+- Falla silenciosamente si el CDN no responde.
+
+### fix: i18n de sets competitivos (`src/services/pokeapi.ts`, `src/utils/pokemon.ts`)
+- `getLocalizedNames(slugs, endpoint, lang)` en `pokeapi.ts` traduce moves e items via PokeAPI en paralelo, reutilizando la caché existente.
+- Natures: mapa estático de 25 entradas en `pokemon.ts` (cero fetch extra).
+- Abilities: reutiliza `abilitiesWithTranslation` ya fetcheado en la página.
+- La traducción solo ocurre si `lang === 'es'`; en inglés los nombres quedan tal cual.
+
+### Release v0.6.0
+- Minor version bump (dos features nuevas).
+- Rama `feature/search-history-smogon-moves` → `develop` → `main`.
+- Tag `v0.6.0`.
+
+**Decisiones:**
+- Usamos `pkmn.github.io/smogon` en lugar de las chaos stats de Smogon (formato texto, archivos de 50MB+). Los archivos por tier son < 1MB.
+- La traducción de moves/items se hace SSR en `[name].astro` para no añadir JS al cliente ni bloquear la hidratación.
+
+---
+
 ## 2026-06-29 (Sesión 4 — hotfix)
 
 **Objetivos:** Corregir dos bugs post-release detectados antes de dormir.
