@@ -12,9 +12,7 @@ _ninguna_
 - [ ] **C3 — Team Builder**: Página `/[lang]/equipo` para seleccionar hasta 6 Pokémon y ver la cobertura de tipos del equipo. Podría enlazar con poketypes.app para el análisis completo.
 - [ ] **C4 — Comparador ampliado**: Extender `/[lang]/comparar/[p1]/[p2]` para comparar más de 2 Pokémon en paralelo (hasta 4).
 - [ ] **C5 — Página de generaciones/regiones**: Vista visual por generación con mapa de región. Actualmente el selector de gen solo filtra la pokedex.
-- [ ] **C6 — Datos de movimientos en Smogon**: Cruzar datos de movimientos de PokeAPI con uso competitivo de Smogon (usage stats CDN). Mostrar "movimientos más usados" en la ficha.
 - [ ] **C7 — Integración profunda poketypes.app**: Evaluar si incrustar el análisis de tipos de poketypes.app directamente (iframe o API compartida). Pendiente de decisión con el owner.
-- [ ] **C8 — Historial de búsqueda**: Guardar en localStorage el historial de Pokémon visitados. Mostrar en el modal de búsqueda global como sugerencias recientes.
 
 ## Completados
 
@@ -29,6 +27,8 @@ _ninguna_
   - [x] A7: is_hidden ability — Object.entries con key 'H' en lugar de index > 0
   - [x] A8: Promise.all → Promise.allSettled en loadFavoritesView
   - [x] A9: Race condition en MovesTable — prefetchRequestId counter
+- [x] **C6 — Sets competitivos Smogon**: `getSmogonSets()` desde `pkmn.github.io/smogon/data/sets/{format}.json`. Tier → formato. Moves/items traducidos via PokeAPI SSR. Natures via mapa estático. Abilities reutilizan fetch ya existente. Renderizado 100% SSR en `CompetitiveSets.astro`.
+- [x] **C8 — Historial de búsqueda**: `pokepedia_history` en localStorage (máx 8). Se guarda al visitar `/pokemon/[name]`. Se muestra en el modal de búsqueda global cuando el input está vacío o tiene < 2 chars. Botón "Limpiar".
 - [x] **Frontend Audit — Sección B (Mejoras)**:
   - [x] B1: N client fetches de tipos eliminados — getSmogonDataBatch SSR en index
   - [x] B2: data-moves attr → script type="application/json" en MovesTable
