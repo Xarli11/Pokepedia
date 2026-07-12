@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-07-12 (Sesión 6 — hotfix MovesTable)
+
+**Cambios realizados:**
+
+### fix: JSON.parse falla en MovesTable (`src/components/MovesTable.astro`)
+- Astro no evalúa expresiones `{...}` dentro de `<script>` tags (los trata como CDATA opaco).
+- `<script type="application/json" id="moves-data">{JSON.stringify(movesByVersion)}</script>` llegaba al DOM como texto literal `{JSON.stringify(movesByVersion)}`.
+- Fix: cambiado a `<div id="moves-data" hidden>{JSON.stringify(movesByVersion)}</div>`. Astro evalúa la expresión en elementos HTML normales; `textContent` decodifica las entidades HTML (`&quot;` → `"`) antes de pasárselas a `JSON.parse`.
+
+---
+
 ## 2026-06-30 (Sesión 5 — features C6 + C8)
 
 **Objetivos:** Implementar historial de búsqueda y sets competitivos de Smogon con i18n completo.
