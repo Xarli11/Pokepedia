@@ -26,9 +26,9 @@ const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spde
 const totalStats1 = stats1.reduce((acc, s) => acc + s, 0);
 const totalStats2 = stats2.reduce((acc, s) => acc + s, 0);
 
-const seoTitle = lang === 'es' 
-    ? `Comparativa: ${pokemon1.detail.name} vs ${pokemon2.detail.name} | Pokepedia`
-    : `Comparison: ${pokemon1.detail.name} vs ${pokemon2.detail.name} | Pokepedia`;
+const seoTitle = lang === 'es'
+    ? `Comparativa: ${pokemon1.detail.name} vs ${pokemon2.detail.name}`
+    : `Comparison: ${pokemon1.detail.name} vs ${pokemon2.detail.name}`;
 ---
 
 <Layout title={seoTitle} lang={lang}>

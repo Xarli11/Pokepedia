@@ -7,6 +7,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
+    "check": "astro check",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "data:audit": "tsx scripts/data-audit.ts"
   },
   "dependencies": {
@@ -19,6 +22,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.11"
   }
 }
