@@ -1,0 +1,83 @@
+{
+  "id": 247,
+  "name": "life-orb",
+  "names": [
+    {
+      "name": "Vidasfera",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Life Orb",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Damage from the holder’s moves is increased by 30%.  On each turn the holder uses a damage-inflicting move, it takes 10% its max HP in damage.",
+      "short_effect": "Held: Holder’s moves inflict 30% extra damage, but cost 10% max HP.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Debe llevarlo un Pokémon. Potencia la Velocidad,\npero solo permite usar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Potencia los movimientos, pero consume PS con\ncada ataque. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Potencia los movimientos, pero consume PS con\ncada ataque. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Potencia los movimientos, pero consume PS con cada\nataque. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Potencia los movimientos, pero consume PS con cada\nataque. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. It boosts the\npower of moves but at the cost of some HP on\neach hit.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

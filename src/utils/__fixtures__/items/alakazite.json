@@ -1,0 +1,83 @@
+{
+  "id": 718,
+  "name": "alakazite",
+  "names": [
+    {
+      "name": "Alakazamita",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Alakazite",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Allows Alakazam to Mega Evolve into Mega Alakazam.",
+      "short_effect": "Held: Allows Alakazam to Mega Evolve into Mega Alakazam.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Una piedra de aspecto normal que a algunos\nles puede parecer de gran valor.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Alakazam en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Alakazam en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Alakazam en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Alakazam en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "One of a variety of mysterious Mega Stones.\nHave Alakazam hold it, and this stone will enable it\nto Mega Evolve during battle.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

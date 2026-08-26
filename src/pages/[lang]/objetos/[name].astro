@@ -1,16 +1,15 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
-import { getLocalizedName } from '../../../services/pokeapi';
+import { getLocalizedName, getItemDetail } from '../../../services/pokeapi';
+import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
 
 const { lang, name } = Astro.params;
 
 let itemData;
 try {
-    const res = await fetch(`https://pokeapi.co/api/v2/item/${name}`);
-    if (!res.ok) throw new Error();
-    itemData = await res.json();
+    itemData = await getItemDetail(name as string);
 } catch (e) {
     return Astro.redirect(`/${lang}/objetos`);
 }
@@ -18,22 +17,12 @@ try {
 const localizedName = getLocalizedName(itemData.names, lang as string) || formatName(itemData.name);
 const i18nItems = itemTranslations[lang as string] || itemTranslations.es;
 
-// Fallback robusto para descripción
-const getDesc = () => {
-    const entries = itemData.flavor_text_entries || [];
-    const effects = itemData.effect_entries || [];
-    let entry = entries.find((f: any) => f.language.name === lang);
-    if (entry) return entry.text || entry.flavor_text;
-    entry = effects.find((e: any) => e.language.name === lang);
-    if (entry) return entry.short_effect || entry.effect;
-    entry = entries.find((f: any) => f.language.name === 'en');
-    if (entry) return entry.text || entry.flavor_text;
-    entry = effects.find((e: any) => e.language.name === 'en');
-    if (entry) return entry.short_effect || entry.effect;
-    return "Sin descripción detallada disponible / No detailed description available";
-};
-
-const description = getDesc().replace(/\f/g, ' ').replace(/\n/g, ' ');
+// P0 #9: effect_entries (mechanics) is the primary, canonical description.
+// flavor_text_entries (in-game flavor) is secondary and must never be
+// presented as the exact mechanical effect — see src/utils/items.ts for why.
+const effect = selectItemEffect(itemData.effect_entries, lang as string);
+const flavor = selectItemFlavor(itemData.flavor_text_entries, lang as string);
+const description = effect?.text || flavor?.text || (uiTranslations[lang as string] || uiTranslations.es).item_no_effect_available;
 const categoryKey = itemData.category?.name;
 const superCategoryKey = getItemSuperCategory(categoryKey || '');
 const categoryName = i18nItems[superCategoryKey] || i18nItems[categoryKey] || formatName(categoryKey || '---');
@@ -67,7 +56,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
 <Layout 
-    title={`${localizedName} | Objetos | Pokepedia`} 
+    title={`${localizedName} | Objetos | Pokepedia`}
     description={description}
     lang={lang}
 >
@@ -112,11 +101,24 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     </div>
                 </div>
 
-                <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2rem] p-8 md:p-10 border border-emerald-100/50 dark:border-emerald-900/20 mb-12">
-                    <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
-                        "{description}"
+                <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2rem] p-8 md:p-10 border border-emerald-100/50 dark:border-emerald-900/20 mb-8">
+                    <h3 class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">{t.item_effect_label}</h3>
+                    <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                        {effect?.text || t.item_no_effect_available}
                     </p>
+                    {effect?.fallbackUsed && (
+                        <p class="text-xs text-slate-400 dark:text-slate-500 italic mt-3">{t.item_effect_en_fallback}</p>
+                    )}
                 </div>
+
+                {flavor && (
+                    <div class="bg-slate-50 dark:bg-slate-900/40 rounded-[2rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 mb-12">
+                        <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">{t.item_flavor_label}</h3>
+                        <p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                            "{flavor.text}"
+                        </p>
+                    </div>
+                )}
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {itemData.attributes && itemData.attributes.length > 0 && (

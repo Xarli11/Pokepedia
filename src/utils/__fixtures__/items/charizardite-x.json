@@ -1,0 +1,83 @@
+{
+  "id": 699,
+  "name": "charizardite-x",
+  "names": [
+    {
+      "name": "Charizardita X",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Charizardite X",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Allows Charizard to Mega Evolve into Mega Charizard X.",
+      "short_effect": "Held: Allows Charizard to Mega Evolve into Mega Charizard X.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Alakazam en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Charizard en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Charizard en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Charizard en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Charizard en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "One of a variety of mysterious Mega Stones.\nHave Charizard hold it, and this stone will enable it\nto Mega Evolve during battle.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}
