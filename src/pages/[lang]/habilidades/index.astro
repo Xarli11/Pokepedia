@@ -64,23 +64,50 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <div id="habilidades-data" data-lang={lang} class="hidden"></div>
 
     <script>
-        let searchInput, suggestionsContainer, cards, itemsData;
-        const cache = new Map();
+        interface AbilityInfo {
+            name: string;
+            desc: string;
+            hide: boolean;
+        }
 
-        function escHtml(str) {
+        // Subset of the PokeAPI /ability/{id} response this page reads.
+        interface PokeApiAbilityResponse {
+            name: string;
+            names?: { name: string; language: { name: string } }[];
+            flavor_text_entries: { flavor_text: string; language: { name: string } }[];
+            effect_entries: { short_effect?: string; effect?: string; language: { name: string } }[];
+        }
+
+        interface AbilityCardEntry {
+            name: string;
+            el: HTMLElement;
+            url: string;
+        }
+
+        // Assigned synchronously by init() on astro:page-load, before any
+        // listener registered inside init() can fire — every other function
+        // here is only reachable through one of those listeners.
+        let searchInput!: HTMLInputElement;
+        let suggestionsContainer!: HTMLElement;
+        let cards!: NodeListOf<HTMLElement>;
+        let itemsData!: AbilityCardEntry[];
+        const cache = new Map<string, AbilityInfo>();
+
+        function escHtml(str: string) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        async function fetchAbilityInfo(url, lang) {
-            if (cache.has(url)) return cache.get(url);
+        async function fetchAbilityInfo(url: string, lang: string): Promise<AbilityInfo | null> {
+            const cached = cache.get(url);
+            if (cached) return cached;
             try {
                 const res = await fetch(url);
-                const data = await res.json();
-                
-                const name = data.names.find(n => n.language.name === lang)?.name || 
-                             data.names.find(n => n.language.name === 'es')?.name || 
+                const data: PokeApiAbilityResponse = await res.json();
+
+                const name = data.names?.find(n => n.language.name === lang)?.name ||
+                             data.names?.find(n => n.language.name === 'es')?.name ||
                              data.name;
-                
+
                 let desc = "";
                 const flavor = data.flavor_text_entries.find(f => f.language.name === lang);
                 if (flavor) desc = flavor.flavor_text;
@@ -93,20 +120,21 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     const enEffect = data.effect_entries.find(e => e.language.name === 'en');
                     desc = enFlavor?.flavor_text || enEffect?.short_effect || "";
                 }
-                
+
                 desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
-                const result = { name, desc, hide: false };
+                const result: AbilityInfo = { name, desc, hide: false };
                 cache.set(url, result);
                 return result;
             } catch (e) { return null; }
         }
 
-        async function loadCard(card, lang) {
+        async function loadCard(card: HTMLElement, lang: string) {
             if (card.dataset.loaded === "true") return;
-            const nameEl = card.querySelector('[data-ability-url]');
-            const descEl = card.querySelector('[data-ability-desc-url]');
-            const url = nameEl.dataset.abilityUrl;
-            
+            const nameEl = card.querySelector<HTMLElement>('[data-ability-url]');
+            const descEl = card.querySelector<HTMLElement>('[data-ability-desc-url]');
+            const url = nameEl?.dataset.abilityUrl;
+            if (!nameEl || !descEl || !url) return;
+
             const info = await fetchAbilityInfo(url, lang);
             if (info) {
                 if (info.hide) {
@@ -121,7 +149,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function updateSuggestions(query, lang) {
+        async function updateSuggestions(query: string, lang: string) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -164,16 +192,16 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function applyFilters(forceLoad, lang) {
+        async function applyFilters(forceLoad: boolean, lang: string) {
             const query = searchInput.value.toLowerCase().trim();
             for (const card of cards) {
                 if (!card.parentElement) continue;
-                const englishName = card.dataset.name.toLowerCase();
+                const englishName = (card.dataset.name ?? '').toLowerCase();
                 const translatedName = card.dataset.translatedName || '';
                 const isLoaded = card.dataset.loaded === "true";
 
                 const matchesSearch = englishName.includes(query) || translatedName.includes(query);
-                
+
                 if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
                     await loadCard(card, lang);
                     const newTranslatedName = card.dataset.translatedName || '';
@@ -187,19 +215,20 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         function init() {
             const dataEl = document.getElementById('habilidades-data');
             if (!dataEl) return;
-            const lang = dataEl.dataset.lang;
+            const lang = dataEl.dataset.lang || 'es';
 
-            searchInput = document.getElementById('ability-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            cards = document.querySelectorAll('.ability-card');
+            const searchInputEl = document.querySelector<HTMLInputElement>('#ability-search');
+            const suggestionsContainerEl = document.getElementById('search-suggestions');
+            if (!searchInputEl || !suggestionsContainerEl) return;
+            searchInput = searchInputEl;
+            suggestionsContainer = suggestionsContainerEl;
+            cards = document.querySelectorAll<HTMLElement>('.ability-card');
 
-            if (!searchInput) return;
-
-            itemsData = Array.from(cards).map(card => ({
-                name: card.dataset.name,
-                el: card,
-                url: card.querySelector('[data-ability-url]').dataset.abilityUrl
-            }));
+            itemsData = Array.from(cards).flatMap(card => {
+                const url = card.querySelector<HTMLElement>('[data-ability-url]')?.dataset.abilityUrl;
+                if (!url) return [];
+                return [{ name: card.dataset.name ?? '', el: card, url }];
+            });
 
             searchInput.addEventListener('input', () => {
                 applyFilters(true, lang);
@@ -208,7 +237,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) {
+                    if (entry.isIntersecting && entry.target instanceof HTMLElement) {
                         loadCard(entry.target, lang);
                         observer.unobserve(entry.target);
                     }
@@ -218,6 +247,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             cards.forEach(card => observer.observe(card));
 
             document.addEventListener('click', (e) => {
+                if (!(e.target instanceof Node)) return;
                 if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                     suggestionsContainer.classList.add('hidden');
                 }
