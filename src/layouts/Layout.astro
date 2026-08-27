@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { ViewTransitions } from 'astro:transitions';
+import { ClientRouter } from 'astro:transitions';
 import { uiTranslations } from '../utils/pokemon';
 import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath } from '../utils/seo';
 
@@ -161,7 +161,7 @@ if (Astro.locals.cacheControl) {
                 if (window.updateFavButtons) window.updateFavButtons();
             });
         </script>
-        <ViewTransitions />
+        <ClientRouter />
 	</head>
 	<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex flex-col">
         <header 
@@ -425,6 +425,7 @@ if (Astro.locals.cacheControl) {
     <div id="layout-data" data-lang={lang} class="hidden"></div>
     <script>
         import { localizedPath } from '../utils/seo';
+        import type { PokemonNameEntry } from '../services/pokeapi';
 
         function initTheme() {
             const btn = document.getElementById('theme-switch');
@@ -437,7 +438,7 @@ if (Astro.locals.cacheControl) {
 
         window.updateFavButtons = () => {
             const favorites = JSON.parse(localStorage.getItem('pokepedia_favorites') || '[]');
-            document.querySelectorAll('.fav-btn').forEach(btn => {
+            document.querySelectorAll<HTMLElement>('.fav-btn').forEach(btn => {
                 const isFav = favorites.includes(btn.dataset.pokemon);
                 const heart = btn.querySelector('.heart-icon');
                 if (!heart) return;
@@ -467,7 +468,7 @@ if (Astro.locals.cacheControl) {
             }
             
             localStorage.setItem('pokepedia_favorites', JSON.stringify(favorites));
-            window.updateFavButtons();
+            if (window.updateFavButtons) window.updateFavButtons();
             document.dispatchEvent(new CustomEvent('favorites-updated'));
 
             if (typeof window.gtag === 'function') {
@@ -478,8 +479,8 @@ if (Astro.locals.cacheControl) {
             }
         };
 
-        function initRandom(lang) {
-            const btn = document.getElementById('random-pokemon-btn');
+        function initRandom(lang: string) {
+            const btn = document.querySelector<HTMLButtonElement>('#random-pokemon-btn');
             if (!btn) return;
             btn.onclick = async () => {
                 btn.disabled = true;
@@ -516,20 +517,32 @@ if (Astro.locals.cacheControl) {
             btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function escHtml(str) {
+        function escHtml(str: string) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        function initGlobalSearch(lang) {
+        interface HistoryEntry {
+            name: string;
+            id: number;
+            sprite?: string;
+        }
+
+        function initGlobalSearch(lang: string) {
             const trigger = document.getElementById('global-search-trigger');
             const modal = document.getElementById('global-search-modal');
-            const input = document.getElementById('global-search-input');
+            const input = document.querySelector<HTMLInputElement>('#global-search-input');
             const results = document.getElementById('global-search-results');
             const overlay = document.getElementById('modal-overlay');
             const content = document.getElementById('modal-content');
             let selectedIndex = -1;
 
             if (!trigger || !modal || !input || !results) return;
+            // Nested closures below can't see the null-check above (TS doesn't
+            // carry narrowing across function boundaries), so rebind to
+            // already-non-null consts for use inside them.
+            const modalEl = modal;
+            const inputEl = input;
+            const resultsEl = results;
 
             // A5: abort previous listeners to avoid accumulation across page-loads
             if (window._searchAbortController) window._searchAbortController.abort();
@@ -537,15 +550,16 @@ if (Astro.locals.cacheControl) {
             window._searchAbortController = ac;
             const { signal } = ac;
 
-            function showHistory(lang) {
+            function showHistory(lang: string) {
                 try {
-                    const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
-                    results.innerHTML = '';
+                    const parsed = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                    const history: HistoryEntry[] = Array.isArray(parsed) ? parsed : [];
+                    resultsEl.innerHTML = '';
                     if (history.length === 0) {
                         const empty = document.createElement('div');
                         empty.className = 'p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs';
                         empty.textContent = lang === 'es' ? 'Sin búsquedas recientes' : 'No recent searches';
-                        results.appendChild(empty);
+                        resultsEl.appendChild(empty);
                         return;
                     }
                     const header = document.createElement('div');
@@ -562,8 +576,8 @@ if (Astro.locals.cacheControl) {
                     };
                     header.appendChild(title);
                     header.appendChild(clearBtn);
-                    results.appendChild(header);
-                    history.forEach(p => {
+                    resultsEl.appendChild(header);
+                    history.forEach((p: HistoryEntry) => {
                         const a = document.createElement('a');
                         a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
                         a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group';
@@ -592,19 +606,19 @@ if (Astro.locals.cacheControl) {
                         a.appendChild(imgWrap);
                         a.appendChild(textWrap);
                         a.appendChild(badge);
-                        results.appendChild(a);
+                        resultsEl.appendChild(a);
                     });
                 } catch {}
             }
 
-            function toggleModal(show) {
+            function toggleModal(show: boolean) {
                 if (show) {
-                    modal.classList.remove('hidden');
-                    modal.classList.add('flex');
+                    modalEl.classList.remove('hidden');
+                    modalEl.classList.add('flex');
                     setTimeout(() => {
                         content?.classList.remove('scale-95', 'opacity-0');
                         content?.classList.add('scale-100', 'opacity-100');
-                        input.focus();
+                        inputEl.focus();
                         showHistory(lang);
                     }, 10);
                     document.body.style.overflow = 'hidden';
@@ -612,12 +626,12 @@ if (Astro.locals.cacheControl) {
                     content?.classList.add('scale-95', 'opacity-0');
                     content?.classList.remove('scale-100', 'opacity-100');
                     setTimeout(() => {
-                        modal.classList.add('hidden');
-                        modal.classList.remove('flex');
+                        modalEl.classList.add('hidden');
+                        modalEl.classList.remove('flex');
                     }, 300);
                     document.body.style.overflow = '';
-                    input.value = '';
-                    results.innerHTML = '';
+                    inputEl.value = '';
+                    resultsEl.innerHTML = '';
                     selectedIndex = -1;
                 }
             }
@@ -626,10 +640,10 @@ if (Astro.locals.cacheControl) {
             if (overlay) overlay.onclick = () => toggleModal(false);
 
             // B8: focus trap — keep Tab inside modal
-            modal.addEventListener('keydown', (e) => {
-                if (modal.classList.contains('hidden')) return;
+            modalEl.addEventListener('keydown', (e) => {
+                if (modalEl.classList.contains('hidden')) return;
                 if (e.key === 'Tab') {
-                    const focusable = modal.querySelectorAll('input, a, button, [tabindex]:not([tabindex="-1"])');
+                    const focusable = modalEl.querySelectorAll<HTMLElement>('input, a, button, [tabindex]:not([tabindex="-1"])');
                     if (focusable.length === 0) return;
                     const first = focusable[0];
                     const last = focusable[focusable.length - 1];
@@ -642,15 +656,15 @@ if (Astro.locals.cacheControl) {
             }, { signal });
 
             document.addEventListener('keydown', (e) => {
-                if (e.key === '/' && document.activeElement !== input && document.activeElement?.tagName !== 'INPUT') {
+                if (e.key === '/' && document.activeElement !== inputEl && document.activeElement?.tagName !== 'INPUT') {
                     e.preventDefault();
                     toggleModal(true);
                 }
-                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                if (e.key === 'Escape' && !modalEl.classList.contains('hidden')) {
                     toggleModal(false);
                 }
-                if (!modal.classList.contains('hidden')) {
-                    const items = results.querySelectorAll('a');
+                if (!modalEl.classList.contains('hidden')) {
+                    const items = resultsEl.querySelectorAll('a');
                     if (e.key === 'ArrowDown') {
                         e.preventDefault();
                         selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
@@ -666,7 +680,7 @@ if (Astro.locals.cacheControl) {
                 }
             }, { signal });
 
-            function updateSelection(items) {
+            function updateSelection(items: NodeListOf<HTMLAnchorElement>) {
                 items.forEach((item, idx) => {
                     if (idx === selectedIndex) {
                         item.classList.add('bg-emerald-50', 'dark:bg-emerald-950/20', 'border-emerald-500/50');
@@ -677,14 +691,14 @@ if (Astro.locals.cacheControl) {
                 });
             }
 
-            let searchTimeout;
-            input.oninput = () => {
-                const query = input.value.trim().toLowerCase();
+            let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+            inputEl.oninput = () => {
+                const query = inputEl.value.trim().toLowerCase();
                 clearTimeout(searchTimeout);
                 if (query.length < 2) { showHistory(lang); return; }
 
                 searchTimeout = setTimeout(async () => {
-                    results.innerHTML = Array(3).fill(0).map(() => `
+                    resultsEl.innerHTML = Array(3).fill(0).map(() => `
                         <div class="p-6 animate-pulse flex items-center gap-4">
                             <div class="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl"></div>
                             <div class="space-y-2"><div class="w-24 h-4 bg-slate-100 dark:bg-slate-800 rounded"></div><div class="w-12 h-2 bg-slate-100 dark:bg-slate-800 rounded"></div></div>
@@ -693,13 +707,13 @@ if (Astro.locals.cacheControl) {
 
                     try {
                         const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
-                        const matches = await res.json();
+                        const matches: PokemonNameEntry[] = await res.json();
                         selectedIndex = -1;
-                        results.innerHTML = '';
+                        resultsEl.innerHTML = '';
 
                         if (matches.length > 0) {
                             // A1: DOM construction — no innerHTML with API data
-                            matches.forEach(p => {
+                            matches.forEach((p: PokemonNameEntry) => {
                                 const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                                 const isVariety = p.id > 10000;
                                 const a = document.createElement('a');
@@ -730,23 +744,23 @@ if (Astro.locals.cacheControl) {
                                 a.appendChild(imgWrap);
                                 a.appendChild(textWrap);
                                 a.appendChild(arrow);
-                                results.appendChild(a);
+                                resultsEl.appendChild(a);
                             });
                         } else {
                             const empty = document.createElement('div');
                             empty.className = 'p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs';
                             empty.textContent = lang === 'es' ? 'Sin resultados' : 'No results found';
-                            results.appendChild(empty);
+                            resultsEl.appendChild(empty);
                         }
                     } catch (e) {
-                        results.innerHTML = '';
+                        resultsEl.innerHTML = '';
                     }
                 }, 150);
             };
         }
 
-        function updateLangSwitch(lang) {
-            const btn = document.getElementById('lang-switch-btn');
+        function updateLangSwitch(lang: string) {
+            const btn = document.querySelector<HTMLAnchorElement>('#lang-switch-btn');
             if (!btn) return;
             const otherLang = lang === 'es' ? 'en' : 'es';
             const search = window.location.search;
