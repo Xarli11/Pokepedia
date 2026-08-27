@@ -1,0 +1,39 @@
+{
+  "id": 1178,
+  "name": "heavy-duty-boots",
+  "names": [
+    {
+      "name": "Botas Gruesas",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Heavy-Duty Boots",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [],
+  "flavor_text_entries": [
+    {
+      "text": "Anula los efectos de aquello que se coloca a los pies\ndel Pokémon para obstaculizarlo, como las trampas.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "These boots prevent the effects of traps set on\nthe battlefield.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

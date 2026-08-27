@@ -1,72 +1,52 @@
 import type { APIRoute } from 'astro';
+import { getAllPokemonBasic, getAllMoves, getAllAbilities, getAllItems } from '../services/pokeapi';
+import { buildSitemapEntries, renderSitemapXml, type SitemapUrlEntry } from '../utils/sitemap';
+
+// Root cause fixed here: `moves`/`abilities`/`items` used to be declared and
+// never populated, so those entity families were silently absent from the
+// sitemap despite having live detail pages. Each family is now fetched
+// independently via Promise.allSettled so a slow/failing upstream family
+// (e.g. PokeAPI timing out) degrades that family only, instead of throwing
+// away the entire sitemap.
+async function safeList<T extends { name: string }>(
+  promise: Promise<T[]>,
+  label: string
+): Promise<T[]> {
+  try {
+    return await promise;
+  } catch (error) {
+    console.error(`Sitemap: failed to load ${label}`, error);
+    return [];
+  }
+}
 
 export const GET: APIRoute = async () => {
-  const languages = ['es', 'en'];
-  const siteUrl = 'https://pokepedia.app';
-  const lastmod = new Date().toISOString().split('T')[0];
+  const [pokemon, moves, abilities, items] = await Promise.all([
+    safeList(getAllPokemonBasic(1025), 'pokemon'),
+    safeList(getAllMoves(), 'moves'),
+    safeList(getAllAbilities(), 'abilities'),
+    safeList(getAllItems(), 'items'),
+  ]);
 
-  let pokemon = [];
-  let moves = [];
-  let abilities = [];
-  let items = [];
-
-  try {
-    // Obtener SOLO los nombres de los primeros 1025 pokemon para el sitemap
-    // Reducimos el alcance para evitar límites de memoria en Cloudflare
-    const pokemonRes = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025', {
-        signal: AbortSignal.timeout(10000)
-    });
-    const pokemonData = await pokemonRes.json();
-    pokemon = pokemonData.results || [];
-  } catch (e) {
-    console.error('Sitemap generation error, simplified version');
-  }
-
-  // Páginas estáticas / Índices
   const staticPages = [
     { path: '/', priority: '1.0' },
     { path: '/movimientos/', priority: '0.9' },
     { path: '/habilidades/', priority: '0.9' },
-    { path: '/objetos/', priority: '0.9' }
+    { path: '/objetos/', priority: '0.9' },
   ];
 
-  const generateUrlEntry = (path: string, priority: string = '0.7', changefreq: string = 'weekly') => {
-    // Asegurar que el path empiece y termine correctamente
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    const finalPath = cleanPath.endsWith('/') ? cleanPath : `${cleanPath}/`;
+  const entries: SitemapUrlEntry[] = [
+    ...staticPages.flatMap((p) => buildSitemapEntries(p.path, p.priority)),
+    ...pokemon.flatMap((p) => buildSitemapEntries(`/pokemon/${p.name}`, '0.8')),
+    ...moves.flatMap((m) => buildSitemapEntries(`/movimientos/${m.name}`, '0.6')),
+    ...abilities.flatMap((a) => buildSitemapEntries(`/habilidades/${a.name}`, '0.6')),
+    ...items.flatMap((i) => buildSitemapEntries(`/objetos/${i.name}`, '0.5')),
+  ];
 
-    return languages.map(lang => {
-      const otherLang = lang === 'es' ? 'en' : 'es';
-      const fullUrl = `${siteUrl}/${lang}${finalPath}`;
-      const otherUrl = `${siteUrl}/${otherLang}${finalPath}`;
-      const defaultUrl = `${siteUrl}/es${finalPath}`;
-      
-      return `
-  <url>
-    <loc>${fullUrl}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <xhtml:link rel="alternate" hreflang="${lang}" href="${fullUrl}"/>
-    <xhtml:link rel="alternate" hreflang="${otherLang}" href="${otherUrl}"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="${defaultUrl}"/>
-    <changefreq>${changefreq}</changefreq>
-    <priority>${priority}</priority>
-  </url>`;
-    }).join('');
-  };
-
-  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  ${staticPages.map(p => generateUrlEntry(p.path, p.priority)).join('')}
-  ${pokemon.map((p: any) => generateUrlEntry(`/pokemon/${p.name}`, '0.8')).join('')}
-  ${moves.map((m: any) => generateUrlEntry(`/movimientos/${m.name}`, '0.6')).join('')}
-  ${abilities.map((a: any) => generateUrlEntry(`/habilidades/${a.name}`, '0.6')).join('')}
-  ${items.map((i: any) => generateUrlEntry(`/objetos/${i.name}`, '0.5')).join('')}
-</urlset>`;
-
-  return new Response(sitemap, {
+  return new Response(renderSitemapXml(entries), {
     headers: {
       'Content-Type': 'application/xml',
-      'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600'
-    }
+      'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600',
+    },
   });
 };

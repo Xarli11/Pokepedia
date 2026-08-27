@@ -60,6 +60,7 @@ export interface PokemonDetail {
 }
 
 export interface PokemonSpecies {
+    name: string;
     names: PokemonName[];
     flavor_text_entries: {
         flavor_text: string;
@@ -276,6 +277,16 @@ export async function getAllItems(): Promise<{ name: string, url: string }[]> {
     const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/item?limit=2000');
     const { isRealItem } = await import('../utils/pokemon');
     return data.results.filter((item: any) => isRealItem(item.name));
+}
+
+/**
+ * Lightweight, cached Pokémon name list for entity discovery (e.g. sitemap).
+ * Deliberately limited to base species (no varieties) — matches the scope
+ * the sitemap previously fetched directly and uncached.
+ */
+export async function getAllPokemonBasic(limit: number = 1025): Promise<{ name: string, url: string }[]> {
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${limit}`);
+    return data.results || [];
 }
 
 export async function getAbilityDetail(url: string): Promise<AbilityDetail> {

@@ -1,0 +1,83 @@
+{
+  "id": 698,
+  "name": "venusaurite",
+  "names": [
+    {
+      "name": "Venusaurita",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Venusaurite",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Allows Venusaur to Mega Evolve into Mega Venusaur.",
+      "short_effect": "Held: Allows Venusaur to Mega Evolve into Mega Venusaur.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Charizard en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Venusaur en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Venusaur en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Venusaur en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Venusaur en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "One of a variety of mysterious Mega Stones.\nHave Venusaur hold it, and this stone will enable it\nto Mega Evolve during battle.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

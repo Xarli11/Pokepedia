@@ -1,0 +1,83 @@
+{
+  "id": 584,
+  "name": "air-balloon",
+  "names": [
+    {
+      "name": "Globo Helio",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Air Balloon",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held\n:   Holder is immune to Ground-type moves, Spikes, Toxic Spikes, and Arena Trap.\n\n    This effect does not apply during Gravity or Ingrain.\n\n    When the holder takes damage from a move, this item is consumed.",
+      "short_effect": "Held: Grants immunity to Ground-type moves, Spikes, and Toxic Spikes. Consumed when the holder takes damage from a move.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Joya de un solo uso que potencia los\nmovimientos de tipo Fantasma. Debe llevarla\nun Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "El Pokémon que lo lleve flotará en el aire.\nSi recibe un golpe, estallará.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "El Pokémon que lo lleve flotará en el aire.\nSi recibe un golpe, estallará.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "El Pokémon que lo lleve flotará en el aire.\nSi recibe un golpe, estallará.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "El Pokémon que lo lleve flotará en el aire. Si recibe un\ngolpe, estallará.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. The holder will\nfloat in the air until hit. Once the holder is hit, this item\nwill burst.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { ViewTransitions } from 'astro:transitions';
 import { uiTranslations } from '../utils/pokemon';
+import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath } from '../utils/seo';
 
 interface Props {
 	title?: string;
@@ -10,21 +11,26 @@ interface Props {
     image?: string;
 }
 
-const { 
-    title = "Pokepedia", 
-    description = "Tu enciclopedia Pokémon técnica y definitiva.", 
+const {
+    title,
+    description = "Tu enciclopedia Pokémon técnica y definitiva.",
     lang = "es",
-    image = "/pokeball.png" 
+    image = "/pokeball.png"
 } = Astro.props;
 
-const siteUrl = "https://pokepedia.app";
+const siteUrl = SITE_URL;
 const finalImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? '' : '/'}${image}`;
 
 const currentPath = Astro.url.pathname;
 const currentSearch = Astro.url.search;
 const otherLang = lang === 'es' ? 'en' : 'es';
-let otherLangPath = currentPath.replace(`/${lang}`, `/${otherLang}`) + currentSearch;
-if (otherLangPath.startsWith('?')) otherLangPath = `/${otherLang}` + otherLangPath;
+// Path-only rewrite (keeps ?gen=favorites etc. across the lang switch);
+// canonical/hreflang below intentionally strip query params instead.
+const otherLangPath = `${localizedPath(currentPath, otherLang as 'es' | 'en')}${currentSearch}`;
+
+const pageTitle = buildPageTitle(title, lang);
+const canonical = canonicalUrl(currentPath);
+const alternates = localeAlternates(currentPath);
 
 // Aplicar caché si está disponible en locals
 if (Astro.locals.cacheControl) {
@@ -98,25 +104,25 @@ if (Astro.locals.cacheControl) {
         <meta name="theme-color" content="#10b981">
 		<meta name="generator" content={Astro.generator} />
         
-		<title>{title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia & Type Calculator' : `${title} | Pokepedia`}</title>
+		<title>{pageTitle}</title>
         <meta name="description" content={description} />
         <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Type Calculator, Weakness Chart, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet, Type Coverage" />
         <meta name="author" content="Xarli11" />
-        <link rel="canonical" href={Astro.url} />
-        
+        <link rel="canonical" href={canonical} />
+
         <!-- Multilanguage SEO -->
-        <link rel="alternate" hreflang="es" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
-        <link rel="alternate" hreflang="en" href={new URL(currentPath.replace(`/${lang}`, '/en'), siteUrl)} />
-        <link rel="alternate" hreflang="x-default" href={new URL(currentPath.replace(`/${lang}`, '/es'), siteUrl)} />
+        <link rel="alternate" hreflang="es" href={alternates.es} />
+        <link rel="alternate" hreflang="en" href={alternates.en} />
+        <link rel="alternate" hreflang="x-default" href={alternates.xDefault} />
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={Astro.url} />
-        <meta property="og:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={finalImageUrl} />
         <meta property="og:image:secure_url" content={finalImageUrl} />
-        <meta property="og:image:alt" content={title} />
+        <meta property="og:image:alt" content={pageTitle} />
         <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -124,11 +130,11 @@ if (Astro.locals.cacheControl) {
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={Astro.url} />
-        <meta name="twitter:title" content={title === 'Pokepedia' ? 'Pokepedia | The Ultimate Technical Pokémon Encyclopedia' : `${title} | Pokepedia`} />
+        <meta name="twitter:url" content={canonical} />
+        <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={finalImageUrl} />
-        <meta name="twitter:image:alt" content={title} />
+        <meta name="twitter:image:alt" content={pageTitle} />
         
         <!-- Structured Data (Schema.org) -->
         <script type="application/ld+json" is:inline>
@@ -418,6 +424,8 @@ if (Astro.locals.cacheControl) {
 
     <div id="layout-data" data-lang={lang} class="hidden"></div>
     <script>
+        import { localizedPath } from '../utils/seo';
+
         function initTheme() {
             const btn = document.getElementById('theme-switch');
             if (!btn) return;
@@ -741,11 +749,8 @@ if (Astro.locals.cacheControl) {
             const btn = document.getElementById('lang-switch-btn');
             if (!btn) return;
             const otherLang = lang === 'es' ? 'en' : 'es';
-            const path = window.location.pathname;
             const search = window.location.search;
-            let otherPath = path.replace(`/${lang}/`, `/${otherLang}/`).replace(new RegExp(`^/${lang}$`), `/${otherLang}`) + search;
-            if (otherPath.startsWith('?')) otherPath = `/${otherLang}/` + otherPath;
-            btn.href = otherPath;
+            btn.href = `${localizedPath(window.location.pathname, otherLang)}${search}`;
             btn.textContent = otherLang.toUpperCase();
         }
 
