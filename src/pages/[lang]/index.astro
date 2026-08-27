@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import PokemonCard from '../../components/PokemonCard.astro';
-import { getPokemonByGeneration, getAllPokemonNames, GENERATIONS } from '../../services/pokeapi';
+import { getPokemonByGeneration, GENERATIONS } from '../../services/pokeapi';
 import { getSmogonDataBatch } from '../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../utils/pokemon';
 
@@ -227,7 +226,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        function applyFilters(lang: string, t: Record<string, string>) {
+        function applyFilters() {
             const searchInput = document.getElementById('global-search') as HTMLInputElement;
             const typeFilter = document.getElementById('type-filter') as HTMLSelectElement;
             const sortOrder = document.getElementById('sort-order') as HTMLSelectElement;
@@ -371,7 +370,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 }
             });
 
-            applyFilters(lang, t);
+            applyFilters();
             if ((window as any).updateTiers) (window as any).updateTiers();
         }
 
@@ -384,23 +383,23 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const t = uiTranslations[lang] || uiTranslations.es;
 
             // SSR cards already have types/stats from Smogon batch — just apply filters
-            applyFilters(lang, t);
+            applyFilters();
             if (gen === 'favorites') {
                 loadFavoritesView(lang, t);
             }
 
-            const searchInput = document.getElementById('global-search');
+            const searchInput = document.getElementById('global-search') as HTMLInputElement | null;
             const typeFilter = document.getElementById('type-filter');
             const sortOrder = document.getElementById('sort-order');
             const suggestionsContainer = document.getElementById('search-suggestions');
             const suggestionsList = document.getElementById('suggestions-list');
-            const genPills = document.querySelectorAll('.gen-pill');
+            const genPills = document.querySelectorAll<HTMLElement>('.gen-pill');
 
             async function handleSearch() {
                 if (!searchInput || !suggestionsContainer || !suggestionsList) return;
 
                 const query = normalize(searchInput.value);
-                applyFilters(lang, t);
+                applyFilters();
                 
                 clearTimeout(searchTimeout);
                 if (query.length >= 2) {
@@ -487,8 +486,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 });
             }
 
-            if (typeFilter) typeFilter.addEventListener('change', () => applyFilters(lang, t));
-            if (sortOrder) sortOrder.addEventListener('change', () => applyFilters(lang, t));
+            if (typeFilter) typeFilter.addEventListener('change', () => applyFilters());
+            if (sortOrder) sortOrder.addEventListener('change', () => applyFilters());
 
             // Use AbortController so these listeners are cleaned up on next page-load
             const ac = new AbortController();
@@ -512,7 +511,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             genPills.forEach(pill => {
                 pill.onclick = () => {
                     const url = new URL(window.location.href);
-                    url.searchParams.set('gen', pill.dataset.gen);
+                    url.searchParams.set('gen', pill.dataset.gen || 'gen1');
                     window.location.href = url.toString();
                 };
             });
@@ -523,8 +522,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         document.addEventListener('favorites-updated', () => {
             const dataEl = document.getElementById('index-data');
             if (dataEl && dataEl.dataset.gen === 'favorites') {
-                const lang = dataEl.dataset.lang;
-                const uiTranslations = JSON.parse(dataEl.dataset.translations);
+                const lang = dataEl.dataset.lang || 'es';
+                const uiTranslations = JSON.parse(dataEl.dataset.translations || '{}');
                 const t = uiTranslations[lang] || uiTranslations.es;
                 loadFavoritesView(lang, t);
             }
