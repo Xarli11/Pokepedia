@@ -142,12 +142,19 @@ export const GENERATIONS: Record<string, { limit: number; offset: number; region
  * Obtiene la lista básica de Pokémon por generación.
  * Esta versión devuelve datos ligeros para SSR y deja los detalles pesados para el cliente.
  */
-export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<any[]> {
+export interface PokemonListEntry {
+    name: string;
+    id: number;
+    url: string;
+    sprite: string;
+}
+
+export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonListEntry[]> {
     if (genKey === 'favorites') return [];
-    
+
     const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
     const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
-    
+
     return data.results.map((p: any) => {
         const id = parseInt(p.url.split('/').filter(Boolean).pop());
         return {
@@ -163,7 +170,7 @@ export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<a
  * Obtiene la lista de los primeros 151 Pokémon con sus detalles básicos.
  * @deprecated Use getPokemonByGeneration('gen1') instead
  */
-export async function getFirstGenPokemon(): Promise<any[]> {
+export async function getFirstGenPokemon(): Promise<PokemonListEntry[]> {
     return getPokemonByGeneration('gen1');
 }
 
@@ -345,7 +352,15 @@ export async function getLocalizedNames(
     return map;
 }
 
-export async function getAllPokemonNames(): Promise<{ name: string, id: number | string, sprite?: string }[]> {
+// id is always parseInt() of the trailing path segment of a PokeAPI resource
+// URL below, so it's always numeric — never a raw string.
+export interface PokemonNameEntry {
+    name: string;
+    id: number;
+    sprite?: string;
+}
+
+export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
     try {
         const cacheKey = 'global-pokemon-names-list';
         const cached = cache.get(cacheKey);
