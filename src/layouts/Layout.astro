@@ -537,6 +537,66 @@ if (Astro.locals.cacheControl) {
             window._searchAbortController = ac;
             const { signal } = ac;
 
+            function showHistory(lang) {
+                try {
+                    const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                    results.innerHTML = '';
+                    if (history.length === 0) {
+                        const empty = document.createElement('div');
+                        empty.className = 'p-8 text-center text-slate-400 font-bold uppercase tracking-widest text-xs';
+                        empty.textContent = lang === 'es' ? 'Sin búsquedas recientes' : 'No recent searches';
+                        results.appendChild(empty);
+                        return;
+                    }
+                    const header = document.createElement('div');
+                    header.className = 'flex items-center justify-between px-6 py-3 border-b border-slate-50 dark:border-slate-800';
+                    const title = document.createElement('span');
+                    title.className = 'text-[9px] font-black text-slate-400 uppercase tracking-widest';
+                    title.textContent = lang === 'es' ? 'Búsquedas Recientes' : 'Recent Searches';
+                    const clearBtn = document.createElement('button');
+                    clearBtn.className = 'text-[9px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest transition-colors';
+                    clearBtn.textContent = lang === 'es' ? 'Limpiar' : 'Clear';
+                    clearBtn.onclick = () => {
+                        localStorage.removeItem('pokepedia_history');
+                        showHistory(lang);
+                    };
+                    header.appendChild(title);
+                    header.appendChild(clearBtn);
+                    results.appendChild(header);
+                    history.forEach(p => {
+                        const a = document.createElement('a');
+                        a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
+                        a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group';
+                        const imgWrap = document.createElement('div');
+                        imgWrap.className = 'w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800';
+                        const img = document.createElement('img');
+                        img.src = p.sprite || `/pokeball.png`;
+                        img.alt = p.name;
+                        img.className = 'w-full h-full object-contain drop-shadow-md';
+                        img.loading = 'lazy';
+                        img.onerror = function() { this.src = '/pokeball.png'; this.classList.add('opacity-20'); };
+                        imgWrap.appendChild(img);
+                        const textWrap = document.createElement('div');
+                        textWrap.className = 'flex flex-col';
+                        const idSpan = document.createElement('span');
+                        idSpan.className = 'text-[10px] font-black text-slate-300 dark:text-slate-600';
+                        idSpan.textContent = p.id > 10000 ? (lang === 'es' ? 'FORMA ESPECIAL' : 'SPECIAL FORM') : '#' + String(p.id).padStart(4, '0');
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors';
+                        nameSpan.textContent = p.name.replace(/-/g, ' ');
+                        textWrap.appendChild(idSpan);
+                        textWrap.appendChild(nameSpan);
+                        const badge = document.createElement('span');
+                        badge.className = 'ml-auto text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest';
+                        badge.textContent = lang === 'es' ? 'RECIENTE' : 'RECENT';
+                        a.appendChild(imgWrap);
+                        a.appendChild(textWrap);
+                        a.appendChild(badge);
+                        results.appendChild(a);
+                    });
+                } catch {}
+            }
+
             function toggleModal(show) {
                 if (show) {
                     modal.classList.remove('hidden');
@@ -545,6 +605,7 @@ if (Astro.locals.cacheControl) {
                         content?.classList.remove('scale-95', 'opacity-0');
                         content?.classList.add('scale-100', 'opacity-100');
                         input.focus();
+                        showHistory(lang);
                     }, 10);
                     document.body.style.overflow = 'hidden';
                 } else {
@@ -620,7 +681,7 @@ if (Astro.locals.cacheControl) {
             input.oninput = () => {
                 const query = input.value.trim().toLowerCase();
                 clearTimeout(searchTimeout);
-                if (query.length < 2) { results.innerHTML = ''; return; }
+                if (query.length < 2) { showHistory(lang); return; }
 
                 searchTimeout = setTimeout(async () => {
                     results.innerHTML = Array(3).fill(0).map(() => `

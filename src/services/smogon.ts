@@ -73,6 +73,46 @@ export async function getSmogonDataBatch(names: string[]): Promise<Record<string
     return result;
 }
 
+const TIER_TO_FORMAT: Record<string, string> = {
+    'Uber': 'gen9ubers', 'OU': 'gen9ou', 'UU': 'gen9uu',
+    'RU': 'gen9ru', 'NU': 'gen9nu', 'PU': 'gen9pu',
+    'LC': 'gen9lc', 'AG': 'gen9anythinggoes',
+};
+
+function smogonKey(name: string): string {
+    return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+}
+
+export interface SmogonSet {
+    name: string;
+    moves: string[];
+    ability: string | null;
+    item: string | null;
+    nature: string | null;
+}
+
+export async function getSmogonSets(pokemonName: string, tier: string): Promise<SmogonSet[] | null> {
+    try {
+        const format = TIER_TO_FORMAT[tier] || 'gen9ou';
+        const data = await fetchWithCache<Record<string, any>>(
+            `https://pkmn.github.io/smogon/data/sets/${format}.json`,
+            8000
+        );
+        if (!data) return null;
+        const sets = data[smogonKey(pokemonName)];
+        if (!sets) return null;
+        return Object.entries(sets).map(([setName, set]: [string, any]) => ({
+            name: setName,
+            moves: (set.moves || []).map((slot: any) => Array.isArray(slot) ? slot[0] : slot),
+            ability: Array.isArray(set.ability) ? set.ability[0] : (set.ability ?? null),
+            item: Array.isArray(set.item) ? set.item[0] : (set.item ?? null),
+            nature: Array.isArray(set.nature) ? set.nature[0] : (set.nature ?? null),
+        }));
+    } catch {
+        return null;
+    }
+}
+
 // Root cause fixed here: `desc` used to be a single hardcoded Spanish
 // string, so English pages rendered Spanish tier descriptions regardless of
 // `lang` (see TierLegend.astro, which consumes this). `label` stays a
