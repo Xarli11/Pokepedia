@@ -1,7 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getAllItems } from '../../../services/pokeapi';
-import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+import { uiTranslations, formatName, itemTranslations } from '../../../utils/pokemon';
 
 const { lang = 'es' } = Astro.params;
 const items = await getAllItems();
@@ -102,38 +102,57 @@ const mainCategories = [
     <div id="objetos-data" data-lang={lang} data-i18n={JSON.stringify(i18nItems)} class="hidden"></div>
 
     <script>
-        let searchInput, suggestionsContainer, categoryFilter, cards;
-        const cache = new Map();
+        import { getItemSuperCategory } from '../../../utils/pokemon';
 
-        const SUPER_CAT_MAP = {
-            'berries': ['berries', 'baking-only', 'picky-healing', 'type-protection', 'in-a-pinch'],
-            'medicine': ['medicine', 'healing', 'status-cures', 'revival', 'vitamins', 'pp-recovery'],
-            'pokeballs': ['standard-balls', 'special-balls', 'apricorn-balls'],
-            'held-items': ['held-items', 'choice', 'plates', 'type-enhancement', 'effort-training', 'bad-held-items'],
-            'evolution': ['evolution', 'evolution-stones', 'mega-stones', 'z-crystals'],
-            'machines': ['all-machines']
-        };
+        // Assigned synchronously by init() on astro:page-load, before any
+        // listener registered inside init() can fire — every other function
+        // here is only reachable through one of those listeners.
+        let searchInput!: HTMLInputElement;
+        let suggestionsContainer!: HTMLElement;
+        let categoryFilter!: HTMLSelectElement;
+        let cards!: NodeListOf<HTMLElement>;
 
-        function getSuperCategory(rawCat) {
-            for (const [superCat, list] of Object.entries(SUPER_CAT_MAP)) {
-                if (list.includes(rawCat)) return superCat;
-            }
-            return rawCat;
+        interface ItemInfo {
+            name: string;
+            desc: string;
+            sprite?: string;
+            category: string;
+            rawCategory: string;
+            superCategory: string;
         }
 
-        async function fetchItemInfo(url, lang, i18nItems) {
-            if (cache.has(url)) return cache.get(url);
+        // Subset of the PokeAPI /item/{id} response this page reads. Some
+        // fields (flavor_text vs. text) are checked defensively because the
+        // shape has been inconsistent across PokeAPI resource types.
+        interface PokeApiItemResponse {
+            name: string;
+            category?: { name: string };
+            sprites?: { default?: string };
+            names?: { name: string; language: { name: string } }[];
+            flavor_text_entries?: { text?: string; flavor_text?: string; language: { name: string } }[];
+            effect_entries?: { short_effect?: string; effect?: string; language: { name: string } }[];
+        }
+
+        const cache = new Map<string, ItemInfo>();
+
+        function getItemUrlEl(card: HTMLElement): HTMLElement | null {
+            return card.querySelector<HTMLElement>('[data-item-url]');
+        }
+
+        async function fetchItemInfo(url: string, lang: string, i18nItems: Record<string, string>): Promise<ItemInfo | null> {
+            const cached = cache.get(url);
+            if (cached) return cached;
             try {
                 const res = await fetch(url);
-                const data = await res.json();
-                const name = data.names.find(n => n.language.name === lang)?.name || 
-                             data.names.find(n => n.language.name === 'es')?.name || 
+                const data: PokeApiItemResponse = await res.json();
+                const name = data.names?.find(n => n.language.name === lang)?.name ||
+                             data.names?.find(n => n.language.name === 'es')?.name ||
                              data.name;
                 const rawCategory = data.category?.name || "other";
-                const superCategory = getSuperCategory(rawCategory);
+                const superCategory = getItemSuperCategory(rawCategory);
                 const category = i18nItems[rawCategory] || i18nItems[superCategory] || (rawCategory.replace(/-/g, ' '));
                 let desc = "";
-                const flavor = data.flavor_text_entries?.find(f => f.language.name === lang) || 
+                const flavor = data.flavor_text_entries?.find(f => f.language.name === lang) ||
                                data.flavor_text_entries?.find(f => f.language.name === 'en');
                 if (flavor) desc = flavor.text || flavor.flavor_text || "";
                 if (!desc && data.effect_entries) {
@@ -143,13 +162,13 @@ const mainCategories = [
                 }
                 desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
                 const sprite = data.sprites?.default;
-                const result = { name, desc, sprite, category, rawCategory, superCategory };
+                const result: ItemInfo = { name, desc, sprite, category, rawCategory, superCategory };
                 cache.set(url, result);
                 return result;
             } catch (e) { return null; }
         }
 
-        async function updateSuggestions(query, lang, i18nItems) {
+        async function updateSuggestions(query: string, lang: string, i18nItems: Record<string, string>) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -157,7 +176,7 @@ const mainCategories = [
 
             const queryLower = query.toLowerCase();
             const matches = Array.from(cards).filter(card => {
-                const name = card.dataset.name.toLowerCase();
+                const name = (card.dataset.name ?? '').toLowerCase();
                 const translated = (card.dataset.translatedName || '').toLowerCase();
                 return name.includes(queryLower) || translated.includes(queryLower);
             }).slice(0, 6);
@@ -171,7 +190,8 @@ const mainCategories = [
             suggestionsContainer.classList.remove('hidden');
 
             for (const card of matches) {
-                const url = card.querySelector('[data-item-url]').dataset.itemUrl;
+                const url = getItemUrlEl(card)?.dataset.itemUrl;
+                if (!url) continue;
                 const info = await fetchItemInfo(url, lang, i18nItems);
                 if (!info) continue;
 
@@ -195,26 +215,30 @@ const mainCategories = [
             }
         }
 
-        async function loadCard(card, lang, i18nItems) {
+        async function loadCard(card: HTMLElement, lang: string, i18nItems: Record<string, string>) {
             if (card.dataset.loaded === 'true') return;
-            const url = card.querySelector('[data-item-url]').dataset.itemUrl;
+            const urlEl = getItemUrlEl(card);
+            const url = urlEl?.dataset.itemUrl;
+            if (!urlEl || !url) return;
             const info = await fetchItemInfo(url, lang, i18nItems);
             if (info) {
-                card.querySelector('[data-item-url]').textContent = info.name;
-                card.querySelector('[data-item-desc-url]').textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
-                card.querySelector('[data-item-category-url]').textContent = info.category;
+                urlEl.textContent = info.name;
+                const descEl = card.querySelector<HTMLElement>('[data-item-desc-url]');
+                const categoryEl = card.querySelector<HTMLElement>('[data-item-category-url]');
+                if (descEl) descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
+                if (categoryEl) categoryEl.textContent = info.category;
                 card.dataset.superCategory = info.superCategory;
                 card.dataset.loaded = "true";
                 card.dataset.translatedName = info.name.toLowerCase();
-                applyFilters(false, lang, i18nItems); 
+                applyFilters(false, lang, i18nItems);
             }
         }
 
-        async function applyFilters(forceLoad, lang, i18nItems) {
+        async function applyFilters(forceLoad: boolean, lang: string, i18nItems: Record<string, string>) {
             const query = searchInput.value.toLowerCase().trim();
             const selectedSuperCat = categoryFilter.value;
             for (const card of cards) {
-                const name = card.dataset.name.toLowerCase();
+                const name = (card.dataset.name ?? '').toLowerCase();
                 const translated = (card.dataset.translatedName || '').toLowerCase();
                 const superCat = card.dataset.superCategory;
                 const matchesSearch = name.includes(query) || translated.includes(query);
@@ -232,15 +256,17 @@ const mainCategories = [
         function init() {
             const dataEl = document.getElementById('objetos-data');
             if (!dataEl) return;
-            const lang = dataEl.dataset.lang;
-            const i18nItems = JSON.parse(dataEl.dataset.i18n);
+            const lang = dataEl.dataset.lang || 'es';
+            const i18nItems: Record<string, string> = JSON.parse(dataEl.dataset.i18n || '{}');
 
-            searchInput = document.getElementById('item-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            categoryFilter = document.getElementById('category-filter');
-            cards = document.querySelectorAll('.item-card');
-
-            if (!searchInput) return;
+            const searchInputEl = document.querySelector<HTMLInputElement>('#item-search');
+            const suggestionsContainerEl = document.getElementById('search-suggestions');
+            const categoryFilterEl = document.querySelector<HTMLSelectElement>('#category-filter');
+            if (!searchInputEl || !suggestionsContainerEl || !categoryFilterEl) return;
+            searchInput = searchInputEl;
+            suggestionsContainer = suggestionsContainerEl;
+            categoryFilter = categoryFilterEl;
+            cards = document.querySelectorAll<HTMLElement>('.item-card');
 
             searchInput.addEventListener('input', () => {
                 applyFilters(true, lang, i18nItems);
@@ -251,7 +277,7 @@ const mainCategories = [
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) {
+                    if (entry.isIntersecting && entry.target instanceof HTMLElement) {
                         loadCard(entry.target, lang, i18nItems);
                         observer.unobserve(entry.target);
                     }
@@ -261,6 +287,7 @@ const mainCategories = [
             cards.forEach(card => observer.observe(card));
 
             document.addEventListener('click', (e) => {
+                if (!(e.target instanceof Node)) return;
                 if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                     suggestionsContainer.classList.add('hidden');
                 }

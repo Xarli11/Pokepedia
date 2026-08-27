@@ -89,33 +89,73 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <div id="movimientos-data" data-lang={lang} data-colors={JSON.stringify(typeColors)} data-translations={JSON.stringify(typeTranslations)} class="hidden"></div>
 
     <script>
-        let searchInput, suggestionsContainer, typeFilter, rows, itemsData;
-        const cache = new Map();
+        interface MoveInfo {
+            name: string;
+            type: string;
+            category: string;
+            power: number | string;
+            accuracy: string;
+            pp: number;
+            priority: number;
+        }
 
-        const catColors = {
+        // Subset of the PokeAPI /move/{id} response this page reads.
+        interface PokeApiMoveResponse {
+            name: string;
+            names?: { name: string; language: { name: string } }[];
+            type: { name: string };
+            damage_class?: { name: string };
+            power: number | null;
+            accuracy: number | null;
+            pp: number;
+            priority: number;
+        }
+
+        interface MoveRowEntry {
+            name: string;
+            el: HTMLElement;
+            url: string;
+        }
+
+        type TypeColors = Record<string, string>;
+        type TypeTranslations = Record<string, Record<string, string>>;
+        type CatTranslations = Record<string, string>;
+
+        // Assigned synchronously by init() on astro:page-load, before any
+        // listener registered inside init() can fire — every other function
+        // here is only reachable through one of those listeners.
+        let searchInput!: HTMLInputElement;
+        let suggestionsContainer!: HTMLElement;
+        let typeFilter!: HTMLSelectElement;
+        let rows!: NodeListOf<HTMLElement>;
+        let itemsData!: MoveRowEntry[];
+        const cache = new Map<string, MoveInfo>();
+
+        const catColors: CatTranslations = {
             physical: 'bg-orange-500',
             special: 'bg-indigo-500',
             status: 'bg-slate-400'
         };
 
-        function escHtml(str) {
+        function escHtml(str: string) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        async function fetchMoveInfo(url, lang) {
-            if (cache.has(url)) return cache.get(url);
+        async function fetchMoveInfo(url: string, lang: string): Promise<MoveInfo | null> {
+            const cached = cache.get(url);
+            if (cached) return cached;
             try {
                 const res = await fetch(url);
-                const data = await res.json();
-                const name = data.names.find(n => n.language.name === lang)?.name || data.name;
+                const data: PokeApiMoveResponse = await res.json();
+                const name = data.names?.find(n => n.language.name === lang)?.name || data.name;
                 const type = data.type.name;
                 const category = data.damage_class?.name || 'status';
                 const power = data.power || '—';
                 const accuracy = data.accuracy ? `${data.accuracy}%` : '—';
                 const pp = data.pp;
                 const priority = data.priority;
-                
-                const result = { name, type, category, power, accuracy, pp, priority };
+
+                const result: MoveInfo = { name, type, category, power, accuracy, pp, priority };
                 cache.set(url, result);
                 return result;
             } catch (e) {
@@ -123,7 +163,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function updateSuggestions(query, lang, typeColors, typeTranslations, catTranslations) {
+        async function updateSuggestions(query: string, lang: string, typeColors: TypeColors, typeTranslations: TypeTranslations, catTranslations: CatTranslations) {
             if (!query || query.length < 2) {
                 suggestionsContainer.classList.add('hidden');
                 return;
@@ -169,31 +209,40 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }
         }
 
-        async function loadRow(row, lang, typeColors, typeTranslations, catTranslations) {
+        async function loadRow(row: HTMLElement, lang: string, typeColors: TypeColors, typeTranslations: TypeTranslations, catTranslations: CatTranslations) {
             const url = row.dataset.url;
+            if (!url) return;
             const info = await fetchMoveInfo(url, lang);
             if (info) {
-                row.querySelector('[data-move-name-url]').textContent = info.name;
-                row.querySelector('[data-move-type-url]').innerHTML = `
+                const nameEl = row.querySelector('[data-move-name-url]');
+                if (nameEl) nameEl.textContent = info.name;
+                const typeEl = row.querySelector('[data-move-type-url]');
+                if (typeEl) typeEl.innerHTML = `
                     <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm" style="background-color: ${typeColors[info.type]}">
-                        ${typeTranslations[lang][info.type]}
+                        ${typeTranslations[lang]?.[info.type]}
                     </span>
                 `;
-                row.querySelector('[data-move-cat-url]').innerHTML = `
+                const catEl = row.querySelector('[data-move-cat-url]');
+                if (catEl) catEl.innerHTML = `
                     <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColors[info.category]} shadow-sm">
                         ${catTranslations[info.category]}
                     </span>
                 `;
-                
-                const prioEl = row.querySelector('[data-move-prio-url]');
-                prioEl.textContent = info.priority > 0 ? `+${info.priority}` : info.priority < 0 ? info.priority : '0';
-                if (info.priority > 0) prioEl.classList.add('text-emerald-500');
-                if (info.priority < 0) prioEl.classList.add('text-rose-500');
 
-                row.querySelector('[data-move-pow-url]').textContent = info.power;
-                row.querySelector('[data-move-acc-url]').textContent = info.accuracy;
-                row.querySelector('[data-move-pp-url]').textContent = info.pp;
-                
+                const prioEl = row.querySelector('[data-move-prio-url]');
+                if (prioEl) {
+                    prioEl.textContent = info.priority > 0 ? `+${info.priority}` : info.priority < 0 ? String(info.priority) : '0';
+                    if (info.priority > 0) prioEl.classList.add('text-emerald-500');
+                    if (info.priority < 0) prioEl.classList.add('text-rose-500');
+                }
+
+                const powEl = row.querySelector('[data-move-pow-url]');
+                if (powEl) powEl.textContent = String(info.power);
+                const accEl = row.querySelector('[data-move-acc-url]');
+                if (accEl) accEl.textContent = info.accuracy;
+                const ppEl = row.querySelector('[data-move-pp-url]');
+                if (ppEl) ppEl.textContent = String(info.pp);
+
                 row.dataset.translatedName = info.name.toLowerCase();
                 row.dataset.type = info.type;
             }
@@ -204,7 +253,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const type = typeFilter.value;
 
             rows.forEach(row => {
-                const englishName = row.dataset.name.toLowerCase();
+                const englishName = (row.dataset.name ?? '').toLowerCase();
                 const translatedName = row.dataset.translatedName || '';
                 const moveType = row.dataset.type || '';
 
@@ -218,27 +267,29 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         function init() {
             const dataEl = document.getElementById('movimientos-data');
             if (!dataEl) return;
-            const lang = dataEl.dataset.lang;
-            const typeColors = JSON.parse(dataEl.dataset.colors);
-            const typeTranslations = JSON.parse(dataEl.dataset.translations);
-            
-            const catTranslations = {
+            const lang = dataEl.dataset.lang || 'es';
+            const typeColors: TypeColors = JSON.parse(dataEl.dataset.colors || '{}');
+            const typeTranslations: TypeTranslations = JSON.parse(dataEl.dataset.translations || '{}');
+
+            const catTranslations: CatTranslations = {
                 physical: lang === 'es' ? 'Físico' : 'Physical',
                 special: lang === 'es' ? 'Especial' : 'Special',
                 status: lang === 'es' ? 'Estado' : 'Status'
             };
 
-            searchInput = document.getElementById('move-search');
-            suggestionsContainer = document.getElementById('search-suggestions');
-            typeFilter = document.getElementById('type-filter');
-            rows = document.querySelectorAll('.move-row');
-
-            if (!searchInput) return;
+            const searchInputEl = document.querySelector<HTMLInputElement>('#move-search');
+            const suggestionsContainerEl = document.getElementById('search-suggestions');
+            const typeFilterEl = document.querySelector<HTMLSelectElement>('#type-filter');
+            if (!searchInputEl || !suggestionsContainerEl || !typeFilterEl) return;
+            searchInput = searchInputEl;
+            suggestionsContainer = suggestionsContainerEl;
+            typeFilter = typeFilterEl;
+            rows = document.querySelectorAll<HTMLElement>('.move-row');
 
             itemsData = Array.from(rows).map(row => ({
-                name: row.dataset.name,
+                name: row.dataset.name ?? '',
                 el: row,
-                url: row.dataset.url
+                url: row.dataset.url ?? ''
             }));
 
             searchInput.addEventListener('input', () => {
@@ -250,7 +301,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) {
+                    if (entry.isIntersecting && entry.target instanceof HTMLElement) {
                         const row = entry.target;
                         loadRow(row, lang, typeColors, typeTranslations, catTranslations);
                         observer.unobserve(row);
@@ -261,6 +312,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             rows.forEach(row => observer.observe(row));
 
             document.addEventListener('click', (e) => {
+                if (!(e.target instanceof Node)) return;
                 if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
                     suggestionsContainer.classList.add('hidden');
                 }
