@@ -1,0 +1,83 @@
+{
+  "id": 683,
+  "name": "assault-vest",
+  "names": [
+    {
+      "name": "Chaleco Asalto",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Assault Vest",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Raises the holder’s Special Defense to 1.5×.  Prevents the holder from selecting a status move.",
+      "short_effect": "Raises the holder’s Special Defense to 1.5×.  Prevents the holder from selecting a status move.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Una de las misteriosas Megapiedras. Permite\nmegaevolucionar a Venusaur en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Chaleco que potencia la Defensa Especial del\nPokémon que lo lleva, pero le impide lanzar\nataques de estado.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Chaleco que potencia la Defensa Especial del\nPokémon que lo lleva, pero le impide lanzar\nataques de estado.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Chaleco que potencia la Defensa Especial del Pokémon\nque lo lleva, pero le impide lanzar ataques de estado.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Chaleco que potencia la Defensa Especial del Pokémon\nque lo lleva, pero le impide lanzar movimientos de\nestado.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. This offensive\nvest raises Sp. Def but prevents the use of\nstatus moves.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

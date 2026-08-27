@@ -1,0 +1,83 @@
+{
+  "id": 246,
+  "name": "light-clay",
+  "names": [
+    {
+      "name": "Refleluz",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Light Clay",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: The holder’s Reflect and Light Screen will create effects lasting for eight turns rather than five.  As this item affects the move rather than the barrier itself, the effect is not lost if the holder leaves battle or drops this item.",
+      "short_effect": "Held: Light Screen and Reflect used by the holder last 8 rounds instead of 5.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Prolonga la duración de ataques multiturno como\nAtadura y Constricción si la lleva un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Prolonga la duración de barreras como Reflejo y\nPantalla de Luz. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Prolonga la duración de barreras como Reflejo y\nPantalla de Luz. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Prolonga la duración de barreras como las creadas por\nReflejo y Pantalla de Luz. Debe llevarlo un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Prolonga la duración de barreras como las creadas por\nReflejo y Pantalla de Luz. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. Protective moves\nlike Light Screen and Reflect will be\neffective longer.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

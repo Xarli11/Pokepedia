@@ -73,13 +73,18 @@ export async function getSmogonDataBatch(names: string[]): Promise<Record<string
     return result;
 }
 
-export const TIER_DEFINITIONS: Record<string, { label: string, desc: string, color: string }> = {
-    'Uber': { label: 'Uber', desc: 'Pokémon demasiado poderosos para el estándar.', color: 'bg-red-500' },
-    'OU': { label: 'Overused', desc: 'El estándar competitivo.', color: 'bg-emerald-500' },
-    'UU': { label: 'Underused', desc: 'Pokémon fuertes de uso medio.', color: 'bg-blue-500' },
-    'RU': { label: 'Rarely Used', desc: 'Pokémon de liga intermedia.', color: 'bg-amber-500' },
-    'NU': { label: 'Never Used', desc: 'Pokémon con nichos específicos.', color: 'bg-violet-500' },
-    'PU': { label: 'PU', desc: 'Categoría de uso bajo.', color: 'bg-slate-500' },
-    'LC': { label: 'Little Cup', desc: 'Pokémon nivel 5.', color: 'bg-pink-500' },
-    'AG': { label: 'Anything Goes', desc: 'Sin reglas.', color: 'bg-black' }
+// Root cause fixed here: `desc` used to be a single hardcoded Spanish
+// string, so English pages rendered Spanish tier descriptions regardless of
+// `lang` (see TierLegend.astro, which consumes this). `label` stays a
+// single value on purpose — OU/UU/Uber/etc. are competitive-scene jargon
+// used as-is in both languages, not translated terms.
+export const TIER_DEFINITIONS: Record<string, { label: string, desc: Record<'es' | 'en', string>, color: string }> = {
+    'Uber': { label: 'Uber', desc: { es: 'Pokémon demasiado poderosos para el estándar.', en: 'Pokémon too powerful for the standard tiers.' }, color: 'bg-red-500' },
+    'OU': { label: 'Overused', desc: { es: 'El estándar competitivo.', en: 'The competitive standard.' }, color: 'bg-emerald-500' },
+    'UU': { label: 'Underused', desc: { es: 'Pokémon fuertes de uso medio.', en: 'Strong mid-usage Pokémon.' }, color: 'bg-blue-500' },
+    'RU': { label: 'Rarely Used', desc: { es: 'Pokémon de liga intermedia.', en: 'Pokémon of the intermediate league.' }, color: 'bg-amber-500' },
+    'NU': { label: 'Never Used', desc: { es: 'Pokémon con nichos específicos.', en: 'Pokémon with specific niches.' }, color: 'bg-violet-500' },
+    'PU': { label: 'PU', desc: { es: 'Categoría de uso bajo.', en: 'Low-usage category.' }, color: 'bg-slate-500' },
+    'LC': { label: 'Little Cup', desc: { es: 'Pokémon nivel 5.', en: 'Level 5 Pokémon.' }, color: 'bg-pink-500' },
+    'AG': { label: 'Anything Goes', desc: { es: 'Sin reglas.', en: 'No rules.' }, color: 'bg-black' }
 };

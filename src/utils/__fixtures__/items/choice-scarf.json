@@ -1,0 +1,83 @@
+{
+  "id": 264,
+  "name": "choice-scarf",
+  "names": [
+    {
+      "name": "Pañuelo Elección",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Choice Scarf",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Increases the holder’s Speed by 50%, but restricts it to the first move it uses until it leaves battle or loses this item.  If this item is swapped for another Choice item via Trick or Switcheroo, the holder’s restriction is still lifted, but it will again be restricted to the next move it uses.\n(Quirk: If the holder is switched in by U-Turn and it also knows U-Turn, U-Turn becomes its restricted move.)",
+      "short_effect": "Held: Increases Speed by 50%, but restricts the holder to only one move.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Tabla de piedra que potencia los movimientos de\ntipo Veneno. Debe llevarla un Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Debe llevarlo un Pokémon. Potencia la Velocidad,\npero solo permite usar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Debe llevarlo un Pokémon. Potencia la Velocidad,\npero solo permite usar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Debe llevarlo un Pokémon. Potencia la Velocidad,\npero solo permite usar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Debe llevarlo un Pokémon. Potencia la Velocidad, pero\nsolo permite usar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. This curious\nscarf boosts Speed but only allows the use of\none move.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

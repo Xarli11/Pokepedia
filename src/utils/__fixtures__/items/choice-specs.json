@@ -1,0 +1,83 @@
+{
+  "id": 274,
+  "name": "choice-specs",
+  "names": [
+    {
+      "name": "Gafas Elección",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Choice Specs",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Increases the holder’s Special Attack by 50%, but restricts it to the first move it uses until it leaves battle or loses this item.  If this item is swapped for another Choice item via Trick or Switcheroo, the holder’s restriction is still lifted, but it will again be restricted to the next move it uses.\n(Quirk: If the holder is switched in by U-Turn and it also knows U-Turn, U-Turn becomes its restricted move.)",
+      "short_effect": "Held: Increases Special Attack by 50%, but restricts the holder to only one move.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Incienso de exótico aroma que fortalece los\nmovimientos de tipo Psíquico. Debe llevarlo un\nPokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Aumentan la potencia de los ataques especiales\ndel Pokémon que las lleva, pero solo le permiten\nusar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Aumentan la potencia de los ataques especiales\ndel Pokémon que las lleva, pero solo le permiten\nusar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Aumentan la potencia de los ataques especiales\ndel Pokémon que las lleva, pero solo le permiten\nusar un movimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Aumentan la potencia de los ataques especiales del\nPokémon que las lleva, pero solo le permiten usar un\nmovimiento.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. These curious\nglasses boost Sp. Atk but only allow the use of\none move.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

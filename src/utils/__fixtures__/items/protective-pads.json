@@ -1,0 +1,74 @@
+{
+  "id": 897,
+  "name": "protective-pads",
+  "names": [
+    {
+      "name": "Paracontacto",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Protective Pads",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held: Prevents side effects of contact moves used on the holder.",
+      "short_effect": "Held: Prevents side effects of contact moves used on the holder.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Protege al Pokémon de los efectos que le produciría\nel contacto directo en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Protege al Pokémon de los efectos que le produciría\nel contacto directo en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Protege al Pokémon de los efectos que le produciría\nel contacto directo en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Protege al Pokémon de los efectos que le produciría\nel contacto directo en combate.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "An item to be held by a Pokémon. These pads\nprotect the holder from effects caused by\nmaking direct contact with the target.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}

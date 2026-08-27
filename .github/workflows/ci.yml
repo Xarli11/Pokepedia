@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    name: install · check · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Non-blocking: the repo has a pre-existing baseline of strict-mode
+      # type errors (implicit `any` in inline client <script> blocks, mostly
+      # in objetos/index.astro, movimientos/index.astro, habilidades/index.astro
+      # and Layout.astro) unrelated to Sprint 1 scope. This step surfaces the
+      # count in CI logs without blocking merges; tracked as follow-up work.
+      # Flip to blocking once that baseline is paid down.
+      - name: Type check (informational)
+        run: npm run check
+        continue-on-error: true
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

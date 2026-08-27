@@ -1,0 +1,83 @@
+{
+  "id": 581,
+  "name": "eviolite",
+  "names": [
+    {
+      "name": "Mineral Evol",
+      "language": {
+        "name": "es"
+      }
+    },
+    {
+      "name": "Eviolite",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "effect_entries": [
+    {
+      "effect": "Held by a Pokémon that is not fully evolved\n:   Holder has 1.5× Defense and Special Defense.",
+      "short_effect": "Held: Holder has 1.5× Defense and Special Defense, as long as it’s not fully evolved.",
+      "language": {
+        "name": "en"
+      }
+    }
+  ],
+  "flavor_text_entries": [
+    {
+      "text": "Joya de un solo uso que potencia los\nmovimientos de tipo Psíquico. Debe llevarla\nun Pokémon.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "x-y"
+      }
+    },
+    {
+      "text": "Roca misteriosa. El Pokémon portador aumentará\nsu Defensa y su Defensa Especial si aún puede\nevolucionar.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sun-moon"
+      }
+    },
+    {
+      "text": "Roca misteriosa. El Pokémon portador aumentará\nsu Defensa y su Defensa Especial si aún puede\nevolucionar.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "ultra-sun-ultra-moon"
+      }
+    },
+    {
+      "text": "Roca misteriosa. El Pokémon portador aumentará\nsu Defensa y su Defensa Especial si aún puede\nevolucionar.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "lets-go-pikachu-lets-go-eevee"
+      }
+    },
+    {
+      "text": "Roca misteriosa. El Pokémon portador aumentará su\nDefensa y su Defensa Especial si aún puede\nevolucionar.",
+      "language": {
+        "name": "es"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    },
+    {
+      "text": "A mysterious evolutionary lump. When held by a\nPokémon that can still evolve, it raises both\nDefense and Sp. Def.",
+      "language": {
+        "name": "en"
+      },
+      "version_group": {
+        "name": "sword-shield"
+      }
+    }
+  ]
+}
