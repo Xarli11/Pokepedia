@@ -209,6 +209,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <div id="index-data" data-lang={lang} data-gen={gen} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
 
     <script>
+        import { trackEvent } from '../../utils/analytics';
+
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
             ice: '#96D9D6', fighting: '#C22E28', poison: '#A33EA1', ground: '#E2BF65', flying: '#A98FF3',
@@ -418,6 +420,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                         try {
                             const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
                             const matches = await res.json();
+                            trackEvent('global_search', { language: lang, target: matches.length > 0 ? 'results' : 'no_results', source_surface: 'home_search' });
 
                             if (matches.length > 0) {
                                 // A1: build suggestion items with DOM (no innerHTML with API data)

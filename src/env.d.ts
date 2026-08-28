@@ -22,4 +22,5 @@ interface Window {
 	gtag?: (...args: unknown[]) => void;
 	_backToTopHandler?: () => void;
 	_searchAbortController?: AbortController;
+	_trackedLinksAbortController?: AbortController;
 }

@@ -426,6 +426,7 @@ if (Astro.locals.cacheControl) {
     <script>
         import { localizedPath } from '../utils/seo';
         import type { PokemonNameEntry } from '../services/pokeapi';
+        import { trackEvent } from '../utils/analytics';
 
         function initTheme() {
             const btn = document.getElementById('theme-switch');
@@ -471,12 +472,7 @@ if (Astro.locals.cacheControl) {
             if (window.updateFavButtons) window.updateFavButtons();
             document.dispatchEvent(new CustomEvent('favorites-updated'));
 
-            if (typeof window.gtag === 'function') {
-                window.gtag('event', 'pokemon_favorite', {
-                    'pokemon_name': pokemonName,
-                    'action': action
-                });
-            }
+            trackEvent('favorite_toggle', { entity_type: 'pokemon', entity_slug: pokemonName, target: action });
         };
 
         function initRandom(lang: string) {
@@ -710,6 +706,7 @@ if (Astro.locals.cacheControl) {
                         const matches: PokemonNameEntry[] = await res.json();
                         selectedIndex = -1;
                         resultsEl.innerHTML = '';
+                        trackEvent('global_search', { language: lang, target: matches.length > 0 ? 'results' : 'no_results', source_surface: 'header_search' });
 
                         if (matches.length > 0) {
                             // A1: DOM construction — no innerHTML with API data
@@ -766,6 +763,32 @@ if (Astro.locals.cacheControl) {
             const search = window.location.search;
             btn.href = `${localizedPath(window.location.pathname, otherLang)}${search}`;
             btn.textContent = otherLang.toUpperCase();
+            btn.onclick = () => trackEvent('language_change', { language: otherLang, source_surface: 'header' });
+        }
+
+        // Delegated click tracking for any element marked with
+        // data-track-event, so individual pages/components don't each wire
+        // up their own gtag calls. See docs/DATA_SOURCES.md and
+        // src/utils/analytics.ts.
+        function initTrackedLinks() {
+            if (window._trackedLinksAbortController) window._trackedLinksAbortController.abort();
+            const ac = new AbortController();
+            window._trackedLinksAbortController = ac;
+
+            document.addEventListener('click', (e) => {
+                if (!(e.target instanceof Element)) return;
+                const el = e.target.closest('[data-track-event]');
+                if (!(el instanceof HTMLElement)) return;
+                const eventName = el.dataset.trackEvent;
+                if (!eventName) return;
+                trackEvent(eventName, {
+                    entity_type: el.dataset.entityType,
+                    entity_slug: el.dataset.entitySlug,
+                    language: el.dataset.trackLanguage,
+                    target: el.dataset.trackTarget,
+                    source_surface: el.dataset.sourceSurface,
+                });
+            }, { signal: ac.signal });
         }
 
         function initAll() {
@@ -778,6 +801,7 @@ if (Astro.locals.cacheControl) {
             initBackToTop();
             initGlobalSearch(lang);
             updateLangSwitch(lang);
+            initTrackedLinks();
             if (window.updateFavButtons) window.updateFavButtons();
         }
 

@@ -5,7 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
-import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName, natureTranslations } from '../../../utils/pokemon';
+import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -314,7 +314,7 @@ const getStatBarColor = (baseStat: number): string => {
                             <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
                         ))}
                     </div>
-                    <a href={`https://www.poketypes.app/?t1=${detail.types[0]?.type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} target="_blank" rel="noopener noreferrer" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
+                    <a href={buildPokeTypesUrl(detail.types, detail.name)} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="pokemon_detail" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>
                 </div>

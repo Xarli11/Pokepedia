@@ -174,7 +174,28 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_sets_item': 'Objeto',
         'comp_sets_ability': 'Habilidad',
         'comp_sets_nature': 'Naturaleza',
-        'no_recent_searches': 'Sin búsquedas recientes'
+        'no_recent_searches': 'Sin búsquedas recientes',
+        'sources_footer_link': 'Fuentes y metodología',
+        'sources_title': 'Fuentes y Metodología',
+        'sources_desc_seo': 'De dónde saca Pokepedia sus datos, cómo se normalizan y cómo reportar un error.',
+        'sources_intro_title': '¿Qué es Pokepedia?',
+        'sources_intro_body': 'Pokepedia es un proyecto independiente que reúne datos técnicos y competitivos de Pokémon en un solo sitio. No está afiliado ni respaldado por Nintendo, Game Freak, The Pokémon Company ni Smogon University.',
+        'sources_data_title': 'De dónde vienen los datos',
+        'sources_data_pokeapi': 'Datos base de cada Pokémon, movimiento, habilidad y objeto: especies, estadísticas, tipos por defecto, descripciones y cadenas evolutivas.',
+        'sources_data_showdown': 'Tipos y estadísticas base "actuales" (post-nerfeos/buffs oficiales) cuando difieren de PokeAPI, y la lista de habilidades legales por Pokémon.',
+        'sources_data_smogon': 'Tier competitivo y sets de equipo recomendados por formato, agregados desde el uso real en Pokémon Showdown.',
+        'sources_methodology_title': 'Cómo se normalizan los datos',
+        'sources_methodology_body': 'Una respuesta de una API externa no se muestra tal cual: pasa por una capa de selección que decide, con reglas explícitas y no arbitrarias, qué texto e idioma mostrar. Cuando una fuente no tiene el dato en tu idioma, se usa el idioma disponible más fiable y se indica cuando corresponde.',
+        'sources_correction_title': 'Cuando una fuente tiene un error',
+        'sources_correction_body': 'Las fuentes externas no son perfectas. Cuando detectamos un error verificado en los datos de origen (por ejemplo, una traducción al español que en realidad pertenece a otro objeto distinto), lo documentamos y corregimos en vez de mostrarlo sin más.',
+        'sources_report_title': 'Reportar un error',
+        'sources_report_body': 'Si ves un dato incorrecto, puedes reportarlo directamente desde la ficha del Pokémon, movimiento, habilidad u objeto correspondiente, o crear un issue en GitHub.',
+        'sources_report_link': 'Abrir un issue en GitHub',
+        'report_data_issue': 'Reportar un error',
+        'source_pokeapi': 'Fuente: PokeAPI',
+        'source_showdown': 'Fuente: Pokémon Showdown',
+        'source_smogon': 'Fuente: Smogon',
+        'source_competitive': 'Datos competitivos: Smogon'
         },
         en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -298,7 +319,28 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'comp_sets_item': 'Item',
         'comp_sets_ability': 'Ability',
         'comp_sets_nature': 'Nature',
-        'no_recent_searches': 'No recent searches'
+        'no_recent_searches': 'No recent searches',
+        'sources_footer_link': 'Sources & methodology',
+        'sources_title': 'Sources & Methodology',
+        'sources_desc_seo': 'Where Pokepedia gets its data, how it is normalized, and how to report an error.',
+        'sources_intro_title': 'What is Pokepedia?',
+        'sources_intro_body': 'Pokepedia is an independent project that brings together technical and competitive Pokémon data in one place. It is not affiliated with or endorsed by Nintendo, Game Freak, The Pokémon Company, or Smogon University.',
+        'sources_data_title': 'Where the data comes from',
+        'sources_data_pokeapi': 'Base data for every Pokémon, move, ability and item: species, stats, default types, descriptions and evolution chains.',
+        'sources_data_showdown': '"Current" types and base stats (after official nerfs/buffs) when they differ from PokeAPI, and the legal ability list per Pokémon.',
+        'sources_data_smogon': 'Competitive tier and recommended team sets per format, aggregated from real usage on Pokémon Showdown.',
+        'sources_methodology_title': 'How data is normalized',
+        'sources_methodology_body': 'A response from an external API is never shown as-is: it passes through a selection layer that decides, with explicit and non-arbitrary rules, which text and language to display. When a source has no entry in your language, the most reliable available language is used, and that is flagged where relevant.',
+        'sources_correction_title': 'When a source has an error',
+        'sources_correction_body': 'External sources aren’t perfect. When we find a verified error in the upstream data (for example, a Spanish translation that actually belongs to a different item), we document and correct it instead of showing it as-is.',
+        'sources_report_title': 'Report an error',
+        'sources_report_body': 'If you spot incorrect data, you can report it directly from the relevant Pokémon, move, ability or item page, or open an issue on GitHub.',
+        'sources_report_link': 'Open a GitHub issue',
+        'report_data_issue': 'Report a data issue',
+        'source_pokeapi': 'Source: PokeAPI',
+        'source_showdown': 'Source: Pokémon Showdown',
+        'source_smogon': 'Source: Smogon',
+        'source_competitive': 'Competitive data: Smogon'
     }
 };
 
@@ -820,6 +862,22 @@ export function getPoketypesName(name: string): string {
 
     // 3. Manejo de formas regionales (Asegurar que mantenemos el sufijo regional)
     // Ej: rattata-alola -> rattata-alola (PokeTypes lo encontrará por apiName)
-    
+
     return n;
+}
+
+/**
+ * Deep link to PokeTypes' weakness/matchup calculator for a given Pokémon —
+ * centralized so the URL shape (and the getPoketypesName mapping) only
+ * needs to be right in one place. Pokepedia owns the technical profile;
+ * PokeTypes owns weakness/matchup math — see docs/DATA_SOURCES.md.
+ */
+export function buildPokeTypesUrl(types: { type: { name: string } }[], pokemonName: string): string {
+    const t1 = types[0]?.type.name;
+    const t2 = types[1]?.type.name;
+    const params = new URLSearchParams();
+    if (t1) params.set('t1', t1);
+    if (t2) params.set('t2', t2);
+    params.set('p', getPoketypesName(pokemonName));
+    return `https://www.poketypes.app/?${params.toString()}`;
 }
