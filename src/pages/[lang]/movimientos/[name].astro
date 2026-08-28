@@ -1,29 +1,23 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
-import { getLocalizedName } from '../../../services/pokeapi';
+import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 
 const { lang, name } = Astro.params;
 
 let moveData;
 try {
-    const res = await fetch(`https://pokeapi.co/api/v2/move/${name}`);
-    if (!res.ok) throw new Error();
-    moveData = await res.json();
+    moveData = await getMoveDetailByName(name as string);
 } catch (e) {
     return Astro.redirect(`/${lang}/movimientos`);
 }
 
 const localizedName = getLocalizedName(moveData.names, lang as string) || formatName(moveData.name);
-const description = moveData.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                  moveData.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+const description = moveData.flavor_text_entries.find((f) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
+                  moveData.flavor_text_entries.find((f) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
 
-const pokemonPromises = moveData.learned_by_pokemon.slice(0, 40).map(async (p: any) => {
-    const res = await fetch(p.url);
-    return res.json();
-});
-const pokemonList = await Promise.all(pokemonPromises);
+const pokemonList = await getPokemonListByUrls(moveData.learned_by_pokemon.map((p) => p.url), 40);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 

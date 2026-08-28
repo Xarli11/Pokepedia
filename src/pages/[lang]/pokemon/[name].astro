@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName, natureTranslations } from '../../../utils/pokemon';
 
@@ -83,9 +83,8 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
         try {
-            const baseRes = await fetch(baseVariety.pokemon.url);
-            if (baseRes.ok) {
-                const baseDetail = await baseRes.json();
+            const baseDetail = await getPokemonDetailByUrl(baseVariety.pokemon.url);
+            if (baseDetail) {
                 if (detail.abilities.length === 0) detail.abilities = baseDetail.abilities || [];
                 if (detail.moves.length === 0) detail.moves = baseDetail.moves || [];
             }
@@ -103,20 +102,18 @@ try {
         species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
         Promise.all(detail.abilities.map(async (a: any) => {
             try {
-                const res = await fetch(a.ability.url, { signal: AbortSignal.timeout(5000) });
-                if (!res.ok) throw new Error();
-                const ad = await res.json();
+                const ad = await getAbilityDetail(a.ability.url);
                 return {
                     ...a,
                     displayName: ad.names?.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
-                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
                                  ad.flavor_text_entries?.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
                 };
             } catch (e) {
                 return { ...a, displayName: formatName(a.ability.name), description: "" };
             }
         })),
-        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => fetch(v.pokemon.url, { signal: AbortSignal.timeout(5000) }).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
+        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => getPokemonDetailByUrl(v.pokemon.url))) : Promise.resolve([])
     ]);
 
     evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -186,8 +183,8 @@ let prevPokemon: any = null;
 let nextPokemon: any = null;
 try {
     const navResults = await Promise.allSettled([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null),
-        fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null)
+        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${prevId}`),
+        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${nextId}`)
     ]);
     prevPokemon = navResults[0].status === 'fulfilled' ? navResults[0].value : null;
     nextPokemon = navResults[1].status === 'fulfilled' ? navResults[1].value : null;

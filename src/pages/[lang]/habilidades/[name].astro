@@ -1,16 +1,14 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
-import { getLocalizedName } from '../../../services/pokeapi';
+import { getLocalizedName, getAbilityDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
 
 const { lang, name } = Astro.params;
 
 let abilityData;
 try {
-    const res = await fetch(`https://pokeapi.co/api/v2/ability/${name}`);
-    if (!res.ok) throw new Error();
-    abilityData = await res.json();
+    abilityData = await getAbilityDetailByName(name as string);
 } catch (e) {
     return Astro.redirect(`/${lang}/habilidades`);
 }
@@ -24,11 +22,7 @@ const description = abilityData.flavor_text_entries.find((f: any) => f.language.
                   abilityData.effect_entries.find((e: any) => e.language.name === 'en')?.effect.replace(/\f/g, ' ') ||
                   "Sin descripción detallada disponible / No detailed description available";
 
-const pokemonPromises = abilityData.pokemon.map(async (p: any) => {
-    const res = await fetch(p.pokemon.url);
-    return res.json();
-});
-const pokemonList = await Promise.all(pokemonPromises);
+const pokemonList = await getPokemonListByUrls(abilityData.pokemon.map(p => p.pokemon.url), 40);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---

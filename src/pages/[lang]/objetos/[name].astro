@@ -1,7 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
-import { getLocalizedName, getItemDetail } from '../../../services/pokeapi';
+import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
 
@@ -30,26 +30,19 @@ const categoryName = i18nItems[superCategoryKey] || i18nItems[categoryKey] || fo
 // Lógica especial para MTs
 let moveDetail = null;
 if (categoryKey === 'all-machines' && itemData.machines && itemData.machines.length > 0) {
-    try {
-        const machineRes = await fetch(itemData.machines[0].machine.url);
-        const machineData = await machineRes.json();
-        const moveRes = await fetch(machineData.move.url);
-        const moveData = await moveRes.json();
+    const moveData = await getMachineMove(itemData.machines[0].machine.url);
+    if (moveData) {
         moveDetail = {
             name: getLocalizedName(moveData.names, lang as string) || formatName(moveData.name),
             url: `/${lang}/movimientos/${moveData.name}`
         };
-    } catch (e) {
-        console.error("Error fetching move for machine", e);
     }
 }
 
 // Obtener detalles de Pokémon que pueden llevar este objeto
-const heldByPokemon = await Promise.all(
-    (itemData.held_by_pokemon || []).slice(0, 15).map(async (h: any) => {
-        const res = await fetch(h.pokemon.url);
-        return res.json();
-    })
+const heldByPokemon = await getPokemonListByUrls(
+    (itemData.held_by_pokemon || []).map((h: any) => h.pokemon.url),
+    15
 );
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
