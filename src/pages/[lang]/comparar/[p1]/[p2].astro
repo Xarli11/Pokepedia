@@ -3,7 +3,7 @@ import Layout from '../../../../layouts/Layout.astro';
 import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
 import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
 import { getPokemonByName } from '../../../../services/pokeapi';
-import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber, getPoketypesName } from '../../../../utils/pokemon';
+import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber, buildPokeTypesUrl } from '../../../../utils/pokemon';
 
 const { lang, p1, p2 } = Astro.params;
 
@@ -164,8 +164,8 @@ const seoTitle = lang === 'es'
                             </span>
                         ))}
                     </div>
-                    <a href={`https://www.poketypes.app/?t1=${pokemon1.detail.types[0]?.type.name}${pokemon1.detail.types[1] ? `&t2=${pokemon1.detail.types[1].type.name}` : ''}&p=${getPoketypesName(pokemon1.detail.name)}`}
-                       target="_blank" rel="noopener noreferrer"
+                    <a href={buildPokeTypesUrl(pokemon1.detail.types, pokemon1.detail.name)}
+                       target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="comparator"
                        class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline group">
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_on_poketypes}</span>
                         <svg class="w-3 h-3 text-emerald-500 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
@@ -181,8 +181,8 @@ const seoTitle = lang === 'es'
                             </span>
                         ))}
                     </div>
-                    <a href={`https://www.poketypes.app/?t1=${pokemon2.detail.types[0]?.type.name}${pokemon2.detail.types[1] ? `&t2=${pokemon2.detail.types[1].type.name}` : ''}&p=${getPoketypesName(pokemon2.detail.name)}`}
-                       target="_blank" rel="noopener noreferrer"
+                    <a href={buildPokeTypesUrl(pokemon2.detail.types, pokemon2.detail.name)}
+                       target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="comparator"
                        class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-rose-500/10 border-2 border-rose-500/20 hover:border-rose-500 transition-all no-underline group">
                         <span class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">{t.view_on_poketypes}</span>
                         <svg class="w-3 h-3 text-rose-500 group-hover:translate-x-0.5 transition-transform" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>

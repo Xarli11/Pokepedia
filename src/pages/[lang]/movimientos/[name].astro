@@ -1,29 +1,24 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
-import { getLocalizedName } from '../../../services/pokeapi';
+import ReportDataIssue from '../../../components/ReportDataIssue.astro';
+import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 
 const { lang, name } = Astro.params;
 
 let moveData;
 try {
-    const res = await fetch(`https://pokeapi.co/api/v2/move/${name}`);
-    if (!res.ok) throw new Error();
-    moveData = await res.json();
+    moveData = await getMoveDetailByName(name as string);
 } catch (e) {
     return Astro.redirect(`/${lang}/movimientos`);
 }
 
 const localizedName = getLocalizedName(moveData.names, lang as string) || formatName(moveData.name);
-const description = moveData.flavor_text_entries.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
-                  moveData.flavor_text_entries.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+const description = moveData.flavor_text_entries.find((f) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
+                  moveData.flavor_text_entries.find((f) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
 
-const pokemonPromises = moveData.learned_by_pokemon.slice(0, 40).map(async (p: any) => {
-    const res = await fetch(p.url);
-    return res.json();
-});
-const pokemonList = await Promise.all(pokemonPromises);
+const pokemonList = await getPokemonListByUrls(moveData.learned_by_pokemon.map((p) => p.url), 40);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 
@@ -59,7 +54,8 @@ const categoryLabels: Record<string, string> = {
                             {categoryLabels[moveData.damage_class.name]}
                         </span>
                     </div>
-                    <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-8 capitalize leading-tight tracking-tighter">{localizedName}</h1>
+                    <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-2 capitalize leading-tight tracking-tighter">{localizedName}</h1>
+                    <div class="mb-6"><ReportDataIssue entityType="move" entitySlug={moveData.name} lang={lang as string} /></div>
                     <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-3xl p-8 border border-emerald-100/50 dark:border-emerald-900/20">
                         <p class="text-xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
                             "{description}"

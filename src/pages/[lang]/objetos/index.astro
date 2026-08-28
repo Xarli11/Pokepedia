@@ -103,6 +103,7 @@ const mainCategories = [
 
     <script>
         import { getItemSuperCategory } from '../../../utils/pokemon';
+        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
 
         // Assigned synchronously by init() on astro:page-load, before any
         // listener registered inside init() can fire — every other function
@@ -143,8 +144,7 @@ const mainCategories = [
             const cached = cache.get(url);
             if (cached) return cached;
             try {
-                const res = await fetch(url);
-                const data: PokeApiItemResponse = await res.json();
+                const data = await fetchPokeApiJson<PokeApiItemResponse>(url);
                 const name = data.names?.find(n => n.language.name === lang)?.name ||
                              data.names?.find(n => n.language.name === 'es')?.name ||
                              data.name;

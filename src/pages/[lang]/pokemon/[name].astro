@@ -3,9 +3,10 @@ import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, type PokemonDetail } from '../../../services/pokeapi';
+import ReportDataIssue from '../../../components/ReportDataIssue.astro';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
-import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName, natureTranslations } from '../../../utils/pokemon';
+import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -83,9 +84,8 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
     if (baseVariety && baseVariety.pokemon.name !== detail.name) {
         try {
-            const baseRes = await fetch(baseVariety.pokemon.url);
-            if (baseRes.ok) {
-                const baseDetail = await baseRes.json();
+            const baseDetail = await getPokemonDetailByUrl(baseVariety.pokemon.url);
+            if (baseDetail) {
                 if (detail.abilities.length === 0) detail.abilities = baseDetail.abilities || [];
                 if (detail.moves.length === 0) detail.moves = baseDetail.moves || [];
             }
@@ -103,20 +103,18 @@ try {
         species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
         Promise.all(detail.abilities.map(async (a: any) => {
             try {
-                const res = await fetch(a.ability.url, { signal: AbortSignal.timeout(5000) });
-                if (!res.ok) throw new Error();
-                const ad = await res.json();
+                const ad = await getAbilityDetail(a.ability.url);
                 return {
                     ...a,
                     displayName: ad.names?.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
-                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') || 
+                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
                                  ad.flavor_text_entries?.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
                 };
             } catch (e) {
                 return { ...a, displayName: formatName(a.ability.name), description: "" };
             }
         })),
-        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => fetch(v.pokemon.url, { signal: AbortSignal.timeout(5000) }).then(r => r.ok ? r.json() : null))) : Promise.resolve([])
+        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => getPokemonDetailByUrl(v.pokemon.url))) : Promise.resolve([])
     ]);
 
     evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -186,8 +184,8 @@ let prevPokemon: any = null;
 let nextPokemon: any = null;
 try {
     const navResults = await Promise.allSettled([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${prevId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null),
-        fetch(`https://pokeapi.co/api/v2/pokemon/${nextId}`, { signal: AbortSignal.timeout(4000) }).then(res => res.ok ? res.json() : null)
+        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${prevId}`),
+        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${nextId}`)
     ]);
     prevPokemon = navResults[0].status === 'fulfilled' ? navResults[0].value : null;
     nextPokemon = navResults[1].status === 'fulfilled' ? navResults[1].value : null;
@@ -251,6 +249,7 @@ const getStatBarColor = (baseStat: number): string => {
                         <svg class="w-6 h-6 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
                 </div>
+                <ReportDataIssue entityType="pokemon" entitySlug={detail.name} lang={lang as string} />
             </div>
 
             <div class="flex items-center gap-3">
@@ -317,7 +316,7 @@ const getStatBarColor = (baseStat: number): string => {
                             <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
                         ))}
                     </div>
-                    <a href={`https://www.poketypes.app/?t1=${detail.types[0]?.type.name}${detail.types[1] ? `&t2=${detail.types[1].type.name}` : ''}&p=${getPoketypesName(detail.name)}`} target="_blank" rel="noopener noreferrer" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
+                    <a href={buildPokeTypesUrl(detail.types, detail.name)} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="pokemon_detail" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>
                 </div>

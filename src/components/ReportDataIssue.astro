@@ -1,0 +1,41 @@
+---
+// Compact "Report a data issue" action for entity detail pages. Builds a
+// pre-filled GitHub issue link (see src/utils/reportIssue.ts and
+// .github/ISSUE_TEMPLATE/data_issue.yml) — no backend, no personal data
+// collected here. Click tracking is handled by Layout.astro's delegated
+// data-track-event listener.
+import { canonicalUrl } from '../utils/seo';
+import { buildReportIssueUrl, type ReportableEntityType } from '../utils/reportIssue';
+import { uiTranslations } from '../utils/pokemon';
+
+interface Props {
+	entityType: ReportableEntityType;
+	entitySlug: string;
+	lang: string;
+}
+
+const { entityType, entitySlug, lang } = Astro.props;
+const t = uiTranslations[lang] || uiTranslations.es;
+const issueUrl = buildReportIssueUrl({
+	entityType,
+	entitySlug,
+	lang,
+	pageUrl: canonicalUrl(Astro.url.pathname),
+});
+---
+
+<a
+	href={issueUrl}
+	target="_blank"
+	rel="noopener noreferrer"
+	data-track-event="report_data_error"
+	data-entity-type={entityType}
+	data-entity-slug={entitySlug}
+	data-track-language={lang}
+	class="inline-flex items-center gap-2 text-[11px] font-bold text-slate-400 hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400 transition-colors no-underline"
+>
+	<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+		<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"></path>
+	</svg>
+	{t.report_data_issue}
+</a>
