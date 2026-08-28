@@ -4,7 +4,8 @@ import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, type PokemonDetail } from '../../../services/pokeapi';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 
@@ -231,10 +232,27 @@ const getStatBarColor = (baseStat: number): string => {
     if (baseStat < 100) return '#fbbf24';
     return typeColor;
 };
+
+// Generation link — species already carries its own generation (PokeAPI's
+// pokemon-species resource has a `generation` field), so this is free: no
+// extra fetch, no static id-range table, and it can't drift out of sync
+// with PokeAPI the way a hand-maintained range could (see Gen 9 fix in
+// getPokemonByGeneration).
+const pokemonGenNumRaw = species?.generation?.url ? idFromResourceUrl(species.generation.url) : null;
+const pokemonGenKey = pokemonGenNumRaw ? `gen${pokemonGenNumRaw}` : null;
+const pokemonGenRoman = pokemonGenKey ? GENERATION_ROMAN[pokemonGenKey] : null;
+const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: 'Pokédex', href: `/${lang}/` },
+    { label: localizedName },
+];
 ---
 
 <Layout title={seoTitle} description={seoDescription} image={officialArtwork} lang={lang as string}>
     <div class="max-w-5xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
             <div class="flex flex-col gap-4">
                 <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group">
@@ -313,9 +331,14 @@ const getStatBarColor = (baseStat: number): string => {
                 <div class="flex flex-wrap items-center gap-4 mb-6">
                     <div class="flex gap-2">
                         {detail.types.map((t2: any) => (
-                            <span class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</span>
+                            <a href={`/${lang}/tipo/${t2.type.name}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={t2.type.name} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm hover:opacity-90 transition-opacity no-underline" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</a>
                         ))}
                     </div>
+                    {pokemonGenRoman && (
+                        <a href={`/${lang}/generacion/${pokemonGenNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={pokemonGenKey} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                            {t.generation_label} {pokemonGenRoman}
+                        </a>
+                    )}
                     <a href={buildPokeTypesUrl(detail.types, detail.name)} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="pokemon_detail" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
                     </a>

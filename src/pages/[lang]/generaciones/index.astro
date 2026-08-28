@@ -1,0 +1,56 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { GENERATIONS, GENERATION_ROMAN, getPokemonByGeneration, getDexRangeFromEntries } from '../../../services/pokeapi';
+import { uiTranslations } from '../../../utils/pokemon';
+
+const { lang = 'es' } = Astro.params;
+const t = uiTranslations[lang as string] || uiTranslations.es;
+const genKeys = Object.keys(GENERATIONS);
+
+// Real per-generation counts/ranges from PokeAPI's generation/{n} — one
+// cached call per generation, same tradeoff /tipos/ already makes fetching
+// all 18 types for its hub counts. GENERATIONS itself only carries display
+// metadata now (region), not species counts, so there's nothing static to
+// go stale here.
+const results = await Promise.allSettled(genKeys.map((k) => getPokemonByGeneration(k)));
+const generationCards = genKeys.map((genKey, i) => {
+    const info = GENERATIONS[genKey];
+    const result = results[i];
+    const list = result.status === 'fulfilled' ? result.value : [];
+    const range = list.length > 0 ? getDexRangeFromEntries(list) : { start: 0, end: 0 };
+    return { genKey, genNum: genKey.replace('gen', ''), roman: GENERATION_ROMAN[genKey], region: info.region, count: list.length, range };
+});
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.generations },
+];
+---
+
+<Layout title={t.generations_hub_title_seo} description={t.generations_hub_desc_seo} lang={lang as string}>
+    <div class="max-w-5xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
+        <div class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">{t.generations}</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">{t.generations_hub_desc_seo}</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {generationCards.map(({ genNum, genKey, roman, region, count, range }) => (
+                <a
+                    href={`/${lang}/generacion/${genNum}/`}
+                    data-track-event="internal_entity_click"
+                    data-entity-type="generation"
+                    data-entity-slug={genKey}
+                    data-source-surface="generations_hub"
+                    class="flex flex-col gap-3 p-8 rounded-[2.5rem] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-xl transition-all no-underline"
+                >
+                    <span class="text-2xl font-black text-slate-800 dark:text-white">{t.generation_label} {roman}</span>
+                    <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">{region}</span>
+                    <span class="text-xs font-bold text-slate-400">#{String(range.start).padStart(4, '0')}–#{String(range.end).padStart(4, '0')} · {count} {t.pokemon_count_label}</span>
+                </a>
+            ))}
+        </div>
+    </div>
+</Layout>

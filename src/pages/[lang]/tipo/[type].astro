@@ -1,0 +1,149 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import PokemonListCard from '../../../components/PokemonListCard.astro';
+import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getSmogonDataBatch } from '../../../services/smogon';
+import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
+import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl } from '../../../utils/seo';
+
+const { lang = 'es', type } = Astro.params;
+const typeSlug = (type as string || '').toLowerCase();
+const allTypes = Object.keys(typeColors);
+
+if (!allTypes.includes(typeSlug)) {
+    return Astro.redirect(`/${lang}/`);
+}
+
+const t = uiTranslations[lang as string] || uiTranslations.es;
+const typeLabel = typeTranslations[lang as string]?.[typeSlug] || typeSlug;
+
+let pokemonList: Awaited<ReturnType<typeof getPokemonByType>> = [];
+try {
+    pokemonList = await getPokemonByType(typeSlug);
+} catch (e) {
+    return Astro.redirect(`/${lang}/`);
+}
+
+const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
+const enrichedList = pokemonList.map((p) => {
+    const sd = smogonBatch[p.name];
+    return { ...p, types: sd?.types || [] };
+});
+
+const count = enrichedList.length;
+
+// Derived stats — no invented text, everything computed from the list itself.
+const genMembership = await getGenerationMembershipMap();
+const genCounts = new Map<string, number>();
+for (const p of enrichedList) {
+    const genKey = genMembership.get(p.id);
+    if (genKey) genCounts.set(genKey, (genCounts.get(genKey) || 0) + 1);
+}
+const generationBreakdown = [...genCounts.entries()]
+    .sort((a, b) => (GENERATION_ROMAN[a[0]] ? a[0].localeCompare(b[0]) : 0))
+    .map(([genKey, genCount]) => ({
+        genKey,
+        genNum: genKey.replace('gen', ''),
+        roman: GENERATION_ROMAN[genKey],
+        count: genCount,
+    }));
+
+const secondaryTypeCounts = new Map<string, number>();
+for (const p of enrichedList) {
+    const secondary = p.types.find((tp: string) => tp !== typeSlug);
+    if (secondary) secondaryTypeCounts.set(secondary, (secondaryTypeCounts.get(secondary) || 0) + 1);
+}
+const topSecondaryTypes = [...secondaryTypeCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([typeName, typeCount]) => ({ typeName, typeCount }));
+
+const seoTitle = buildTypeLandingTitle(typeLabel, lang as 'es' | 'en');
+const seoDescription = buildTypeLandingDescription(typeLabel, count, lang as 'es' | 'en');
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.pokemon_types, href: `/${lang}/tipos/` },
+    { label: typeLabel },
+];
+
+const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: enrichedList.map((p, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: canonicalUrl(`/${lang}/pokemon/${p.name}`),
+    })),
+};
+
+const otherTypes = allTypes.filter((tp) => tp !== typeSlug);
+const typeColor = (typeColors as Record<string, string>)[typeSlug];
+---
+
+<Layout title={seoTitle} description={seoDescription} lang={lang as string}>
+    <div class="max-w-6xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
+
+        <div class="flex items-center gap-4 mb-6">
+            <span class="w-4 h-4 rounded-full shrink-0" style={`background-color: ${typeColor}`} aria-hidden="true"></span>
+            <h1 class="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter capitalize">{typeLabel}</h1>
+        </div>
+        <p class="text-lg text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-3xl mb-10">{seoDescription}</p>
+
+        <div class="flex flex-wrap gap-4 mb-12">
+            <div class="px-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.pokemon_count_label}</p>
+                <p class="text-2xl font-black text-slate-900 dark:text-white">{count}</p>
+            </div>
+            {topSecondaryTypes.length > 0 && (
+                <div class="px-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.secondary_type_label}</p>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[topSecondaryTypes[0].typeName]}`} aria-hidden="true"></span>
+                        <p class="text-lg font-black text-slate-900 dark:text-white capitalize">{typeTranslations[lang as string]?.[topSecondaryTypes[0].typeName]} <span class="text-sm text-slate-400 font-bold">({topSecondaryTypes[0].typeCount})</span></p>
+                    </div>
+                </div>
+            )}
+            <a href={`https://www.poketypes.app/?t1=${typeSlug}`} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="type_landing" class="px-6 py-4 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all flex items-center no-underline">
+                <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_on_poketypes}</span>
+            </a>
+        </div>
+
+        {generationBreakdown.length > 0 && (
+            <div class="mb-12">
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.by_generation_label}</h2>
+                <div class="flex flex-wrap gap-2">
+                    {generationBreakdown.map((g) => (
+                        <a href={`/${lang}/generacion/${g.genNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="type_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                            {t.generation_label} {g.roman} <span class="opacity-60">({g.count})</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-16">
+            {enrichedList.map((p) => (
+                <PokemonListCard pokemon={p} lang={lang as string} />
+            ))}
+        </div>
+
+        <div class="border-t border-slate-100 dark:border-slate-800 pt-10">
+            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.other_types_label}</h2>
+            <div class="flex flex-wrap gap-2">
+                {otherTypes.map((tp) => (
+                    <a href={`/${lang}/tipo/${tp}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp} data-source-surface="type_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
+                        <span class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[tp]}`} aria-hidden="true"></span>
+                        {typeTranslations[lang as string]?.[tp]}
+                    </a>
+                ))}
+            </div>
+            <a href={`/${lang}/tipos/`} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
+                {t.back_to_types}
+            </a>
+        </div>
+    </div>
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(itemListJsonLd)} />
+</Layout>

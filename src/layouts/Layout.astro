@@ -416,15 +416,35 @@ if (Astro.locals.cacheControl) {
                                     {lang === 'es' ? '[ INVESTIGACIÓN_ACTIVA ]' : '[ RESEARCH_ACTIVE ]'}
                                 </p>
                             </div>
-                            <a
-                                href={`/${lang}/fuentes`}
-                                data-track-event="sources_click"
-                                data-track-target="footer_link"
-                                data-source-surface="footer"
-                                class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
-                            >
-                                {uiTranslations[lang]?.sources_footer_link || uiTranslations.es.sources_footer_link}
-                            </a>
+                            <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                                <a
+                                    href={`/${lang}/tipos`}
+                                    data-track-event="internal_entity_click"
+                                    data-entity-type="types_hub"
+                                    data-source-surface="footer"
+                                    class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
+                                >
+                                    {uiTranslations[lang]?.pokemon_types || uiTranslations.es.pokemon_types}
+                                </a>
+                                <a
+                                    href={`/${lang}/generaciones`}
+                                    data-track-event="internal_entity_click"
+                                    data-entity-type="generations_hub"
+                                    data-source-surface="footer"
+                                    class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
+                                >
+                                    {uiTranslations[lang]?.generations || uiTranslations.es.generations}
+                                </a>
+                                <a
+                                    href={`/${lang}/fuentes`}
+                                    data-track-event="sources_click"
+                                    data-track-target="footer_link"
+                                    data-source-surface="footer"
+                                    class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
+                                >
+                                    {uiTranslations[lang]?.sources_footer_link || uiTranslations.es.sources_footer_link}
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
