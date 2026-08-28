@@ -29,7 +29,7 @@ export async function GET({ url }: { url: URL }) {
             if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
             if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
             
-            return (a.id as number) - (b.id as number);
+            return a.id - b.id;
         })
         .slice(0, 10);
 

@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, getPoketypesName, natureTranslations } from '../../../utils/pokemon';
 
@@ -62,7 +62,7 @@ try {
         // Stats desde Showdown
         if (showdownData.baseStats) {
             const statMap: Record<string, string> = { hp: 'hp', atk: 'attack', def: 'defense', spa: 'special-attack', spd: 'special-defense', spe: 'speed' };
-            detail.stats = detail.stats.map(s => {
+            detail.stats = detail.stats.map((s: PokemonDetail['stats'][number]) => {
                 const showdownKey = Object.keys(statMap).find(key => statMap[key] === s.stat.name);
                 return { ...s, base_stat: (showdownKey && showdownData.baseStats[showdownKey]) ? showdownData.baseStats[showdownKey] : s.base_stat };
             });
