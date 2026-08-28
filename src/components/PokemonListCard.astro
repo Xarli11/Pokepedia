@@ -1,0 +1,59 @@
+---
+// src/components/PokemonListCard.astro
+//
+// Lightweight Pokémon card for large SSR lists (type/generation landing
+// pages): name/id/sprite/types only, no PokemonDetail object and no
+// Showdown tier-badge client fetch (unlike PokemonCard.astro) — those lists
+// can run to ~150 items and don't need per-card hydration. Favorite button
+// reuses the global window.toggleFavorite already wired in Layout.astro, so
+// this stays pure SSR HTML + CSS with zero new client JS.
+import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
+
+interface Props {
+    pokemon: { name: string; id: number; sprite: string; types?: string[] };
+    lang: string;
+}
+
+const { pokemon, lang = 'es' } = Astro.props;
+const types = pokemon.types || [];
+const accentColor = (typeColors as Record<string, string>)[types[0]] || '#10b981';
+---
+
+<a
+    href={`/${lang}/pokemon/${pokemon.name}`}
+    class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-8 border border-slate-200/50 dark:border-slate-800/50 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 flex flex-col items-center overflow-hidden no-underline"
+    data-track-event="internal_entity_click"
+    data-entity-type="pokemon"
+    data-entity-slug={pokemon.name}
+    style="content-visibility: auto; contain-intrinsic-size: 260px 340px;"
+>
+    <div class="w-full flex items-center justify-between mb-4">
+        <span class="text-slate-300 dark:text-slate-600 font-black text-[10px] tracking-[0.2em]">{formatPokemonNumber(pokemon.id)}</span>
+        <button
+            class="fav-btn p-2 rounded-full bg-slate-50 dark:bg-slate-950/40 border border-slate-100/50 dark:border-slate-800/50 hover:bg-rose-500/10 transition-all text-slate-400"
+            data-pokemon={pokemon.name}
+            onclick="event.preventDefault(); event.stopPropagation(); window.toggleFavorite(this.dataset.pokemon)"
+            aria-label={`${lang === 'es' ? 'Favorito' : 'Favorite'} ${pokemon.name.replace(/-/g, ' ')}`}
+        >
+            <svg class="w-4 h-4 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
+        </button>
+    </div>
+
+    <div class="relative w-full aspect-square max-w-[8rem] mx-auto flex items-center justify-center transition-transform duration-500 group-hover:scale-110">
+        <div class="absolute inset-0 blur-[40px] rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-500" style={`background-color: ${accentColor}`} aria-hidden="true"></div>
+        <img src={pokemon.sprite} alt={pokemon.name.replace(/-/g, ' ')} width="128" height="128" class="relative w-full h-full object-contain drop-shadow-xl" loading="lazy" decoding="async" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');" />
+    </div>
+
+    <p class="mt-4 text-lg font-[1000] text-slate-800 dark:text-white capitalize group-hover:text-emerald-500 transition-colors tracking-tighter text-center">{pokemon.name.replace(/-/g, ' ')}</p>
+
+    {types.length > 0 && (
+        <div class="flex flex-wrap justify-center gap-2 mt-3">
+            {types.map((typeName) => (
+                <span class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/50 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-700/50 text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                    <span class="w-1.5 h-1.5 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[typeName] || '#777'}`} aria-hidden="true"></span>
+                    {typeTranslations[lang]?.[typeName] || typeName}
+                </span>
+            ))}
+        </div>
+    )}
+</a>
