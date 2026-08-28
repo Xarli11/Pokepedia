@@ -1,0 +1,130 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import PokemonListCard from '../../../components/PokemonListCard.astro';
+import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getSmogonDataBatch } from '../../../services/smogon';
+import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
+import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl } from '../../../utils/seo';
+
+const { lang = 'es', gen: genParam } = Astro.params;
+const genNum = parseInt(genParam as string, 10);
+
+if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
+    return Astro.redirect(`/${lang}/`);
+}
+
+const genKey = `gen${genNum}`;
+const genInfo = GENERATIONS[genKey];
+const t = uiTranslations[lang as string] || uiTranslations.es;
+const roman = GENERATION_ROMAN[genKey];
+
+let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
+try {
+    pokemonList = await getPokemonByGeneration(genKey);
+} catch (e) {
+    return Astro.redirect(`/${lang}/`);
+}
+
+// Derived from the list PokeAPI's generation/{n} just gave us — no second
+// fetch, no static range table.
+const dexRange = getDexRangeFromEntries(pokemonList);
+
+const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
+const enrichedList = pokemonList.map((p) => {
+    const sd = smogonBatch[p.name];
+    return { ...p, types: sd?.types || [] };
+});
+
+const count = enrichedList.length;
+
+// Type distribution within this generation — derived, no invented text.
+const typeCounts = new Map<string, number>();
+for (const p of enrichedList) {
+    for (const tp of p.types) {
+        typeCounts.set(tp, (typeCounts.get(tp) || 0) + 1);
+    }
+}
+const typeDistribution = [...typeCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([typeName, typeCount]) => ({ typeName, typeCount }));
+
+const seoTitle = buildGenerationLandingTitle(roman, genInfo.region, lang as 'es' | 'en');
+const seoDescription = buildGenerationLandingDescription(roman, genInfo.region, count, lang as 'es' | 'en');
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.generations, href: `/${lang}/generaciones/` },
+    { label: `${t.generation_label} ${roman}` },
+];
+
+const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: enrichedList.map((p, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: canonicalUrl(`/${lang}/pokemon/${p.name}`),
+    })),
+};
+
+const otherGenerations = Object.keys(GENERATIONS)
+    .filter((k) => k !== genKey)
+    .map((k) => ({ genKey: k, genNum: k.replace('gen', ''), roman: GENERATION_ROMAN[k], region: GENERATIONS[k].region }));
+---
+
+<Layout title={seoTitle} description={seoDescription} lang={lang as string}>
+    <div class="max-w-6xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
+
+        <h1 class="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">{t.generation_label} {roman} <span class="text-emerald-500">({genInfo.region})</span></h1>
+        <p class="text-lg text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-3xl mb-10">{seoDescription}</p>
+
+        <div class="flex flex-wrap gap-4 mb-12">
+            <div class="px-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.pokemon_count_label}</p>
+                <p class="text-2xl font-black text-slate-900 dark:text-white">{count}</p>
+            </div>
+            <div class="px-6 py-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.dex_range_label}</p>
+                <p class="text-2xl font-black text-slate-900 dark:text-white">#{String(dexRange.start).padStart(4, '0')}–#{String(dexRange.end).padStart(4, '0')}</p>
+            </div>
+        </div>
+
+        {typeDistribution.length > 0 && (
+            <div class="mb-12">
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.pokemon_types}</h2>
+                <div class="flex flex-wrap gap-2">
+                    {typeDistribution.map((tp) => (
+                        <a href={`/${lang}/tipo/${tp.typeName}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp.typeName} data-source-surface="generation_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
+                            <span class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[tp.typeName]}`} aria-hidden="true"></span>
+                            {typeTranslations[lang as string]?.[tp.typeName]} <span class="opacity-60">({tp.typeCount})</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-16">
+            {enrichedList.map((p) => (
+                <PokemonListCard pokemon={p} lang={lang as string} />
+            ))}
+        </div>
+
+        <div class="border-t border-slate-100 dark:border-slate-800 pt-10">
+            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.other_generations_label}</h2>
+            <div class="flex flex-wrap gap-2">
+                {otherGenerations.map((g) => (
+                    <a href={`/${lang}/generacion/${g.genNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="generation_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                        {t.generation_label} {g.roman} <span class="opacity-60">({g.region})</span>
+                    </a>
+                ))}
+            </div>
+            <a href={`/${lang}/generaciones/`} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
+                {t.back_to_generations}
+            </a>
+        </div>
+    </div>
+    <script type="application/ld+json" is:inline set:html={JSON.stringify(itemListJsonLd)} />
+</Layout>

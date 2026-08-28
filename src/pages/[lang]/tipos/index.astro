@@ -1,0 +1,51 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { getPokemonByType } from '../../../services/pokeapi';
+import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
+
+const { lang = 'es' } = Astro.params;
+const t = uiTranslations[lang as string] || uiTranslations.es;
+const allTypes = Object.keys(typeColors);
+
+// Real per-type counts (not a bare list of 18 links) — one cached PokeAPI
+// /type/{name} call per type, same helper the type landing pages use.
+const results = await Promise.allSettled(allTypes.map((tp) => getPokemonByType(tp)));
+const typeCards = allTypes.map((tp, i) => {
+    const result = results[i];
+    const count = result.status === 'fulfilled' ? result.value.length : 0;
+    return { typeSlug: tp, count };
+});
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.pokemon_types },
+];
+---
+
+<Layout title={t.types_hub_title_seo} description={t.types_hub_desc_seo} lang={lang as string}>
+    <div class="max-w-5xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
+        <div class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">{t.pokemon_types}</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">{t.types_hub_desc_seo}</p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            {typeCards.map(({ typeSlug, count }) => (
+                <a
+                    href={`/${lang}/tipo/${typeSlug}/`}
+                    data-track-event="internal_entity_click"
+                    data-entity-type="type"
+                    data-entity-slug={typeSlug}
+                    data-source-surface="types_hub"
+                    class="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-xl transition-all no-underline"
+                >
+                    <span class="w-8 h-8 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[typeSlug]}`} aria-hidden="true"></span>
+                    <span class="text-lg font-black text-slate-800 dark:text-white capitalize">{typeTranslations[lang as string]?.[typeSlug]}</span>
+                    <span class="text-xs font-bold text-slate-400">{count} {t.pokemon_count_label}</span>
+                </a>
+            ))}
+        </div>
+    </div>
+</Layout>
