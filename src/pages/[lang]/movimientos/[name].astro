@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
+import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 
@@ -53,7 +54,8 @@ const categoryLabels: Record<string, string> = {
                             {categoryLabels[moveData.damage_class.name]}
                         </span>
                     </div>
-                    <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-8 capitalize leading-tight tracking-tighter">{localizedName}</h1>
+                    <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-2 capitalize leading-tight tracking-tighter">{localizedName}</h1>
+                    <div class="mb-6"><ReportDataIssue entityType="move" entitySlug={moveData.name} lang={lang as string} /></div>
                     <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-3xl p-8 border border-emerald-100/50 dark:border-emerald-900/20">
                         <p class="text-xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
                             "{description}"

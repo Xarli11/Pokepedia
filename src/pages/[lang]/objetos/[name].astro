@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
+import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
@@ -83,8 +84,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                                 </span>
                             )}
                         </div>
-                        <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-4">{localizedName}</h1>
-                        
+                        <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-2">{localizedName}</h1>
+                        <div class="mb-4"><ReportDataIssue entityType="item" entitySlug={itemData.name} lang={lang as string} /></div>
+
                         {moveDetail && (
                             <a href={moveDetail.url} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
                                 <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
@@ -102,6 +104,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     {effect?.fallbackUsed && (
                         <p class="text-xs text-slate-400 dark:text-slate-500 italic mt-3">{t.item_effect_en_fallback}</p>
                     )}
+                    <p class="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mt-4">{t.source_pokeapi}</p>
                 </div>
 
                 {flavor && (

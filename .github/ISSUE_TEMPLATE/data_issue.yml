@@ -1,0 +1,57 @@
+name: Data issue
+description: Report incorrect, outdated, or mistranslated data on a Pokepedia page.
+title: "[data] "
+labels: ["data-issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Pokepedia's data quality. Please don't
+        include any personal information — this form is public.
+  - type: input
+    id: pokepedia_url
+    attributes:
+      label: Pokepedia URL
+      description: The exact page where you saw the issue.
+      placeholder: https://www.pokepedia.app/es/pokemon/pikachu/
+    validations:
+      required: true
+  - type: input
+    id: entity
+    attributes:
+      label: Entity
+      description: What this is about, as "type/slug", e.g. "pokemon/porygon-z" or "item/life-orb".
+      placeholder: pokemon/pikachu
+    validations:
+      required: true
+  - type: textarea
+    id: incorrect_data
+    attributes:
+      label: Incorrect data
+      description: What's wrong? Quote the exact text or value if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_data
+    attributes:
+      label: Expected data
+      description: What should it say or show instead?
+    validations:
+      required: false
+  - type: textarea
+    id: source_evidence
+    attributes:
+      label: Source / evidence
+      description: A link or reference backing up the correction, if you have one (official game text, PokeAPI entry, Bulbapedia, etc.).
+    validations:
+      required: false
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - es
+        - en
+        - other / not language-specific
+    validations:
+      required: false
