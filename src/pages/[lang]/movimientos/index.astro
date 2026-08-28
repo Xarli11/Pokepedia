@@ -90,6 +90,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
     <script>
         import { trackEvent } from '../../../utils/analytics';
+        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
 
         interface MoveInfo {
             name: string;
@@ -147,8 +148,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const cached = cache.get(url);
             if (cached) return cached;
             try {
-                const res = await fetch(url);
-                const data: PokeApiMoveResponse = await res.json();
+                const data = await fetchPokeApiJson<PokeApiMoveResponse>(url);
                 const name = data.names?.find(n => n.language.name === lang)?.name || data.name;
                 const type = data.type.name;
                 const category = data.damage_class?.name || 'status';

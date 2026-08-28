@@ -436,6 +436,7 @@ if (Astro.locals.cacheControl) {
         import { localizedPath } from '../utils/seo';
         import type { PokemonNameEntry } from '../services/pokeapi';
         import { trackEvent } from '../utils/analytics';
+        import { fetchPokeApiJson, POKEAPI_BASE } from '../utils/pokeapiClient';
 
         function initTheme() {
             const btn = document.getElementById('theme-switch');
@@ -492,8 +493,7 @@ if (Astro.locals.cacheControl) {
                 btn.classList.add('animate-pulse', 'opacity-50');
                 const randomId = Math.floor(Math.random() * 1025) + 1;
                 try {
-                    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-                    const data = await res.json();
+                    const data = await fetchPokeApiJson<{ name: string }>(`${POKEAPI_BASE}/pokemon/${randomId}`);
                     window.location.href = `/${lang}/pokemon/${data.name}`;
                 } catch (e) {
                     btn.disabled = false;
