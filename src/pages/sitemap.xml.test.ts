@@ -29,4 +29,24 @@ describe('buildSitemapXml', () => {
     expect(xml).toContain('<loc>https://pokepedia.app/es/habilidades/static/</loc>');
     expect(xml).toContain('<loc>https://pokepedia.app/es/objetos/light-ball/</loc>');
   });
+
+  it('includes all 18 type landing pages and the /tipos/ hub, both locales', () => {
+    const xml = buildSitemapXml([], [], [], []);
+
+    expect(xml).toContain('<loc>https://pokepedia.app/es/tipo/dragon/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/en/tipo/dragon/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/es/tipo/fairy/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/es/tipos/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/en/tipos/</loc>');
+  });
+
+  it('includes all 9 generation landing pages and the /generaciones/ hub, both locales', () => {
+    const xml = buildSitemapXml([], [], [], []);
+
+    expect(xml).toContain('<loc>https://pokepedia.app/es/generacion/1/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/en/generacion/1/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/es/generacion/9/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/es/generaciones/</loc>');
+    expect(xml).toContain('<loc>https://pokepedia.app/en/generaciones/</loc>');
+  });
 });

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
-import { getAllPokemonBasic, getAllMoves, getAllAbilities, getAllItems } from '../services/pokeapi';
+import { getAllPokemonBasic, getAllMoves, getAllAbilities, getAllItems, GENERATIONS } from '../services/pokeapi';
 import { buildSitemapEntries, renderSitemapXml, type SitemapUrlEntry } from '../utils/sitemap';
+import { typeColors } from '../utils/pokemon';
 
 // Root cause fixed here: `moves`/`abilities`/`items` used to be declared and
 // never populated, so those entity families were silently absent from the
@@ -40,8 +41,13 @@ export function buildSitemapXml(
     { path: '/movimientos/', priority: '0.9' },
     { path: '/habilidades/', priority: '0.9' },
     { path: '/objetos/', priority: '0.9' },
+    { path: '/tipos/', priority: '0.8' },
+    { path: '/generaciones/', priority: '0.8' },
     { path: '/fuentes/', priority: '0.4' },
   ];
+
+  const typeSlugs = Object.keys(typeColors);
+  const generationNums = Object.keys(GENERATIONS).map((k) => k.replace('gen', ''));
 
   const entries: SitemapUrlEntry[] = [
     ...staticPages.flatMap((p) => buildSitemapEntries(p.path, p.priority)),
@@ -49,6 +55,8 @@ export function buildSitemapXml(
     ...moves.flatMap((m) => buildSitemapEntries(`/movimientos/${m.name}`, '0.6')),
     ...abilities.flatMap((a) => buildSitemapEntries(`/habilidades/${a.name}`, '0.6')),
     ...items.flatMap((i) => buildSitemapEntries(`/objetos/${i.name}`, '0.5')),
+    ...typeSlugs.flatMap((tp) => buildSitemapEntries(`/tipo/${tp}`, '0.7')),
+    ...generationNums.flatMap((n) => buildSitemapEntries(`/generacion/${n}`, '0.7')),
   ];
 
   return renderSitemapXml(entries);
