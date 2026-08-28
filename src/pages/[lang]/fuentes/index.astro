@@ -1,0 +1,89 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { uiTranslations } from '../../../utils/pokemon';
+import { GENERIC_DATA_ISSUE_URL } from '../../../utils/reportIssue';
+
+const { lang = 'es' } = Astro.params;
+const t = uiTranslations[lang as string] || uiTranslations.es;
+
+const sources = [
+	{
+		name: 'PokeAPI',
+		url: 'https://pokeapi.co',
+		body: t.sources_data_pokeapi,
+	},
+	{
+		name: 'Pokémon Showdown',
+		url: 'https://pokemonshowdown.com',
+		body: t.sources_data_showdown,
+	},
+	{
+		name: 'Smogon University',
+		url: 'https://www.smogon.com',
+		body: t.sources_data_smogon,
+	},
+];
+---
+
+<Layout title={t.sources_title} description={t.sources_desc_seo} lang={lang}>
+	<div class="max-w-3xl mx-auto">
+		<div class="text-center mb-16">
+			<h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
+				{t.sources_title}
+			</h1>
+		</div>
+
+		<section class="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
+			<h2 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4">{t.sources_intro_title}</h2>
+			<p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">{t.sources_intro_body}</p>
+		</section>
+
+		<section class="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
+			<h2 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-6">{t.sources_data_title}</h2>
+			<div class="space-y-6">
+				{sources.map((s) => (
+					<div class="border-l-4 border-emerald-500/30 pl-5">
+						<a
+							href={s.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							data-track-event="sources_click"
+							data-track-target={s.name}
+							data-source-surface="sources_page"
+							class="text-lg font-black text-slate-900 dark:text-white hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors no-underline"
+						>
+							{s.name} ↗
+						</a>
+						<p class="text-slate-600 dark:text-slate-400 leading-relaxed mt-1">{s.body}</p>
+					</div>
+				))}
+			</div>
+		</section>
+
+		<section class="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
+			<h2 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4">{t.sources_methodology_title}</h2>
+			<p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">{t.sources_methodology_body}</p>
+		</section>
+
+		<section class="bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
+			<h2 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4">{t.sources_correction_title}</h2>
+			<p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">{t.sources_correction_body}</p>
+		</section>
+
+		<section class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2.5rem] p-8 md:p-12 border border-emerald-100/50 dark:border-emerald-900/20">
+			<h2 class="text-sm font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-4">{t.sources_report_title}</h2>
+			<p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-6">{t.sources_report_body}</p>
+			<a
+				href={GENERIC_DATA_ISSUE_URL}
+				target="_blank"
+				rel="noopener noreferrer"
+				data-track-event="report_data_error"
+				data-track-language={lang}
+				data-source-surface="sources_page"
+				class="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:scale-105 transition-transform no-underline"
+			>
+				{t.sources_report_link}
+			</a>
+		</section>
+	</div>
+</Layout>

@@ -10,6 +10,9 @@
 
 const REPO = 'Xarli11/Pokepedia';
 
+/** Generic "open a data issue" link with no pre-filled entity context, for use outside an entity detail page (e.g. the Sources page). */
+export const GENERIC_DATA_ISSUE_URL = `https://github.com/${REPO}/issues/new?template=data_issue.yml`;
+
 export type ReportableEntityType = 'pokemon' | 'move' | 'ability' | 'item';
 
 export interface ReportIssueContext {

@@ -416,6 +416,15 @@ if (Astro.locals.cacheControl) {
                                     {lang === 'es' ? '[ INVESTIGACIÓN_ACTIVA ]' : '[ RESEARCH_ACTIVE ]'}
                                 </p>
                             </div>
+                            <a
+                                href={`/${lang}/fuentes`}
+                                data-track-event="sources_click"
+                                data-track-target="footer_link"
+                                data-source-surface="footer"
+                                class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
+                            >
+                                {uiTranslations[lang]?.sources_footer_link || uiTranslations.es.sources_footer_link}
+                            </a>
                         </div>
                     </div>
                 </div>

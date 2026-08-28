@@ -33,6 +33,7 @@ export const GET: APIRoute = async () => {
     { path: '/movimientos/', priority: '0.9' },
     { path: '/habilidades/', priority: '0.9' },
     { path: '/objetos/', priority: '0.9' },
+    { path: '/fuentes/', priority: '0.4' },
   ];
 
   const entries: SitemapUrlEntry[] = [
