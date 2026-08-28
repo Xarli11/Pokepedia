@@ -164,12 +164,15 @@ with their own (sometimes absent) timeout/cache/cap policy.
 
 A few `<script>` blocks fetch PokeAPI (or `/api/suggestions`) directly from
 the browser: `CompetitiveSets.astro`'s lazy ability-name loader,
-`Layout.astro`'s random-Pokémon button, and the search/filter scripts in
+`Layout.astro`'s random-Pokémon button, the home page's "load favorites"
+grid (`index.astro`, fetches each favorited Pokémon by name client-side
+from `localStorage`), and the search/filter scripts in
 `objetos|movimientos|habilidades/index.astro`. These are intentionally left
 alone — they run client-side and structurally cannot import a server-only
-service module, and each already keeps its own small per-page `Map` cache.
-This is a different, accepted category from the SSR "fetch sprawl" this
-sprint centralized; don't try to unify the two into one cache.
+service module, and each already keeps its own small per-page `Map` cache
+(or none, when a single one-off fetch doesn't need one). This is a
+different, accepted category from the SSR "fetch sprawl" this sprint
+centralized; don't try to unify the two into one cache.
 
 ## Localization fallback, in general
 
