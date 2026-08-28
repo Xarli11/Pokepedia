@@ -5,7 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, getGenerationKeyForId, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 
@@ -233,12 +233,15 @@ const getStatBarColor = (baseStat: number): string => {
     return typeColor;
 };
 
-// Generation link — best-effort, matches getGenerationKeyForId's known
-// range (ids 1-1015); species outside it (Gen 9 DLC additions) simply get
-// no generation link rather than a wrong one.
-const pokemonGenKey = getGenerationKeyForId(Number(currentDexId));
+// Generation link — species already carries its own generation (PokeAPI's
+// pokemon-species resource has a `generation` field), so this is free: no
+// extra fetch, no static id-range table, and it can't drift out of sync
+// with PokeAPI the way a hand-maintained range could (see Gen 9 fix in
+// getPokemonByGeneration).
+const pokemonGenNumRaw = species?.generation?.url ? idFromResourceUrl(species.generation.url) : null;
+const pokemonGenKey = pokemonGenNumRaw ? `gen${pokemonGenNumRaw}` : null;
 const pokemonGenRoman = pokemonGenKey ? GENERATION_ROMAN[pokemonGenKey] : null;
-const pokemonGenNum = pokemonGenKey ? pokemonGenKey.replace('gen', '') : null;
+const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 
 const breadcrumbItems = [
     { label: t.breadcrumb_home, href: `/${lang}/` },

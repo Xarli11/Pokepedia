@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import PokemonListCard from '../../../components/PokemonListCard.astro';
-import { getPokemonByType, getGenerationKeyForId, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl } from '../../../utils/seo';
@@ -34,9 +34,10 @@ const enrichedList = pokemonList.map((p) => {
 const count = enrichedList.length;
 
 // Derived stats — no invented text, everything computed from the list itself.
+const genMembership = await getGenerationMembershipMap();
 const genCounts = new Map<string, number>();
 for (const p of enrichedList) {
-    const genKey = getGenerationKeyForId(p.id);
+    const genKey = genMembership.get(p.id);
     if (genKey) genCounts.set(genKey, (genCounts.get(genKey) || 0) + 1);
 }
 const generationBreakdown = [...genCounts.entries()]

@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import PokemonListCard from '../../../components/PokemonListCard.astro';
-import { getPokemonByGeneration, getGenerationDexRange, GENERATIONS, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl } from '../../../utils/seo';
@@ -18,7 +18,6 @@ const genKey = `gen${genNum}`;
 const genInfo = GENERATIONS[genKey];
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const roman = GENERATION_ROMAN[genKey];
-const dexRange = getGenerationDexRange(genKey);
 
 let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
 try {
@@ -26,6 +25,10 @@ try {
 } catch (e) {
     return Astro.redirect(`/${lang}/`);
 }
+
+// Derived from the list PokeAPI's generation/{n} just gave us — no second
+// fetch, no static range table.
+const dexRange = getDexRangeFromEntries(pokemonList);
 
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
 const enrichedList = pokemonList.map((p) => {
