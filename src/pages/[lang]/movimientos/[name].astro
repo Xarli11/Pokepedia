@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 
@@ -33,10 +34,17 @@ const categoryLabels: Record<string, string> = {
     special: `🔮 ${t.special}`,
     status: `✨ ${t.status}`
 };
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.moves, href: `/${lang}/movimientos/` },
+    { label: localizedName },
+];
 ---
 
 <Layout title={`${localizedName} | ${t.moves}`} lang={lang}>
     <div class="max-w-5xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
         <a href={`/${lang}/movimientos`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
             <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             {t.back_to_moves}

@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getAbilityDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
 
@@ -26,14 +27,21 @@ const description = abilityData.flavor_text_entries.find((f: any) => f.language.
 const pokemonList = await getPokemonListByUrls(abilityData.pokemon.map(p => p.pokemon.url), 40);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
+
+const breadcrumbItems = [
+    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.abilities, href: `/${lang}/habilidades/` },
+    { label: localizedName },
+];
 ---
 
-<Layout 
+<Layout
     title={`${localizedName} | ${t.abilities}`}
     description={description}
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
+        <Breadcrumbs items={breadcrumbItems} />
         <a href={`/${lang}/habilidades`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
             <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             {t.back_to_abilities}
