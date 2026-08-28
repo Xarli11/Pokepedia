@@ -38,10 +38,25 @@ const ssrAbilities = showdownData?.abilities ? Object.entries(showdownData.abili
          data-lang={lang}
          data-ssr-tier={ssrTier ?? ''}
          data-ssr-abilities={ssrAbilities ? JSON.stringify(ssrAbilities.map(a => a.name)) : ''}>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 animate-pulse">
-            <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
-            <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
-        </div>
+        {ssrTier ? (
+            <!-- SSR-visible tier so "what is X's competitive tier" is answerable
+                 from raw HTML, not only after the client re-render below. -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">{t.comp_usage}</p>
+                    <div class="inline-flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 px-6 py-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-inner">
+                        <span class="w-4 h-4 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]" aria-hidden="true"></span>
+                        <span class="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">{ssrTier}</span>
+                    </div>
+                </div>
+                <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl animate-pulse"></div>
+            </div>
+        ) : (
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 animate-pulse">
+                <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
+                <div class="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-3xl"></div>
+            </div>
+        )}
     </div>
 
     {smogonSets && smogonSets.length > 0 && (
