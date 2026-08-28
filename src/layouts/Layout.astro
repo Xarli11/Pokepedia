@@ -416,6 +416,15 @@ if (Astro.locals.cacheControl) {
                                     {lang === 'es' ? '[ INVESTIGACIÓN_ACTIVA ]' : '[ RESEARCH_ACTIVE ]'}
                                 </p>
                             </div>
+                            <a
+                                href={`/${lang}/fuentes`}
+                                data-track-event="sources_click"
+                                data-track-target="footer_link"
+                                data-source-surface="footer"
+                                class="inline-block text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors"
+                            >
+                                {uiTranslations[lang]?.sources_footer_link || uiTranslations.es.sources_footer_link}
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -426,6 +435,8 @@ if (Astro.locals.cacheControl) {
     <script>
         import { localizedPath } from '../utils/seo';
         import type { PokemonNameEntry } from '../services/pokeapi';
+        import { trackEvent } from '../utils/analytics';
+        import { fetchPokeApiJson, POKEAPI_BASE } from '../utils/pokeapiClient';
 
         function initTheme() {
             const btn = document.getElementById('theme-switch');
@@ -471,12 +482,7 @@ if (Astro.locals.cacheControl) {
             if (window.updateFavButtons) window.updateFavButtons();
             document.dispatchEvent(new CustomEvent('favorites-updated'));
 
-            if (typeof window.gtag === 'function') {
-                window.gtag('event', 'pokemon_favorite', {
-                    'pokemon_name': pokemonName,
-                    'action': action
-                });
-            }
+            trackEvent('favorite_toggle', { entity_type: 'pokemon', entity_slug: pokemonName, target: action });
         };
 
         function initRandom(lang: string) {
@@ -487,8 +493,7 @@ if (Astro.locals.cacheControl) {
                 btn.classList.add('animate-pulse', 'opacity-50');
                 const randomId = Math.floor(Math.random() * 1025) + 1;
                 try {
-                    const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-                    const data = await res.json();
+                    const data = await fetchPokeApiJson<{ name: string }>(`${POKEAPI_BASE}/pokemon/${randomId}`);
                     window.location.href = `/${lang}/pokemon/${data.name}`;
                 } catch (e) {
                     btn.disabled = false;
@@ -710,6 +715,7 @@ if (Astro.locals.cacheControl) {
                         const matches: PokemonNameEntry[] = await res.json();
                         selectedIndex = -1;
                         resultsEl.innerHTML = '';
+                        trackEvent('global_search', { language: lang, target: matches.length > 0 ? 'results' : 'no_results', source_surface: 'header_search' });
 
                         if (matches.length > 0) {
                             // A1: DOM construction — no innerHTML with API data
@@ -766,6 +772,32 @@ if (Astro.locals.cacheControl) {
             const search = window.location.search;
             btn.href = `${localizedPath(window.location.pathname, otherLang)}${search}`;
             btn.textContent = otherLang.toUpperCase();
+            btn.onclick = () => trackEvent('language_change', { language: otherLang, source_surface: 'header' });
+        }
+
+        // Delegated click tracking for any element marked with
+        // data-track-event, so individual pages/components don't each wire
+        // up their own gtag calls. See docs/DATA_SOURCES.md and
+        // src/utils/analytics.ts.
+        function initTrackedLinks() {
+            if (window._trackedLinksAbortController) window._trackedLinksAbortController.abort();
+            const ac = new AbortController();
+            window._trackedLinksAbortController = ac;
+
+            document.addEventListener('click', (e) => {
+                if (!(e.target instanceof Element)) return;
+                const el = e.target.closest('[data-track-event]');
+                if (!(el instanceof HTMLElement)) return;
+                const eventName = el.dataset.trackEvent;
+                if (!eventName) return;
+                trackEvent(eventName, {
+                    entity_type: el.dataset.entityType,
+                    entity_slug: el.dataset.entitySlug,
+                    language: el.dataset.trackLanguage,
+                    target: el.dataset.trackTarget,
+                    source_surface: el.dataset.sourceSurface,
+                });
+            }, { signal: ac.signal });
         }
 
         function initAll() {
@@ -778,6 +810,7 @@ if (Astro.locals.cacheControl) {
             initBackToTop();
             initGlobalSearch(lang);
             updateLangSwitch(lang);
+            initTrackedLinks();
             if (window.updateFavButtons) window.updateFavButtons();
         }
 

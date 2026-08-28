@@ -96,12 +96,38 @@ export interface MoveDetail {
     type: {
         name: string;
     };
+    damage_class: {
+        name: string;
+    };
+    power: number | null;
+    accuracy: number | null;
+    pp: number;
+    priority: number;
+    flavor_text_entries: {
+        flavor_text: string;
+        language: { name: string };
+    }[];
+    learned_by_pokemon: { name: string; url: string }[];
 }
 
 export interface AbilityDetail {
     id: number;
     name: string;
     names: PokemonName[];
+    flavor_text_entries: {
+        flavor_text: string;
+        language: { name: string };
+    }[];
+    effect_entries: {
+        effect: string;
+        short_effect?: string;
+        language: { name: string };
+    }[];
+    pokemon: {
+        pokemon: { name: string; url: string };
+        is_hidden: boolean;
+        slot: number;
+    }[];
 }
 
 /**
@@ -220,12 +246,35 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
     }
 }
 
+export class PokemonNotFoundError extends Error {
+    constructor(name: string) {
+        super(`Pokemon not found: ${name}`);
+        this.name = 'PokemonNotFoundError';
+    }
+}
+
 /**
- * Obtiene los detalles completos de un Pokémon por su nombre con Fallback Robusto.
+ * Obtiene los detalles completos de un Pokémon por su nombre.
+ *
+ * Orden de resolución (ver docs/DATA_SOURCES.md):
+ *   1. pokemon/{name} exacto (nombres de variedad: "deoxys-attack", formas
+ *      regionales/mega/gmax — todas son slugs `pokemon` reales en PokeAPI).
+ *   2. pokemon-species/{name} exacto -> variedad por defecto (especies que
+ *      no son ellas mismas un `pokemon` resource, p.ej. "basculin",
+ *      "gourgeist", "basculegion" — ver commit a74ce6a).
+ *   3. Fallo limpio (PokemonNotFoundError).
+ *
+ * Deliberadamente NO existe un paso 4 que trunque el slug (p.ej.
+ * `name.split('-')[0]`). Ese fallback existió antes y se eliminó: para
+ * nombres como "porygon-z" o "deoxys-attack", cuyo prefijo ("porygon",
+ * "deoxys") es también una especie válida, un fallo transitorio de red en
+ * los pasos 1-2 habría devuelto silenciosamente el Pokémon equivocado en
+ * vez de un error. Verificado contra PokeAPI que ningún nombre real usado
+ * por Pokepedia necesita ese paso (ver tests de regresión).
  */
 export async function getPokemonByName(name: string): Promise<{ detail: PokemonDetail, species: PokemonSpecies }> {
     const cleanName = name.toLowerCase();
-    
+
     let result: { detail: PokemonDetail, species: PokemonSpecies };
 
     try {
@@ -241,11 +290,8 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
             const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
             result = { detail, species };
         } catch (innerError) {
-            const baseName = cleanName.split('-')[0];
-            const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${baseName}`);
-            const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
-            const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
-            result = { detail, species };
+            // 3. Fallo limpio — nunca adivinar la especie a partir del slug.
+            throw new PokemonNotFoundError(cleanName);
         }
     }
 
@@ -300,6 +346,10 @@ export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
     return fetchWithCache<AbilityDetail>(url);
 }
 
+export async function getAbilityDetailByName(name: string): Promise<AbilityDetail> {
+    return getAbilityDetail(`https://pokeapi.co/api/v2/ability/${name}`);
+}
+
 export async function getMoveDetail(url: string): Promise<MoveDetail> {
     const data = await fetchWithCache<any>(url);
     const cleanName = data.name.toLowerCase();
@@ -316,6 +366,51 @@ export async function getMoveDetail(url: string): Promise<MoveDetail> {
     }
 
     return data;
+}
+
+export async function getMoveDetailByName(name: string): Promise<MoveDetail> {
+    return getMoveDetail(`https://pokeapi.co/api/v2/move/${name}`);
+}
+
+/**
+ * Resuelve el movimiento que enseña una MT/MO (item category "all-machines"),
+ * incluyendo los parches de nombre/descripción de getMoveDetail. Devuelve
+ * null si la máquina o el movimiento no se pueden resolver.
+ */
+export async function getMachineMove(machineUrl: string): Promise<MoveDetail | null> {
+    try {
+        const machine = await fetchWithCache<{ move: { url: string } }>(machineUrl);
+        return await getMoveDetail(machine.move.url);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Un único Pokémon por URL/id, o null si no se puede resolver — para
+ * navegación previo/siguiente y otros lookups puntuales por URL.
+ */
+export async function getPokemonDetailByUrl(url: string): Promise<PokemonDetail | null> {
+    try {
+        return await fetchWithCache<PokemonDetail>(url);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Resuelve una lista de Pokémon a partir de sus URLs de PokeAPI, con límite
+ * y tolerancia a fallos individuales (Promise.allSettled): una entrada que
+ * falla se omite en vez de romper toda la página. Pensado para listados
+ * "aprendido/llevado por" de movimientos, objetos y habilidades, que pueden
+ * referenciar decenas o cientos de Pokémon.
+ */
+export async function getPokemonListByUrls(urls: string[], limit: number): Promise<PokemonDetail[]> {
+    const capped = urls.slice(0, limit);
+    const results = await Promise.allSettled(capped.map(url => fetchWithCache<PokemonDetail>(url)));
+    return results
+        .filter((r): r is PromiseFulfilledResult<PokemonDetail> => r.status === 'fulfilled')
+        .map(r => r.value);
 }
 
 export async function getAllAbilities(): Promise<{ name: string, url: string }[]> {

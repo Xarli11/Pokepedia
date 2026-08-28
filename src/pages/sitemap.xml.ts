@@ -20,19 +20,27 @@ async function safeList<T extends { name: string }>(
   }
 }
 
-export const GET: APIRoute = async () => {
-  const [pokemon, moves, abilities, items] = await Promise.all([
-    safeList(getAllPokemonBasic(1025), 'pokemon'),
-    safeList(getAllMoves(), 'moves'),
-    safeList(getAllAbilities(), 'abilities'),
-    safeList(getAllItems(), 'items'),
-  ]);
+interface NamedEntity {
+  name: string;
+}
 
+/**
+ * Pure entry-list -> XML builder, with no dependency on the request/route
+ * context. Kept separate from GET() so it's directly unit-testable without
+ * fabricating an APIContext the route doesn't actually use.
+ */
+export function buildSitemapXml(
+  pokemon: NamedEntity[],
+  moves: NamedEntity[],
+  abilities: NamedEntity[],
+  items: NamedEntity[]
+): string {
   const staticPages = [
     { path: '/', priority: '1.0' },
     { path: '/movimientos/', priority: '0.9' },
     { path: '/habilidades/', priority: '0.9' },
     { path: '/objetos/', priority: '0.9' },
+    { path: '/fuentes/', priority: '0.4' },
   ];
 
   const entries: SitemapUrlEntry[] = [
@@ -43,7 +51,18 @@ export const GET: APIRoute = async () => {
     ...items.flatMap((i) => buildSitemapEntries(`/objetos/${i.name}`, '0.5')),
   ];
 
-  return new Response(renderSitemapXml(entries), {
+  return renderSitemapXml(entries);
+}
+
+export const GET: APIRoute = async () => {
+  const [pokemon, moves, abilities, items] = await Promise.all([
+    safeList(getAllPokemonBasic(1025), 'pokemon'),
+    safeList(getAllMoves(), 'moves'),
+    safeList(getAllAbilities(), 'abilities'),
+    safeList(getAllItems(), 'items'),
+  ]);
+
+  return new Response(buildSitemapXml(pokemon, moves, abilities, items), {
     headers: {
       'Content-Type': 'application/xml',
       'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600',

@@ -64,6 +64,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <div id="habilidades-data" data-lang={lang} class="hidden"></div>
 
     <script>
+        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
+
         interface AbilityInfo {
             name: string;
             desc: string;
@@ -101,8 +103,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const cached = cache.get(url);
             if (cached) return cached;
             try {
-                const res = await fetch(url);
-                const data: PokeApiAbilityResponse = await res.json();
+                const data = await fetchPokeApiJson<PokeApiAbilityResponse>(url);
 
                 const name = data.names?.find(n => n.language.name === lang)?.name ||
                              data.names?.find(n => n.language.name === 'es')?.name ||

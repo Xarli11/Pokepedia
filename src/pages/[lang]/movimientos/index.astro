@@ -89,6 +89,9 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <div id="movimientos-data" data-lang={lang} data-colors={JSON.stringify(typeColors)} data-translations={JSON.stringify(typeTranslations)} class="hidden"></div>
 
     <script>
+        import { trackEvent } from '../../../utils/analytics';
+        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
+
         interface MoveInfo {
             name: string;
             type: string;
@@ -145,8 +148,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const cached = cache.get(url);
             if (cached) return cached;
             try {
-                const res = await fetch(url);
-                const data: PokeApiMoveResponse = await res.json();
+                const data = await fetchPokeApiJson<PokeApiMoveResponse>(url);
                 const name = data.names?.find(n => n.language.name === lang)?.name || data.name;
                 const type = data.type.name;
                 const category = data.damage_class?.name || 'status';
@@ -297,7 +299,10 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 updateSuggestions(searchInput.value, lang, typeColors, typeTranslations, catTranslations);
             });
 
-            typeFilter.addEventListener('change', filterTable);
+            typeFilter.addEventListener('change', () => {
+                filterTable();
+                trackEvent('filter_moves', { language: lang, target: typeFilter.value });
+            });
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {

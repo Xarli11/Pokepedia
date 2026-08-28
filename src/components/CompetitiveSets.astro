@@ -28,6 +28,7 @@ const ssrAbilities = showdownData?.abilities ? Object.entries(showdownData.abili
         <div>
             <h3 class="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t.comp_analysis}</h3>
             <p class="text-2xl font-black text-slate-900 dark:text-white">Smogon Tier & Meta</p>
+            <p class="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mt-1">{t.source_competitive}</p>
         </div>
     </div>
 
@@ -48,7 +49,13 @@ const ssrAbilities = showdownData?.abilities ? Object.entries(showdownData.abili
             <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">{t.comp_sets}</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {smogonSets.map(set => (
-                    <div class="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/50">
+                    <div
+                        class="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/50 cursor-default"
+                        data-track-event="competitive_set_interaction"
+                        data-entity-type="pokemon"
+                        data-entity-slug={pokemonName}
+                        data-track-target={set.name}
+                    >
                         <p class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">{set.name}</p>
                         <ul class="space-y-1 mb-3">
                             {set.moves.map(move => (
