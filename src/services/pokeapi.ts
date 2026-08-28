@@ -78,6 +78,10 @@ export interface PokemonSpecies {
             url: string;
         };
     }[];
+    generation: {
+        name: string;
+        url: string;
+    };
 }
 
 /**
@@ -152,16 +156,24 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
     return data;
 }
 
-export const GENERATIONS: Record<string, { limit: number; offset: number; region: string }> = {
-    'gen1': { limit: 151, offset: 0, region: 'Kanto' },
-    'gen2': { limit: 100, offset: 151, region: 'Johto' },
-    'gen3': { limit: 135, offset: 251, region: 'Hoenn' },
-    'gen4': { limit: 107, offset: 386, region: 'Sinnoh' },
-    'gen5': { limit: 156, offset: 493, region: 'Teselia' },
-    'gen6': { limit: 72, offset: 649, region: 'Kalos' },
-    'gen7': { limit: 88, offset: 721, region: 'Alola' },
-    'gen8': { limit: 96, offset: 809, region: 'Galar' },
-    'gen9': { limit: 110, offset: 905, region: 'Paldea' },
+// Presentation-only metadata now — species membership comes from PokeAPI's
+// own generation/{n} resource (see getPokemonByGeneration below), not a
+// hand-maintained id range. The previous {limit, offset} table silently
+// undercounted Gen 9 by 10 species (stopped at id 1015; the Indigo
+// Disk/Teal Mask DLC additions go up to 1025) because nobody updates a
+// hardcoded range when an official DLC ships. Verified live against
+// PokeAPI that generations 1-8 are unaffected (their old ranges match
+// generation/{n} exactly) — only Gen 9 was wrong.
+export const GENERATIONS: Record<string, { region: string }> = {
+    'gen1': { region: 'Kanto' },
+    'gen2': { region: 'Johto' },
+    'gen3': { region: 'Hoenn' },
+    'gen4': { region: 'Sinnoh' },
+    'gen5': { region: 'Teselia' },
+    'gen6': { region: 'Kalos' },
+    'gen7': { region: 'Alola' },
+    'gen8': { region: 'Galar' },
+    'gen9': { region: 'Paldea' },
 };
 
 /**
@@ -175,21 +187,49 @@ export interface PokemonListEntry {
     sprite: string;
 }
 
+interface PokeApiResourceRef {
+    name: string;
+    url: string;
+}
+
+interface PokeApiGenerationResponse {
+    pokemon_species: PokeApiResourceRef[];
+}
+
+interface PokeApiTypeResponse {
+    pokemon: { slot: number; pokemon: PokeApiResourceRef }[];
+}
+
+/** Extracts the numeric id from a PokeAPI resource URL, e.g. ".../1025/" -> 1025. */
+export function idFromResourceUrl(url: string): number {
+    const segment = url.split('/').filter(Boolean).pop();
+    return segment ? parseInt(segment, 10) : NaN;
+}
+
+function buildSpriteUrl(id: number): string {
+    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+}
+
+/**
+ * Species belonging to a generation, straight from PokeAPI's generation/{n}
+ * `pokemon_species` list — the authoritative membership (species-level, no
+ * regional/mega/gmax forms mixed in). This is the single source both the
+ * generation landing pages and the homepage's `?gen=` filter read from, so
+ * fixing it here fixes both surfaces at once.
+ */
 export async function getPokemonByGeneration(genKey: string = 'gen1'): Promise<PokemonListEntry[]> {
     if (genKey === 'favorites') return [];
 
-    const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${gen.limit}&offset=${gen.offset}`);
+    const resolvedKey = GENERATIONS[genKey] ? genKey : 'gen1';
+    const genNum = parseInt(resolvedKey.replace('gen', ''), 10);
+    const data = await fetchWithCache<PokeApiGenerationResponse>(`https://pokeapi.co/api/v2/generation/${genNum}`);
 
-    return data.results.map((p: any) => {
-        const id = parseInt(p.url.split('/').filter(Boolean).pop());
-        return {
-            name: p.name,
-            id: id,
-            url: p.url,
-            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
-        };
-    });
+    return data.pokemon_species
+        .map((s) => {
+            const id = idFromResourceUrl(s.url);
+            return { name: s.name, id, url: s.url, sprite: buildSpriteUrl(id) };
+        })
+        .sort((a, b) => a.id - b.id);
 }
 
 /**
@@ -205,50 +245,59 @@ export const GENERATION_ROMAN: Record<string, string> = {
     gen1: 'I', gen2: 'II', gen3: 'III', gen4: 'IV', gen5: 'V', gen6: 'VI', gen7: 'VII', gen8: 'VIII', gen9: 'IX',
 };
 
-/**
- * National Pokédex range covered by a generation, derived from the same
- * offset/limit pairs `getPokemonByGeneration` already uses — single source
- * of truth, no separate range table to keep in sync.
- */
-export function getGenerationDexRange(genKey: string): { start: number; end: number } {
-    const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
-    return { start: gen.offset + 1, end: gen.offset + gen.limit };
+/** Pure min/max over an already-fetched entry list — no extra request. */
+export function getDexRangeFromEntries(entries: { id: number }[]): { start: number; end: number } {
+    const ids = entries.map((e) => e.id);
+    return { start: Math.min(...ids), end: Math.max(...ids) };
 }
 
 /**
- * Best-effort reverse lookup: which generation a National Dex id falls in,
- * per the same ranges as GENERATIONS. Returns null for ids outside every
- * range (e.g. Gen 9 DLC additions past offset+limit=1015) — GENERATIONS
- * itself only covers ids 1-1015, a pre-existing gap not introduced here.
+ * Reverse lookup (National Dex id -> generation key), for the type-landing
+ * pages' "by generation" breakdown, which needs to classify a whole list of
+ * ~70-150 ids at once. Built from getPokemonByGeneration itself — no
+ * separate range table — so it can never drift from the membership lists
+ * above. Each of the 9 generation/{n} calls is cached (24h TTL, same as
+ * every other list endpoint in this file), so this only pays real network
+ * cost once per cache window, the same tradeoff /tipos/ already makes
+ * fetching all 18 types for its hub counts.
+ *
+ * Not used for the Pokémon detail page's single-id "which generation" link
+ * — that page already has the full species object in hand, and
+ * `species.generation.url` gives the answer for free (see
+ * pokemon/[name].astro), so fetching all 9 generations just to classify one
+ * id there would be a real, disproportionate cost on the app's
+ * highest-traffic route.
  */
-export function getGenerationKeyForId(id: number): string | null {
-    for (const [key, gen] of Object.entries(GENERATIONS)) {
-        if (id > gen.offset && id <= gen.offset + gen.limit) return key;
-    }
-    return null;
+export async function getGenerationMembershipMap(): Promise<Map<number, string>> {
+    const genKeys = Object.keys(GENERATIONS);
+    const lists = await Promise.all(genKeys.map((key) => getPokemonByGeneration(key)));
+
+    const map = new Map<number, string>();
+    lists.forEach((list, i) => {
+        for (const entry of list) map.set(entry.id, genKeys[i]);
+    });
+    return map;
 }
 
 /**
  * Lightweight Pokémon list for a given type, via PokeAPI's /type/{name}
  * resource (authoritative default-game type membership — no per-pokemon
  * fetch needed). Varieties/forms (id > 10000) are filtered out, same
- * convention used everywhere else in this codebase (see e.g. index.astro).
+ * convention used everywhere else in this codebase (see e.g. index.astro) —
+ * verified live that this keeps only default species (megas, gmax,
+ * regional/origin/totem forms all carry id >= 10000 and are excluded, e.g.
+ * "exeggutor-alola" on the Dragon type page).
  * Callers that need types/base-stats per entry should hydrate the result
  * via getSmogonDataBatch, exactly like the homepage's generation view does.
  */
 export async function getPokemonByType(typeSlug: string): Promise<PokemonListEntry[]> {
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/type/${typeSlug}`);
+    const data = await fetchWithCache<PokeApiTypeResponse>(`https://pokeapi.co/api/v2/type/${typeSlug}`);
 
-    return (data.pokemon as any[])
+    return data.pokemon
         .map((entry) => entry.pokemon)
-        .map((p: any) => {
-            const id = parseInt(p.url.split('/').filter(Boolean).pop());
-            return {
-                name: p.name,
-                id,
-                url: p.url,
-                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`,
-            };
+        .map((p) => {
+            const id = idFromResourceUrl(p.url);
+            return { name: p.name, id, url: p.url, sprite: buildSpriteUrl(id) };
         })
         .filter((p) => p.id < 10000)
         .sort((a, b) => a.id - b.id);

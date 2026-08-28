@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getPokemonByName, getPokemonByType, getGenerationKeyForId, getGenerationDexRange, PokemonNotFoundError } from './pokeapi';
+import {
+  getPokemonByName,
+  getPokemonByType,
+  getPokemonByGeneration,
+  getGenerationMembershipMap,
+  getDexRangeFromEntries,
+  idFromResourceUrl,
+  PokemonNotFoundError,
+} from './pokeapi';
 
 // ---------------------------------------------------------------------
 // Regression coverage for the pokemon/species resolution order documented
@@ -146,16 +154,142 @@ describe('getPokemonByType', () => {
   });
 });
 
-describe('getGenerationKeyForId / getGenerationDexRange', () => {
-  it('maps a National Dex id to its generation key', () => {
-    expect(getGenerationKeyForId(1)).toBe('gen1');
-    expect(getGenerationKeyForId(151)).toBe('gen1');
-    expect(getGenerationKeyForId(152)).toBe('gen2');
-    expect(getGenerationKeyForId(1025)).toBe(null);
+describe('idFromResourceUrl', () => {
+  it('extracts the trailing numeric id from a PokeAPI resource URL', () => {
+    expect(idFromResourceUrl('https://pokeapi.co/api/v2/pokemon-species/1025/')).toBe(1025);
+    expect(idFromResourceUrl('https://pokeapi.co/api/v2/pokemon/6')).toBe(6);
+  });
+});
+
+describe('getDexRangeFromEntries', () => {
+  it('returns the min/max id regardless of input order', () => {
+    expect(getDexRangeFromEntries([{ id: 5 }, { id: 2 }, { id: 9 }])).toEqual({ start: 2, end: 9 });
+  });
+});
+
+// Regression coverage for the Gen 9 undercount bug: the old GENERATIONS
+// {limit, offset} table stopped at National Dex id 1015, silently dropping
+// the Indigo Disk/Teal Mask DLC species (ids 1016-1025). This fixture is an
+// independent ground-truth snapshot (verified against live PokeAPI
+// generation/9 in the session that fixed this) — not the code under test —
+// so these assertions actually catch a regression instead of restating the
+// implementation.
+function buildGen9SpeciesFixture() {
+  // Ids 906-1015: synthetic filler standing in for the ~110 species PokeAPI
+  // already classified correctly before the fix (not the point of this test).
+  const filler = Array.from({ length: 110 }, (_, i) => {
+    const id = 906 + i;
+    return { name: `gen9-species-${id}`, url: `https://pokeapi.co/api/v2/pokemon-species/${id}/` };
+  });
+  // Ids 1016-1025: the real DLC species that were missing — actual names,
+  // verified live.
+  const dlcAdditions = [
+    ['fezandipiti', 1016], ['ogerpon', 1017], ['archaludon', 1018], ['hydrapple', 1019],
+    ['gouging-fire', 1020], ['raging-bolt', 1021], ['iron-boulder', 1022], ['iron-crown', 1023],
+    ['terapagos', 1024], ['pecharunt', 1025],
+  ].map(([name, id]) => ({ name: name as string, url: `https://pokeapi.co/api/v2/pokemon-species/${id}/` }));
+
+  return [...filler, ...dlcAdditions];
+}
+
+function buildGen1SpeciesFixture() {
+  return Array.from({ length: 151 }, (_, i) => {
+    const id = i + 1;
+    return { name: `gen1-species-${id}`, url: `https://pokeapi.co/api/v2/pokemon-species/${id}/` };
+  });
+}
+
+describe('getPokemonByGeneration — Gen 9 full DLC coverage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it('returns the Pokédex range covered by a generation', () => {
-    expect(getGenerationDexRange('gen1')).toEqual({ start: 1, end: 151 });
-    expect(getGenerationDexRange('gen2')).toEqual({ start: 152, end: 251 });
+  it('returns all 120 Gen 9 species (906-1025), not just the pre-DLC 110 (906-1015)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('/generation/9')) return jsonResponse({ pokemon_species: buildGen9SpeciesFixture() });
+      return jsonResponse({}, false);
+    }));
+
+    const list = await getPokemonByGeneration('gen9');
+
+    expect(list).toHaveLength(120);
+
+    const ids = list.map((p) => p.id);
+    expect(Math.max(...ids)).toBe(1025);
+    expect(Math.min(...ids)).toBe(906);
+    expect(new Set(ids).size).toBe(ids.length); // no duplicate ids/forms
+
+    const names = list.map((p) => p.name);
+    for (const expected of ['fezandipiti', 'ogerpon', 'archaludon', 'hydrapple', 'gouging-fire', 'raging-bolt', 'iron-boulder', 'iron-crown', 'terapagos', 'pecharunt']) {
+      expect(names).toContain(expected);
+    }
+
+    // The specific bug: ids past the old hardcoded 1015 ceiling must be present.
+    expect(ids.filter((id) => id > 1015)).toHaveLength(10);
+  });
+
+  it('does not regress Gen 1 — still exactly 151 species', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('/generation/1')) return jsonResponse({ pokemon_species: buildGen1SpeciesFixture() });
+      return jsonResponse({}, false);
+    }));
+
+    const list = await getPokemonByGeneration('gen1');
+    expect(list).toHaveLength(151);
+    expect(Math.min(...list.map((p) => p.id))).toBe(1);
+    expect(Math.max(...list.map((p) => p.id))).toBe(151);
+  });
+
+  it('returns entries sorted by National Dex id', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('/generation/2')) {
+        return jsonResponse({
+          pokemon_species: [
+            { name: 'c', url: 'https://pokeapi.co/api/v2/pokemon-species/200/' },
+            { name: 'a', url: 'https://pokeapi.co/api/v2/pokemon-species/152/' },
+            { name: 'b', url: 'https://pokeapi.co/api/v2/pokemon-species/175/' },
+          ],
+        });
+      }
+      return jsonResponse({}, false);
+    }));
+
+    const list = await getPokemonByGeneration('gen2');
+    expect(list.map((p) => p.id)).toEqual([152, 175, 200]);
+  });
+});
+
+describe('getGenerationMembershipMap', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('classifies ids from every generation, including post-1015 Gen 9 DLC species', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      const match = url.match(/\/generation\/(\d)\b/);
+      if (!match) return jsonResponse({}, false);
+      const genNum = match[1];
+      if (genNum === '1') {
+        return jsonResponse({ pokemon_species: [{ name: 'bulbasaur', url: 'https://pokeapi.co/api/v2/pokemon-species/1/' }] });
+      }
+      if (genNum === '9') {
+        return jsonResponse({
+          pokemon_species: [
+            { name: 'sprigatito', url: 'https://pokeapi.co/api/v2/pokemon-species/906/' },
+            { name: 'pecharunt', url: 'https://pokeapi.co/api/v2/pokemon-species/1025/' },
+          ],
+        });
+      }
+      return jsonResponse({ pokemon_species: [] });
+    }));
+
+    const map = await getGenerationMembershipMap();
+    expect(map.get(1)).toBe('gen1');
+    expect(map.get(906)).toBe('gen9');
+    expect(map.get(1025)).toBe('gen9'); // the id the old range-based lookup couldn't classify
   });
 });
