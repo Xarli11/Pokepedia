@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getPokemonByName, PokemonNotFoundError } from './pokeapi';
+import { getPokemonByName, getPokemonByType, getGenerationKeyForId, getGenerationDexRange, PokemonNotFoundError } from './pokeapi';
 
 // ---------------------------------------------------------------------
 // Regression coverage for the pokemon/species resolution order documented
@@ -115,5 +115,47 @@ describe('getPokemonByName resolution order', () => {
 
   it('fails cleanly for a name that is not a real pokemon or species', async () => {
     await expect(getPokemonByName('totally-not-a-real-pokemon-test')).rejects.toThrow(PokemonNotFoundError);
+  });
+});
+
+describe('getPokemonByType', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('maps PokeAPI /type/{name} pokemon entries to the lightweight list shape, sorted by id', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes('/type/dragon-test')) {
+        return jsonResponse({
+          name: 'dragon-test',
+          pokemon: [
+            { pokemon: { name: 'dragonite-test', url: 'https://pokeapi.co/api/v2/pokemon/149/' }, slot: 1 },
+            { pokemon: { name: 'dratini-test', url: 'https://pokeapi.co/api/v2/pokemon/147/' }, slot: 1 },
+            // Variety/form (id > 10000) must be filtered out.
+            { pokemon: { name: 'charizard-mega-y-test', url: 'https://pokeapi.co/api/v2/pokemon/10035/' }, slot: 1 },
+          ],
+        });
+      }
+      return jsonResponse({}, false);
+    }));
+
+    const list = await getPokemonByType('dragon-test');
+    expect(list.map((p) => p.name)).toEqual(['dratini-test', 'dragonite-test']);
+    expect(list.every((p) => p.id < 10000)).toBe(true);
+  });
+});
+
+describe('getGenerationKeyForId / getGenerationDexRange', () => {
+  it('maps a National Dex id to its generation key', () => {
+    expect(getGenerationKeyForId(1)).toBe('gen1');
+    expect(getGenerationKeyForId(151)).toBe('gen1');
+    expect(getGenerationKeyForId(152)).toBe('gen2');
+    expect(getGenerationKeyForId(1025)).toBe(null);
+  });
+
+  it('returns the Pokédex range covered by a generation', () => {
+    expect(getGenerationDexRange('gen1')).toEqual({ start: 1, end: 151 });
+    expect(getGenerationDexRange('gen2')).toEqual({ start: 152, end: 251 });
   });
 });

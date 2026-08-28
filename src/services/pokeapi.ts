@@ -200,6 +200,60 @@ export async function getFirstGenPokemon(): Promise<PokemonListEntry[]> {
     return getPokemonByGeneration('gen1');
 }
 
+/** Roman-numeral label per generation key — deterministic, not translated content. */
+export const GENERATION_ROMAN: Record<string, string> = {
+    gen1: 'I', gen2: 'II', gen3: 'III', gen4: 'IV', gen5: 'V', gen6: 'VI', gen7: 'VII', gen8: 'VIII', gen9: 'IX',
+};
+
+/**
+ * National Pokédex range covered by a generation, derived from the same
+ * offset/limit pairs `getPokemonByGeneration` already uses — single source
+ * of truth, no separate range table to keep in sync.
+ */
+export function getGenerationDexRange(genKey: string): { start: number; end: number } {
+    const gen = GENERATIONS[genKey] || GENERATIONS['gen1'];
+    return { start: gen.offset + 1, end: gen.offset + gen.limit };
+}
+
+/**
+ * Best-effort reverse lookup: which generation a National Dex id falls in,
+ * per the same ranges as GENERATIONS. Returns null for ids outside every
+ * range (e.g. Gen 9 DLC additions past offset+limit=1015) — GENERATIONS
+ * itself only covers ids 1-1015, a pre-existing gap not introduced here.
+ */
+export function getGenerationKeyForId(id: number): string | null {
+    for (const [key, gen] of Object.entries(GENERATIONS)) {
+        if (id > gen.offset && id <= gen.offset + gen.limit) return key;
+    }
+    return null;
+}
+
+/**
+ * Lightweight Pokémon list for a given type, via PokeAPI's /type/{name}
+ * resource (authoritative default-game type membership — no per-pokemon
+ * fetch needed). Varieties/forms (id > 10000) are filtered out, same
+ * convention used everywhere else in this codebase (see e.g. index.astro).
+ * Callers that need types/base-stats per entry should hydrate the result
+ * via getSmogonDataBatch, exactly like the homepage's generation view does.
+ */
+export async function getPokemonByType(typeSlug: string): Promise<PokemonListEntry[]> {
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/type/${typeSlug}`);
+
+    return (data.pokemon as any[])
+        .map((entry) => entry.pokemon)
+        .map((p: any) => {
+            const id = parseInt(p.url.split('/').filter(Boolean).pop());
+            return {
+                name: p.name,
+                id,
+                url: p.url,
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`,
+            };
+        })
+        .filter((p) => p.id < 10000)
+        .sort((a, b) => a.id - b.id);
+}
+
 /**
  * Parches manuales para datos que faltan en PokeAPI (Gen 8/9 en Español)
  */

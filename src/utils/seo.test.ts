@@ -5,6 +5,10 @@ import {
   canonicalUrl,
   localeAlternates,
   localizedPath,
+  buildTypeLandingTitle,
+  buildTypeLandingDescription,
+  buildGenerationLandingTitle,
+  buildGenerationLandingDescription,
   SITE_URL,
 } from './seo';
 
@@ -111,5 +115,35 @@ describe('localeAlternates — representative entity pages', () => {
     const alt = localeAlternates('/es/pokemon/charizard/');
     expect(alt.es).toBe(canonicalUrl('/es/pokemon/charizard/'));
     expect(alt.en).toBe(canonicalUrl('/en/pokemon/charizard/'));
+  });
+});
+
+describe('buildTypeLandingTitle / buildTypeLandingDescription', () => {
+  it('builds a localized ES title and description with the real count', () => {
+    expect(buildTypeLandingTitle('Dragón', 'es')).toBe('Pokémon de tipo Dragón: lista y estadísticas');
+    expect(buildTypeLandingDescription('Dragón', 34, 'es')).toContain('34');
+    expect(buildTypeLandingDescription('Dragón', 34, 'es')).toContain('Dragón');
+  });
+
+  it('builds a localized EN title and description with the real count', () => {
+    expect(buildTypeLandingTitle('Dragon', 'en')).toBe('Dragon-type Pokémon: List & Stats');
+    expect(buildTypeLandingDescription('Dragon', 34, 'en')).toContain('34');
+    expect(buildTypeLandingDescription('Dragon', 34, 'en')).toContain('Dragon-type');
+  });
+});
+
+describe('buildGenerationLandingTitle / buildGenerationLandingDescription', () => {
+  it('builds a localized ES title and description with roman numeral, region and count', () => {
+    expect(buildGenerationLandingTitle('I', 'Kanto', 'es')).toBe('Pokémon de Generación I (Kanto)');
+    const desc = buildGenerationLandingDescription('I', 'Kanto', 151, 'es');
+    expect(desc).toContain('151');
+    expect(desc).toContain('Kanto');
+  });
+
+  it('builds a localized EN title and description with roman numeral, region and count', () => {
+    expect(buildGenerationLandingTitle('I', 'Kanto', 'en')).toBe('Generation I Pokémon (Kanto)');
+    const desc = buildGenerationLandingDescription('I', 'Kanto', 151, 'en');
+    expect(desc).toContain('151');
+    expect(desc).toContain('Kanto');
   });
 });

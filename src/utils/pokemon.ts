@@ -195,7 +195,22 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'source_pokeapi': 'Fuente: PokeAPI',
         'source_showdown': 'Fuente: Pokémon Showdown',
         'source_smogon': 'Fuente: Smogon',
-        'source_competitive': 'Datos competitivos: Smogon'
+        'source_competitive': 'Datos competitivos: Smogon',
+        'breadcrumb_home': 'Inicio',
+        'generations': 'Generaciones',
+        'types_hub_title_seo': 'Tipos Pokémon',
+        'types_hub_desc_seo': 'Explora los 18 tipos Pokémon: cuántos Pokémon tiene cada uno, sus combinaciones más comunes y accede a su ficha técnica completa.',
+        'generations_hub_title_seo': 'Generaciones Pokémon',
+        'generations_hub_desc_seo': 'Explora las 9 generaciones Pokémon por región, rango de Pokédex y número de especies.',
+        'back_to_types': 'Volver a Tipos',
+        'back_to_generations': 'Volver a Generaciones',
+        'secondary_type_label': 'Tipo secundario más común',
+        'by_generation_label': 'Por generación',
+        'other_types_label': 'Otros tipos',
+        'other_generations_label': 'Otras generaciones',
+        'generation_label': 'Generación',
+        'dex_range_label': 'Rango Pokédex',
+        'pokemon_count_label': 'Pokémon'
         },
         en: {
         'search_placeholder': 'Search by name, number or type...',
@@ -340,7 +355,22 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'source_pokeapi': 'Source: PokeAPI',
         'source_showdown': 'Source: Pokémon Showdown',
         'source_smogon': 'Source: Smogon',
-        'source_competitive': 'Competitive data: Smogon'
+        'source_competitive': 'Competitive data: Smogon',
+        'breadcrumb_home': 'Home',
+        'generations': 'Generations',
+        'types_hub_title_seo': 'Pokémon Types',
+        'types_hub_desc_seo': 'Explore all 18 Pokémon types: how many Pokémon each one has, their most common combinations, and full technical profiles.',
+        'generations_hub_title_seo': 'Pokémon Generations',
+        'generations_hub_desc_seo': 'Explore all 9 Pokémon generations by region, Pokédex range and species count.',
+        'back_to_types': 'Back to Types',
+        'back_to_generations': 'Back to Generations',
+        'secondary_type_label': 'Most common secondary type',
+        'by_generation_label': 'By generation',
+        'other_types_label': 'Other types',
+        'other_generations_label': 'Other generations',
+        'generation_label': 'Generation',
+        'dex_range_label': 'Pokédex range',
+        'pokemon_count_label': 'Pokémon'
     }
 };
 

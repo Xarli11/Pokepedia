@@ -95,3 +95,38 @@ export function localeAlternates(pathname: string): LocaleAlternates {
     xDefault: new URL('/', SITE_URL).toString(),
   };
 }
+
+/**
+ * Deterministic title/description templates for the type & generation
+ * acquisition landing pages (Sprint 3). Take already-localized labels
+ * (type name, region) so this file stays decoupled from the translation
+ * dictionaries in utils/pokemon.ts — pure functions, easy to unit test.
+ */
+export function buildTypeLandingTitle(typeLabel: string, lang: SupportedLang): string {
+  return lang === 'en'
+    ? `${typeLabel}-type Pokémon: List & Stats`
+    : `Pokémon de tipo ${typeLabel}: lista y estadísticas`;
+}
+
+export function buildTypeLandingDescription(typeLabel: string, count: number, lang: SupportedLang): string {
+  return lang === 'en'
+    ? `Browse all ${count} ${typeLabel}-type Pokémon with base stats, generations and secondary types.`
+    : `Consulta los ${count} Pokémon de tipo ${typeLabel} con sus estadísticas base, generación y tipo secundario.`;
+}
+
+export function buildGenerationLandingTitle(genRoman: string, region: string, lang: SupportedLang): string {
+  return lang === 'en'
+    ? `Generation ${genRoman} Pokémon (${region})`
+    : `Pokémon de Generación ${genRoman} (${region})`;
+}
+
+export function buildGenerationLandingDescription(
+  genRoman: string,
+  region: string,
+  count: number,
+  lang: SupportedLang
+): string {
+  return lang === 'en'
+    ? `All ${count} Generation ${genRoman} Pokémon from the ${region} region, with types and base stats.`
+    : `Los ${count} Pokémon de la Generación ${genRoman} de la región ${region}, con tipos y estadísticas base.`;
+}
