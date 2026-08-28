@@ -1,4 +1,12 @@
 ---
+// Same route slug ("fuentes") for both locales, matching how
+// movimientos/habilidades/objetos already work — Layout.astro's
+// canonical/hreflang generation (src/utils/seo.ts: localizedPath /
+// localeAlternates) does a same-segment ES/EN swap and has no concept of a
+// per-locale slug map, so an asymmetric /es/fuentes/ + /en/sources/ pair
+// would need special-casing in that already-tested module. See
+// docs/DATA_SOURCES.md for the "Future i18n improvement" TODO tracking
+// localized route segments as a real (not urgent) enhancement.
 import Layout from '../../../layouts/Layout.astro';
 import { uiTranslations } from '../../../utils/pokemon';
 import { GENERIC_DATA_ISSUE_URL } from '../../../utils/reportIssue';

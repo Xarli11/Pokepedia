@@ -11,6 +11,15 @@ For the user-facing version of this, see `/[lang]/fuentes/` (same slug in
 both locales — see that page's header comment for why it isn't
 `/es/fuentes/` + `/en/sources/`).
 
+> **Future i18n improvement:** support localized route segments so
+> `/en/sources/` can coexist cleanly with `/es/fuentes/`, instead of every
+> route sharing one slug across locales. This needs a per-route slug map
+> feeding `localizedPath`/`localeAlternates` in `src/utils/seo.ts` (currently
+> a same-segment swap with no such concept), not just a change to the
+> Sources page. Not started — noted here so it isn't quietly forgotten,
+> and so the current symmetric-slug choice isn't mistaken for a permanent
+> constraint.
+
 ## The rule
 
 > **External API response != trusted application data.**
