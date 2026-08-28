@@ -35,6 +35,23 @@ function mockFetch() {
             }),
         } as unknown as Response;
       }
+      // getGenerationMembershipMap fetches all 9 generations to build the
+      // "by generation" breakdown — only Gen 1 (which owns dratini/dragonite,
+      // ids 147/149) needs real members here.
+      if (url.includes('/generation/1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            pokemon_species: [
+              { name: 'dratini', url: 'https://pokeapi.co/api/v2/pokemon-species/147/' },
+              { name: 'dragonite', url: 'https://pokeapi.co/api/v2/pokemon-species/149/' },
+            ],
+          }),
+        } as Response;
+      }
+      if (url.includes('/generation/')) {
+        return { ok: true, json: async () => ({ pokemon_species: [] }) } as Response;
+      }
       return { ok: false, json: async () => ({}) } as Response;
     })
   );
@@ -83,5 +100,17 @@ describe('/[lang]/tipo/[type]/ SSR', () => {
     expect(html).toContain('aria-label="breadcrumb"');
     expect(html).toContain('"@type":"BreadcrumbList"');
     expect(html).toContain('"@type":"ItemList"');
+  });
+
+  it('classifies both Pokémon into Generación I via getGenerationMembershipMap', async () => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(TipoPage, {
+      params: { lang: 'es', type: 'dragon' },
+      request: new Request(`${SITE_URL}/es/tipo/dragon/`),
+    });
+
+    expect(html).toContain('href="/es/generacion/1/"');
+    expect(html).toContain('Generación I');
+    expect(html).toContain('(2)');
   });
 });

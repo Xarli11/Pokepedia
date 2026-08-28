@@ -12,13 +12,13 @@ function mockFetch() {
     'fetch',
     vi.fn(async (input: string | URL) => {
       const url = String(input);
-      if (url.includes('/pokemon?limit=151&offset=0')) {
+      if (url.includes('/generation/1')) {
         return {
           ok: true,
           json: async () => ({
-            results: [
-              { name: 'bulbasaur', url: 'https://pokeapi.co/api/v2/pokemon/1/' },
-              { name: 'charizard', url: 'https://pokeapi.co/api/v2/pokemon/6/' },
+            pokemon_species: [
+              { name: 'bulbasaur', url: 'https://pokeapi.co/api/v2/pokemon-species/1/' },
+              { name: 'charizard', url: 'https://pokeapi.co/api/v2/pokemon-species/6/' },
             ],
           }),
         } as Response;
@@ -90,5 +90,55 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     });
 
     expect(response.status).toBe(302);
+  });
+});
+
+// Regression coverage for the Gen 9 undercount bug directly on the public
+// route: /es/generacion/9/ must list all 120 species (906-1025), including
+// the DLC additions past the old hardcoded 1015 ceiling — not just 110.
+describe('/[lang]/generacion/9/ SSR — full DLC coverage', () => {
+  function buildGen9Fixture() {
+    const filler = Array.from({ length: 110 }, (_, i) => {
+      const id = 906 + i;
+      return { name: `gen9-species-${id}`, url: `https://pokeapi.co/api/v2/pokemon-species/${id}/` };
+    });
+    const dlcAdditions = [
+      ['fezandipiti', 1016], ['ogerpon', 1017], ['archaludon', 1018], ['hydrapple', 1019],
+      ['gouging-fire', 1020], ['raging-bolt', 1021], ['iron-boulder', 1022], ['iron-crown', 1023],
+      ['terapagos', 1024], ['pecharunt', 1025],
+    ].map(([name, id]) => ({ name: name as string, url: `https://pokeapi.co/api/v2/pokemon-species/${id}/` }));
+    return [...filler, ...dlcAdditions];
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL) => {
+        const url = String(input);
+        if (url.includes('/generation/9')) {
+          return { ok: true, json: async () => ({ pokemon_species: buildGen9Fixture() }) } as Response;
+        }
+        if (url.includes('play.pokemonshowdown.com/data/pokedex.json')) {
+          return { ok: true, headers: new Headers(), text: async () => JSON.stringify({}) } as unknown as Response;
+        }
+        return { ok: false, json: async () => ({}) } as Response;
+      })
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('lists all 120 species and links to ogerpon/terapagos/pecharunt, past the old 1015 ceiling', async () => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(GeneracionPage, {
+      params: { lang: 'es', gen: '9' },
+      request: new Request(`${SITE_URL}/es/generacion/9/`),
+    });
+
+    expect(html).toContain('#0906–#1025');
+    expect(html).toContain('href="/es/pokemon/ogerpon"');
+    expect(html).toContain('href="/es/pokemon/terapagos"');
+    expect(html).toContain('href="/es/pokemon/pecharunt"');
+    // The count shown in the description must be the real 120, not the old 110.
+    expect(html).toContain('Los 120 Pokémon de la Generación IX');
   });
 });
