@@ -9,17 +9,33 @@ interface Props {
     description?: string;
     lang?: string;
     image?: string;
+    imageAlt?: string;
+    imageWidth?: number;
+    imageHeight?: number;
+    imageType?: string;
 }
 
 const {
     title,
     description = "Tu enciclopedia Pokémon técnica y definitiva.",
     lang = "es",
-    image = "/pokeball.png"
+    image,
+    imageAlt,
+    imageWidth = 1200,
+    imageHeight = 630,
+    imageType = "image/png"
 } = Astro.props;
 
 const siteUrl = SITE_URL;
-const finalImageUrl = image.startsWith('http') ? image : `${siteUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+// Every page gets a real, self-hosted 1200x630 social card by default — the
+// localized /og/{lang}/default.png route, never the pokeball brand icon
+// (which isn't a designed social card and isn't 1200x630 — see docs/open-graph.md).
+// Pages that need an entity-specific card (Pokémon/type/generation) pass
+// their own local /og/... image prop explicitly.
+const resolvedImage = image || `/og/${lang}/default.png/`;
+const finalImageUrl = resolvedImage.startsWith('http') ? resolvedImage : `${siteUrl}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
+const ogLocale = lang === 'en' ? 'en_US' : 'es_ES';
+const ogLocaleAlternate = lang === 'en' ? 'es_ES' : 'en_US';
 
 const currentPath = Astro.url.pathname;
 const currentSearch = Astro.url.search;
@@ -122,11 +138,13 @@ if (Astro.locals.cacheControl) {
         <meta property="og:description" content={description} />
         <meta property="og:image" content={finalImageUrl} />
         <meta property="og:image:secure_url" content={finalImageUrl} />
-        <meta property="og:image:alt" content={pageTitle} />
-        <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={imageAlt || pageTitle} />
+        <meta property="og:image:type" content={imageType} />
+        <meta property="og:image:width" content={String(imageWidth)} />
+        <meta property="og:image:height" content={String(imageHeight)} />
         <meta property="og:site_name" content="Pokepedia" />
+        <meta property="og:locale" content={ogLocale} />
+        <meta property="og:locale:alternate" content={ogLocaleAlternate} />
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image" />
@@ -134,7 +152,7 @@ if (Astro.locals.cacheControl) {
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={finalImageUrl} />
-        <meta name="twitter:image:alt" content={pageTitle} />
+        <meta name="twitter:image:alt" content={imageAlt || pageTitle} />
         
         <!-- Structured Data (Schema.org) -->
         <script type="application/ld+json" is:inline>

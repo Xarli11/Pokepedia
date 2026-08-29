@@ -82,7 +82,13 @@ const otherTypes = allTypes.filter((tp) => tp !== typeSlug);
 const typeColor = (typeColors as Record<string, string>)[typeSlug];
 ---
 
-<Layout title={seoTitle} description={seoDescription} lang={lang as string}>
+<Layout
+    title={seoTitle}
+    description={seoDescription}
+    lang={lang as string}
+    image={`/og/${lang}/type/${typeSlug}.png/`}
+    imageAlt={seoTitle}
+>
     <div class="max-w-6xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
 

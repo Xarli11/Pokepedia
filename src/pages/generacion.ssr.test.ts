@@ -56,6 +56,7 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     expect(html).toContain(`<link rel="alternate" hreflang="en" href="${SITE_URL}/en/generacion/1/">`);
     expect(html).toContain('href="/es/pokemon/bulbasaur"');
     expect(html).toContain('href="/es/pokemon/charizard"');
+    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/es/generation/1.png/">`);
   });
 
   it('renders the English page with a localized title/H1 and correct canonical/hreflang', async () => {
@@ -68,6 +69,7 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     expect(html).toContain('Generation I Pokémon (Kanto) | Pokepedia.app');
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/en/generacion/1/">`);
     expect(html).toContain(`<link rel="alternate" hreflang="es" href="${SITE_URL}/es/generacion/1/">`);
+    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/en/generation/1.png/">`);
   });
 
   it('includes a breadcrumb trail with BreadcrumbList and ItemList JSON-LD', async () => {

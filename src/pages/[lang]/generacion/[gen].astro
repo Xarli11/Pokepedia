@@ -74,7 +74,13 @@ const otherGenerations = Object.keys(GENERATIONS)
     .map((k) => ({ genKey: k, genNum: k.replace('gen', ''), roman: GENERATION_ROMAN[k], region: GENERATIONS[k].region }));
 ---
 
-<Layout title={seoTitle} description={seoDescription} lang={lang as string}>
+<Layout
+    title={seoTitle}
+    description={seoDescription}
+    lang={lang as string}
+    image={`/og/${lang}/generation/${genNum}.png/`}
+    imageAlt={seoTitle}
+>
     <div class="max-w-6xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
 
