@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { OG_CACHE_CONTROL, OG_FALLBACK_CACHE_CONTROL } from '../../utils/og/http';
 
 // vitest.config.ts deliberately doesn't load @astrojs/cloudflare (avoids a
 // ~10s KV/platform-proxy teardown hang), so the `.wasm?module` specifier
@@ -21,10 +22,10 @@ vi.mock('../../utils/og/yoga-wasm-module', () => {
 	return { default: new WebAssembly.Module(readFileSync(wasmPath)) };
 });
 
-const { GET: defaultGet } = await import('./[lang]/default.png');
-const { GET: pokemonGet } = await import('./[lang]/pokemon/[name].png');
-const { GET: typeGet } = await import('./[lang]/type/[type].png');
-const { GET: generationGet } = await import('./[lang]/generation/[gen].png');
+const { GET: defaultGet } = await import('./v1/[lang]/default.png');
+const { GET: pokemonGet } = await import('./v1/[lang]/pokemon/[name].png');
+const { GET: typeGet } = await import('./v1/[lang]/type/[type].png');
+const { GET: generationGet } = await import('./v1/[lang]/generation/[gen].png');
 
 // Full end-to-end coverage of the OG image endpoints (Satori render +
 // resvg-wasm rasterization) with only network boundaries mocked — PokeAPI
@@ -114,6 +115,12 @@ function mockFetch({ artworkOk = true }: MockOptions = {}) {
 				} as Response;
 			}
 
+			// A valid type slug whose PokeAPI data fetch fails — exercises the
+			// "valid entity, full render pipeline fails" fallback path (case 3
+			// in docs/open-graph.md), as opposed to /type/grass above which
+			// always succeeds.
+			if (url.includes('/type/poison')) return { ok: false, json: async () => ({}) } as Response;
+
 			if (url.includes('/generation/4')) {
 				return {
 					ok: true,
@@ -149,7 +156,7 @@ describe('OG image endpoints', () => {
 	afterEach(() => vi.unstubAllGlobals());
 
 	it('default: renders a real 1200x630 PNG for es', async () => {
-		const res = await defaultGet(ctx('/og/es/default.png/', { lang: 'es' }));
+		const res = await defaultGet(ctx('/og/v1/es/default.png/', { lang: 'es' }));
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('image/png');
 		const body = await readBody(res);
@@ -158,18 +165,18 @@ describe('OG image endpoints', () => {
 	});
 
 	it('default: renders for en too', async () => {
-		const res = await defaultGet(ctx('/og/en/default.png/', { lang: 'en' }));
+		const res = await defaultGet(ctx('/og/v1/en/default.png/', { lang: 'en' }));
 		expect(res.status).toBe(200);
 		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
 	});
 
 	it('default: invalid lang returns 404, not 500', async () => {
-		const res = await defaultGet(ctx('/og/fr/default.png/', { lang: 'fr' }));
+		const res = await defaultGet(ctx('/og/v1/fr/default.png/', { lang: 'fr' }));
 		expect(res.status).toBe(404);
 	});
 
 	it('pokemon: valid slug renders 1200x630 PNG using real artwork', async () => {
-		const res = await pokemonGet(ctx('/og/es/pokemon/og-test-mon.png/', { lang: 'es', name: 'og-test-mon' }));
+		const res = await pokemonGet(ctx('/og/v1/es/pokemon/og-test-mon.png/', { lang: 'es', name: 'og-test-mon' }));
 		expect(res.status).toBe(200);
 		expect(res.headers.get('Content-Type')).toBe('image/png');
 		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
@@ -177,40 +184,49 @@ describe('OG image endpoints', () => {
 
 	it('pokemon: falls back cleanly (still 200) when the artwork mirror fails', async () => {
 		mockFetch({ artworkOk: false });
-		const res = await pokemonGet(ctx('/og/es/pokemon/og-test-mon.png/', { lang: 'es', name: 'og-test-mon' }));
+		const res = await pokemonGet(ctx('/og/v1/es/pokemon/og-test-mon.png/', { lang: 'es', name: 'og-test-mon' }));
 		expect(res.status).toBe(200);
 		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
 	});
 
 	it('pokemon: invalid/unknown slug returns 404, not 500', async () => {
-		const res = await pokemonGet(ctx('/og/es/pokemon/definitely-not-a-pokemon.png/', { lang: 'es', name: 'definitely-not-a-pokemon' }));
+		const res = await pokemonGet(ctx('/og/v1/es/pokemon/definitely-not-a-pokemon.png/', { lang: 'es', name: 'definitely-not-a-pokemon' }));
 		expect(res.status).toBe(404);
 	});
 
 	it('type: valid type renders 1200x630 PNG with the real PokeAPI-derived count', async () => {
-		const res = await typeGet(ctx('/og/es/type/grass.png/', { lang: 'es', type: 'grass' }));
+		const res = await typeGet(ctx('/og/v1/es/type/grass.png/', { lang: 'es', type: 'grass' }));
 		expect(res.status).toBe(200);
 		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
 	});
 
 	it('type: invalid type slug returns 404', async () => {
-		const res = await typeGet(ctx('/og/es/type/not-a-type.png/', { lang: 'es', type: 'not-a-type' }));
+		const res = await typeGet(ctx('/og/v1/es/type/not-a-type.png/', { lang: 'es', type: 'not-a-type' }));
 		expect(res.status).toBe(404);
 	});
 
+	it('type: valid slug whose data fetch fails falls back to the default card (200, short-lived Cache-Control)', async () => {
+		const res = await typeGet(ctx('/og/v1/es/type/poison.png/', { lang: 'es', type: 'poison' }));
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('image/png');
+		expect(res.headers.get('Cache-Control')).toBe(OG_FALLBACK_CACHE_CONTROL);
+		expect(res.headers.get('Cache-Control')).not.toBe(OG_CACHE_CONTROL);
+		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
+	});
+
 	it('generation: valid generation renders 1200x630 PNG', async () => {
-		const res = await generationGet(ctx('/og/es/generation/4.png/', { lang: 'es', gen: '4' }));
+		const res = await generationGet(ctx('/og/v1/es/generation/4.png/', { lang: 'es', gen: '4' }));
 		expect(res.status).toBe(200);
 		expect(readPngDimensions(await readBody(res))).toEqual({ width: 1200, height: 630 });
 	});
 
 	it('generation: out-of-range generation returns 404, not 500', async () => {
-		const res = await generationGet(ctx('/og/es/generation/99.png/', { lang: 'es', gen: '99' }));
+		const res = await generationGet(ctx('/og/v1/es/generation/99.png/', { lang: 'es', gen: '99' }));
 		expect(res.status).toBe(404);
 	});
 
 	it('generation: non-numeric generation returns 404, not 500', async () => {
-		const res = await generationGet(ctx('/og/es/generation/abc.png/', { lang: 'es', gen: 'abc' }));
+		const res = await generationGet(ctx('/og/v1/es/generation/abc.png/', { lang: 'es', gen: 'abc' }));
 		expect(res.status).toBe(404);
 	});
 });

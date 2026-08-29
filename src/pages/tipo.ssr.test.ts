@@ -74,7 +74,7 @@ describe('/[lang]/tipo/[type]/ SSR', () => {
     expect(html).toContain(`<link rel="alternate" hreflang="en" href="${SITE_URL}/en/tipo/dragon/">`);
     expect(html).toContain('href="/es/pokemon/dratini"');
     expect(html).toContain('href="/es/pokemon/dragonite"');
-    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/es/type/dragon.png/">`);
+    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/es/type/dragon.png/">`);
   });
 
   it('renders the English page with a localized title/H1 and correct canonical/hreflang', async () => {
@@ -89,7 +89,7 @@ describe('/[lang]/tipo/[type]/ SSR', () => {
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/en/tipo/dragon/">`);
     expect(html).toContain(`<link rel="alternate" hreflang="es" href="${SITE_URL}/es/tipo/dragon/">`);
     expect(html).toContain('href="/en/pokemon/dratini"');
-    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/en/type/dragon.png/">`);
+    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/en/type/dragon.png/">`);
   });
 
   it('includes a breadcrumb trail with BreadcrumbList JSON-LD', async () => {

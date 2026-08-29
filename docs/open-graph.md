@@ -19,21 +19,29 @@ zero repo bloat.
 ## Route structure
 
 ```
-/og/{es|en}/default.png/
-/og/{es|en}/pokemon/{name}.png/
-/og/{es|en}/type/{typeSlug}.png/
-/og/{es|en}/generation/{1-9}.png/
+/og/v1/{es|en}/default.png/
+/og/v1/{es|en}/pokemon/{name}.png/
+/og/v1/{es|en}/type/{typeSlug}.png/
+/og/v1/{es|en}/generation/{1-9}.png/
 ```
+
+Versioned (`v1`) since the response carries a 1-year immutable
+`Cache-Control` (see [Cache](#cache)) — a mutable URL with that header is
+dangerous (a template/branding change would be invisible to already-cached
+crawlers for up to a year). If the visual design changes in a way that
+matters for already-cached URLs, bump to `/og/v2/...` and update
+`Layout.astro`'s default and the three entity pages' `image` props; don't
+mutate `v1` in place.
 
 Trailing slash included deliberately — the site's global `trailingSlash:
 'always'` (astro.config.mjs) applies to Astro endpoint routes exactly like
 page routes; a URL without it 404s. Files:
 
 ```
-src/pages/og/[lang]/default.png.ts
-src/pages/og/[lang]/pokemon/[name].png.ts
-src/pages/og/[lang]/type/[type].png.ts
-src/pages/og/[lang]/generation/[gen].png.ts
+src/pages/og/v1/[lang]/default.png.ts
+src/pages/og/v1/[lang]/pokemon/[name].png.ts
+src/pages/og/v1/[lang]/type/[type].png.ts
+src/pages/og/v1/[lang]/generation/[gen].png.ts
 ```
 
 Every slug is validated against internal data before rendering — `lang`
@@ -73,23 +81,45 @@ card's forme-suffix logic (`Charizard (Mega X)`) intentionally mirrors the
 inline logic in `src/pages/[lang]/pokemon/[name].astro` rather than
 importing it, because that logic isn't exported from the page and Pokémon
 page logic was out of scope for this sprint — see the comment in
-`src/pages/og/[lang]/pokemon/[name].png.ts`.
+`src/pages/og/v1/[lang]/pokemon/[name].png.ts`.
 
 Counts (`70 Pokémon`, `151 Pokémon`) come from the same functions the
 landing pages already use (`getPokemonByType`, `getPokemonByGeneration`) —
 never hardcoded, never a second counting method that could drift.
 
-## Fallback
+## Fallback — exact response policy
 
-- **Invalid slug/lang** → 404 (`ogNotFound()`), not 500.
-- **Artwork upstream (raw.githubusercontent.com) fails or times out**
-  (4s timeout) → `fetchArtworkDataUri()` returns `null`, and the Pokémon
-  template falls back to a locally-drawn `PokeCoreMark` (the same mark used
-  in the site header) instead of the artwork — the card still renders and
-  returns 200.
-- **Render pipeline itself throws** (e.g. a transient PokeAPI outage on an
-  otherwise-valid slug) → `cacheableImageResponse()` catches it and returns
-  404 rather than 500.
+Three distinct cases, each with a deliberately different Content-Type/status
+— never claim `image/png` where there isn't one, never 500:
+
+1. **Invalid lang/slug** (unsupported lang, unknown type, out-of-range
+   generation, unresolvable Pokémon name) → **404, `Content-Type:
+   text/plain`**, via `ogNotFound()`. Plain text is fine — this is an
+   explicit "no image" response, checked before any rendering starts, so
+   there's nothing to render a PNG of.
+
+2. **Valid entity, only the artwork fetch fails** (upstream
+   raw.githubusercontent.com down/slow — 4s timeout — or a Pokémon with no
+   official artwork) → **200, `image/png`**. `fetchArtworkDataUri()` returns
+   `null`, the Pokémon template swaps in a locally-drawn `PokeCoreMark` (the
+   same mark used in the site header, zero network needed) instead of the
+   artwork, and the card renders and caches normally — this is a complete,
+   correct card, just without artwork.
+
+3. **Valid entity, the full render pipeline throws** (e.g. a transient
+   PokeAPI outage, a font-fetch failure, a WASM error) →
+   `cacheableImageResponse()` makes **one** extra attempt at rendering the
+   plain default card for that language, passed in as the `fallbackPng`
+   argument by the three entity endpoints (`pokemon`/`type`/`generation` —
+   `default.png.ts` itself has no further fallback, since it *is* the
+   fallback). If that succeeds: **200, `image/png`**, but of the default
+   card, not the requested entity, with a short `Cache-Control` (`max-age=60`)
+   and — critically — **never written to `caches.default`** (see
+   [Cache failure safety](#cache-failure-safety)), so the very next request
+   just tries the real render again rather than being stuck behind a
+   year-long immutable cache of the wrong image. If the fallback render
+   *also* throws (no retry loop — one attempt, then stop): **404,
+   `text/plain`**, identical to case 1.
 
 ## Artwork
 
@@ -112,15 +142,34 @@ from the request's own origin at render time (`fonts.ts`), with the
 
 ## Cache
 
-`Cache-Control: public, max-age=86400, s-maxage=31536000, immutable` on
-every successful response — but on Cloudflare, a **Worker-handled** route
-(unlike a Pages static asset) is not auto-cached at the edge just because
-it carries that header. `cacheableImageResponse()` explicitly reads/writes
-`caches.default` (the Workers Cache API) before falling back to rendering,
-keyed by the full request URL. Under plain `astro dev` (Node), there's no
-global `caches` — every request just renders fresh, which is fine for local
-work. Measured on the real Wrangler runtime: cold render ~400-600ms
-(includes font + artwork fetch), Cache-API hit ~1-2ms.
+`Cache-Control: public, max-age=86400, s-maxage=31536000, immutable`
+(`OG_CACHE_CONTROL` in `http.ts`) on every genuine primary-render success —
+safe to mark immutable precisely because the route is versioned (`/og/v1/`,
+see [Route structure](#route-structure)). On Cloudflare, a **Worker-handled**
+route (unlike a Pages static asset) is not auto-cached at the edge just
+because it carries that header. `cacheableImageResponse()` explicitly
+reads/writes `caches.default` (the Workers Cache API) before falling back
+to rendering, keyed by the full request URL. Under plain `astro dev`
+(Node), there's no global `caches` — every request just renders fresh,
+which is fine for local work. Measured on the real Wrangler runtime: cold
+render ~400-600ms (includes font + artwork fetch), Cache-API hit ~1-2ms.
+
+### Cache failure safety
+
+Only a genuine primary-render 200 (case 2 or the non-fallback path of case
+3 in [Fallback](#fallback--exact-response-policy) above) is ever written to
+`caches.default`, via the one `cache.put()` call in `cacheableImageResponse`
+— which sits strictly after the primary `buildPng()` succeeds. Neither the
+404 path (`ogNotFound()`, cases 1 and 3b) nor the default-card fallback path
+(case 3a, `OG_FALLBACK_CACHE_CONTROL = 'public, max-age=60'`) ever reaches
+that call, so:
+
+- a transient failure is never cached as if it were a valid card for a year;
+- an invalid slug's 404 never enters the Workers Cache API at all (only a
+  short `Cache-Control` header for downstream caches that respect it);
+- a fallback default-card render gets at most ~60s of (non-edge-cached)
+  freshness anywhere, so the system self-heals on the next request once the
+  underlying issue clears.
 
 ## Cloudflare Workers compatibility — the two real gotchas
 
@@ -168,18 +217,24 @@ precompiled-module patch treatment as yoga).
 
 ## Tests
 
-- `src/pages/og/og-endpoints.test.ts` — the 4 route handlers end-to-end
-  (real Satori + resvg-wasm render, only network mocked): 1200×630
-  `image/png` output for valid slugs, artwork-fetch-failure fallback still
-  returns 200, invalid slug/lang/type/generation all 404. Fonts are read
-  from the real `public/fonts/og/*.ttf` files on disk so the pipeline
-  exercises real glyph data. `vitest.config.ts` deliberately doesn't load
-  `@astrojs/cloudflare` (avoids a ~10s teardown hang), so the `.wasm?module`
-  imports are mocked with an equivalent real `WebAssembly.Module` built via
-  Node's own `fs` + `WebAssembly` APIs (see the `vi.mock` calls at the top
-  of that file) — the render pipeline is still exercised for real, just via
-  a Node-native module load instead of Wrangler's bundler.
-- `src/utils/og/http.test.ts` — `cacheableImageResponse` / `ogNotFound`.
+- `src/pages/og/og-endpoints.test.ts` — the 4 versioned route handlers
+  end-to-end (real Satori + resvg-wasm render, only network mocked):
+  1200×630 `image/png` output for valid slugs, artwork-fetch-failure
+  fallback still returns 200, invalid slug/lang/type/generation all 404.
+  Fonts are read from the real `public/fonts/og/*.ttf` files on disk so the
+  pipeline exercises real glyph data. `vitest.config.ts` deliberately
+  doesn't load `@astrojs/cloudflare` (avoids a ~10s teardown hang), so the
+  `.wasm?module` imports are mocked with an equivalent real
+  `WebAssembly.Module` built via Node's own `fs` + `WebAssembly` APIs (see
+  the `vi.mock` calls at the top of that file) — the render pipeline is
+  still exercised for real, just via a Node-native module load instead of
+  Wrangler's bundler.
+- `src/utils/og/http.test.ts` — `cacheableImageResponse` / `ogNotFound`,
+  including: a full-render failure with a working `fallbackPng` returns 200
+  `image/png` with the short-lived Cache-Control; a failure with no
+  `fallbackPng` (or a fallback that also throws) returns 404; a successful
+  fallback response is never handed to `cache.put()` (case 3 in
+  [Fallback](#fallback--exact-response-policy)).
 - `src/layouts/Layout.ssr.test.ts` — the localized-default-image fallback,
   explicit local `/og/` image props, `og:locale`, canonical/hreflang still
   rendering.
@@ -193,5 +248,5 @@ precompiled-module patch treatment as yoga).
 npm run dev          # fast iteration; NOT sufficient alone (see gotchas above)
 npm run build
 npx wrangler pages dev dist --compatibility-date=<today> --compatibility-flags=nodejs_compat
-curl -sD - -o card.png http://localhost:8788/og/es/pokemon/dragonite.png/
+curl -sD - -o card.png http://localhost:8788/og/v1/es/pokemon/dragonite.png/
 ```

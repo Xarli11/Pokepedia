@@ -19,8 +19,8 @@ describe('Layout.astro OG metadata', () => {
 			slots: { default: 'content' },
 		});
 
-		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/es/default.png/">`);
-		expect(html).toContain(`<meta property="og:image:secure_url" content="${SITE_URL}/og/es/default.png/">`);
+		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/es/default.png/">`);
+		expect(html).toContain(`<meta property="og:image:secure_url" content="${SITE_URL}/og/v1/es/default.png/">`);
 		expect(html).toContain('<meta property="og:image:width" content="1200">');
 		expect(html).toContain('<meta property="og:image:height" content="630">');
 		expect(html).toContain('<meta property="og:image:type" content="image/png">');
@@ -37,18 +37,18 @@ describe('Layout.astro OG metadata', () => {
 			slots: { default: 'content' },
 		});
 
-		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/en/default.png/">`);
+		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/en/default.png/">`);
 	});
 
 	it('uses an explicit local /og/ image prop verbatim (entity pages) and never raw.githubusercontent', async () => {
 		const container = await AstroContainer.create();
 		const html = await container.renderToString(Layout, {
 			request: new Request(`${SITE_URL}/es/pokemon/dragonite/`),
-			props: { lang: 'es', image: '/og/es/pokemon/dragonite.png/', imageAlt: 'Dragonite' },
+			props: { lang: 'es', image: '/og/v1/es/pokemon/dragonite.png/', imageAlt: 'Dragonite' },
 			slots: { default: 'content' },
 		});
 
-		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/es/pokemon/dragonite.png/">`);
+		expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/es/pokemon/dragonite.png/">`);
 		expect(html).toContain('<meta property="og:image:alt" content="Dragonite">');
 		// raw.githubusercontent.com legitimately remains as a <link rel="preconnect">
 		// perf hint (the page's on-page artwork <img> still points there) —
