@@ -1,13 +1,14 @@
 import type { APIRoute } from 'astro';
-import { isSupportedLang } from '../../../../utils/seo';
-import { getPokemonByName, getLocalizedName, PokemonNotFoundError } from '../../../../services/pokeapi';
-import { typeColors, typeTranslations, formatPokemonNumber, formatName } from '../../../../utils/pokemon';
-import { loadCardFonts } from '../../../../utils/og/fonts';
-import { fetchArtworkDataUri } from '../../../../utils/og/artwork';
-import { renderCardPng } from '../../../../utils/og/render';
-import { cacheableImageResponse, ogNotFound } from '../../../../utils/og/http';
-import { buildPokemonCard } from '../../../../utils/og/templates/pokemon';
-import type { SupportedLang } from '../../../../utils/seo';
+import { isSupportedLang } from '../../../../../utils/seo';
+import { getPokemonByName, getLocalizedName, PokemonNotFoundError } from '../../../../../services/pokeapi';
+import { typeColors, typeTranslations, formatPokemonNumber, formatName } from '../../../../../utils/pokemon';
+import { loadCardFonts } from '../../../../../utils/og/fonts';
+import { fetchArtworkDataUri } from '../../../../../utils/og/artwork';
+import { renderCardPng } from '../../../../../utils/og/render';
+import { cacheableImageResponse, ogNotFound } from '../../../../../utils/og/http';
+import { buildPokemonCard } from '../../../../../utils/og/templates/pokemon';
+import { buildDefaultCard } from '../../../../../utils/og/templates/default';
+import type { SupportedLang } from '../../../../../utils/seo';
 
 // Mirrors the forme-suffix logic in src/pages/[lang]/pokemon/[name].astro
 // (not exported there — it's inline page presentation logic, and Pokémon
@@ -58,10 +59,19 @@ export const GET: APIRoute = async ({ params, request, url }) => {
 	});
 	const bst = (detail.stats || []).reduce((acc, s) => acc + s.base_stat, 0);
 
-	return cacheableImageResponse(request, async () => {
-		const [fonts, artworkDataUri] = await Promise.all([loadCardFonts(url.origin), fetchArtworkDataUri(pokemonId)]);
+	return cacheableImageResponse(
+		request,
+		async () => {
+			const [fonts, artworkDataUri] = await Promise.all([loadCardFonts(url.origin), fetchArtworkDataUri(pokemonId)]);
 
-		const tree = buildPokemonCard({ dexLabel, name, types, bst, artworkDataUri });
-		return renderCardPng(tree, fonts);
-	});
+			const tree = buildPokemonCard({ dexLabel, name, types, bst, artworkDataUri });
+			return renderCardPng(tree, fonts);
+		},
+		async () => {
+			// Entity is valid but the full render failed (see http.ts) — one
+			// extra attempt at the plain default card, never cached long-term.
+			const fonts = await loadCardFonts(url.origin);
+			return renderCardPng(buildDefaultCard(lang), fonts);
+		}
+	);
 };

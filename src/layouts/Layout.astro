@@ -28,11 +28,11 @@ const {
 
 const siteUrl = SITE_URL;
 // Every page gets a real, self-hosted 1200x630 social card by default — the
-// localized /og/{lang}/default.png route, never the pokeball brand icon
+// localized /og/v1/{lang}/default.png route, never the pokeball brand icon
 // (which isn't a designed social card and isn't 1200x630 — see docs/open-graph.md).
 // Pages that need an entity-specific card (Pokémon/type/generation) pass
 // their own local /og/... image prop explicitly.
-const resolvedImage = image || `/og/${lang}/default.png/`;
+const resolvedImage = image || `/og/v1/${lang}/default.png/`;
 const finalImageUrl = resolvedImage.startsWith('http') ? resolvedImage : `${siteUrl}${resolvedImage.startsWith('/') ? '' : '/'}${resolvedImage}`;
 const ogLocale = lang === 'en' ? 'en_US' : 'es_ES';
 const ogLocaleAlternate = lang === 'en' ? 'es_ES' : 'en_US';
