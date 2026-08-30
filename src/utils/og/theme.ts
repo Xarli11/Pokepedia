@@ -17,7 +17,7 @@ export const colors = {
 	slate500: '#64748b',
 	emerald400: '#34d399',
 	emerald500: '#10b981',
-	emeraldGlow: 'rgba(16,185,129,0.16)',
+	emeraldGlow: 'rgba(16,185,129,0.135)',
 } as const;
 
 export const fontFamily = 'Inter';

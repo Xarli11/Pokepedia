@@ -20,7 +20,7 @@ export function buildDefaultCard(lang: SupportedLang) {
 	return Frame(
 		h(
 			'div',
-			{ position: 'absolute', top: 56, right: 64, display: 'flex', gap: 12 },
+			{ position: 'absolute', top: 64, right: 88, display: 'flex', gap: 10 },
 			Chip('GEN IX'),
 			Chip('DATA'),
 			Chip('COMPETITIVE')
