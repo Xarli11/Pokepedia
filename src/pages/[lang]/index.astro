@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import { getPokemonByGeneration, GENERATIONS } from '../../services/pokeapi';
 import { getSmogonDataBatch } from '../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../utils/pokemon';
+import { pagePath } from '../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 const url = new URL(Astro.request.url);
@@ -85,7 +86,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 <option value="total-desc">{t.total || 'Total'} ↓</option>
             </select>
             
-            <a href={`/${lang}/comparar/charizard/venusaur`} class="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[10px] hover:bg-emerald-500 hover:text-white transition-all group no-underline">
+            <a href={pagePath(lang, 'comparar', 'charizard', 'venusaur')} class="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[10px] hover:bg-emerald-500 hover:text-white transition-all group no-underline">
                 <svg class="w-4 h-4 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path d="M16 3l4 4-4 4M8 21l-4-4 4-4M20 7H4M4 17h16" />
                 </svg>
@@ -168,7 +169,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 data-total={p.types.length > 0 ? Object.values(p.stats).reduce((a: number, b: any) => a + (b || 0), 0) : ''}
             >
                 {/* Enlace invisible que cubre toda la card */}
-                <a href={`/${lang}/pokemon/${p.name}`} class="absolute inset-0 z-10 rounded-[3rem]" aria-label={p.name.replace(/-/g, ' ')}></a>
+                <a href={pagePath(lang, 'pokemon', p.name)} class="absolute inset-0 z-10 rounded-[3rem]" aria-label={p.name.replace(/-/g, ' ')}></a>
                 {/* Top accent bar con color del tipo primario */}
                 {p.types.length > 0 && (
                     <div class="absolute top-0 left-0 right-0 h-0.5 opacity-60 pointer-events-none" style={`background-color: ${(typeColors as Record<string,string>)[p.types[0]] || '#10b981'}`} aria-hidden="true"></div>
@@ -211,6 +212,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <script>
         import { trackEvent } from '../../utils/analytics';
         import { fetchPokeApiJson, POKEAPI_BASE } from '../../utils/pokeapiClient';
+        import { pagePath } from '../../utils/seo';
 
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
@@ -314,7 +316,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const accentColor = typeColorsClient[types[0]] || '#10b981';
             // Link covers entire card; fav button sits above it via z-index
             card.innerHTML = `
-                <a href="/${lang}/pokemon/${safeName}" class="absolute inset-0 z-10 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
+                <a href="${escHtml(pagePath(lang, 'pokemon', p.name))}" class="absolute inset-0 z-10 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
                 <div class="absolute top-0 left-0 right-0 h-0.5 opacity-60 pointer-events-none" style="background-color: ${accentColor}" aria-hidden="true"></div>
                 <div class="relative z-20 w-full flex items-center justify-between mb-10 pointer-events-none">
                     <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em]">#${String(p.id).padStart(4, '0')}</span>
@@ -428,7 +430,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                                     const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                                     const isVariety = p.id > 10000;
                                     const a = document.createElement('a');
-                                    a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
+                                    a.href = pagePath(lang, 'pokemon', p.name);
                                     a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group';
                                     const img = document.createElement('img');
                                     img.src = spriteUrl;

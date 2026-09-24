@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getAllAbilities } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 // Limitamos a 307 que son las habilidades oficiales hasta Gen 9 (evitando CAP y entries de debug)
@@ -39,7 +40,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         <div id="ability-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {abilities.map((ability) => (
                 <a 
-                    href={`/${lang}/habilidades/${ability.name}`}
+                    href={pagePath(lang, 'habilidades', ability.name)}
                     class="ability-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
                     data-name={ability.name}
                 >

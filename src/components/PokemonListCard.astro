@@ -8,6 +8,7 @@
 // reuses the global window.toggleFavorite already wired in Layout.astro, so
 // this stays pure SSR HTML + CSS with zero new client JS.
 import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
+import { pagePath } from '../utils/seo';
 
 interface Props {
     pokemon: { name: string; id: number; sprite: string; types?: string[] };
@@ -20,7 +21,7 @@ const accentColor = (typeColors as Record<string, string>)[types[0]] || '#10b981
 ---
 
 <a
-    href={`/${lang}/pokemon/${pokemon.name}`}
+    href={pagePath(lang, 'pokemon', pokemon.name)}
     class="group relative bg-white dark:bg-slate-900/80 rounded-[2.5rem] p-6 pb-8 border border-slate-200/50 dark:border-slate-800/50 hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 flex flex-col items-center overflow-hidden no-underline"
     data-track-event="internal_entity_click"
     data-entity-type="pokemon"

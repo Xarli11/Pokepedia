@@ -5,14 +5,14 @@ import PokemonListCard from '../../../components/PokemonListCard.astro';
 import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
-import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl } from '../../../utils/seo';
+import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
 
 const { lang = 'es', type } = Astro.params;
 const typeSlug = (type as string || '').toLowerCase();
 const allTypes = Object.keys(typeColors);
 
 if (!allTypes.includes(typeSlug)) {
-    return Astro.redirect(`/${lang}/`);
+    return Astro.redirect(pagePath(lang));
 }
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
@@ -22,7 +22,7 @@ let pokemonList: Awaited<ReturnType<typeof getPokemonByType>> = [];
 try {
     pokemonList = await getPokemonByType(typeSlug);
 } catch (e) {
-    return Astro.redirect(`/${lang}/`);
+    return Astro.redirect(pagePath(lang));
 }
 
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
@@ -63,8 +63,8 @@ const seoTitle = buildTypeLandingTitle(typeLabel, lang as 'es' | 'en');
 const seoDescription = buildTypeLandingDescription(typeLabel, count, lang as 'es' | 'en');
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
-    { label: t.pokemon_types, href: `/${lang}/tipos/` },
+    { label: t.breadcrumb_home, href: pagePath(lang) },
+    { label: t.pokemon_types, href: pagePath(lang, 'tipos') },
     { label: typeLabel },
 ];
 
@@ -74,7 +74,7 @@ const itemListJsonLd = {
     itemListElement: enrichedList.map((p, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        url: canonicalUrl(`/${lang}/pokemon/${p.name}`),
+        url: canonicalUrl(pagePath(lang, 'pokemon', p.name)),
     })),
 };
 
@@ -122,7 +122,7 @@ const typeColor = (typeColors as Record<string, string>)[typeSlug];
                 <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.by_generation_label}</h2>
                 <div class="flex flex-wrap gap-2">
                     {generationBreakdown.map((g) => (
-                        <a href={`/${lang}/generacion/${g.genNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="type_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                        <a href={pagePath(lang, 'generacion', g.genNum)} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="type_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
                             {t.generation_label} {g.roman} <span class="opacity-60">({g.count})</span>
                         </a>
                     ))}
@@ -140,13 +140,13 @@ const typeColor = (typeColors as Record<string, string>)[typeSlug];
             <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.other_types_label}</h2>
             <div class="flex flex-wrap gap-2">
                 {otherTypes.map((tp) => (
-                    <a href={`/${lang}/tipo/${tp}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp} data-source-surface="type_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
+                    <a href={pagePath(lang, 'tipo', tp)} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp} data-source-surface="type_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
                         <span class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[tp]}`} aria-hidden="true"></span>
                         {typeTranslations[lang as string]?.[tp]}
                     </a>
                 ))}
             </div>
-            <a href={`/${lang}/tipos/`} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
+            <a href={pagePath(lang, 'tipos')} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
                 {t.back_to_types}
             </a>
         </div>

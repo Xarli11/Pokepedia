@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getAllItems } from '../../../services/pokeapi';
 import { uiTranslations, formatName, itemTranslations } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 const items = await getAllItems();
@@ -57,7 +58,7 @@ const mainCategories = [
         <div id="item-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {items.map((item) => (
                 <a 
-                    href={`/${lang}/objetos/${item.name}`}
+                    href={pagePath(lang, 'objetos', item.name)}
                     class="item-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
                     data-name={item.name}
                     data-super-category="unknown"

@@ -6,6 +6,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang, name } = Astro.params;
 
@@ -13,7 +14,7 @@ let itemData;
 try {
     itemData = await getItemDetail(name as string);
 } catch (e) {
-    return Astro.redirect(`/${lang}/objetos`);
+    return Astro.redirect(pagePath(lang as string, 'objetos'));
 }
 
 const localizedName = getLocalizedName(itemData.names, lang as string) || formatName(itemData.name);
@@ -36,7 +37,7 @@ if (categoryKey === 'all-machines' && itemData.machines && itemData.machines.len
     if (moveData) {
         moveDetail = {
             name: getLocalizedName(moveData.names, lang as string) || formatName(moveData.name),
-            url: `/${lang}/movimientos/${moveData.name}`
+            url: pagePath(lang as string, 'movimientos', moveData.name)
         };
     }
 }
@@ -50,8 +51,8 @@ const heldByPokemon = await getPokemonListByUrls(
 const t = uiTranslations[lang as string] || uiTranslations.es;
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
-    { label: t.items, href: `/${lang}/objetos/` },
+    { label: t.breadcrumb_home, href: pagePath(lang as string) },
+    { label: t.items, href: pagePath(lang as string, 'objetos') },
     { label: localizedName },
 ];
 ---
@@ -63,7 +64,7 @@ const breadcrumbItems = [
 >
     <div class="max-w-5xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
-        <a href={`/${lang}/objetos`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
+        <a href={pagePath(lang as string, 'objetos')} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
             <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             {t.back_to_items}
         </a>

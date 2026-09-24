@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
+import { pagePath } from '../../../../utils/seo';
 import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
 import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
 import { getPokemonByName } from '../../../../services/pokeapi';
@@ -14,7 +15,7 @@ try {
         getPokemonByName(p2 as string)
     ]);
 } catch (e) {
-    return Astro.redirect(`/${lang}?error=notfound`);
+    return Astro.redirect(`${pagePath(lang as string)}?error=notfound`);
 }
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
@@ -34,7 +35,7 @@ const seoTitle = lang === 'es'
 <Layout title={seoTitle} lang={lang}>
     <div class="max-w-6xl mx-auto px-4">
         <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-16">
-            <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group no-underline">
+            <a href={pagePath(lang as string)} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group no-underline">
                 <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 transition-all shadow-sm">
                     <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
                 </div>

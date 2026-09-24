@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import { pagePath } from '../../../utils/seo';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { GENERATIONS, GENERATION_ROMAN, getPokemonByGeneration, getDexRangeFromEntries } from '../../../services/pokeapi';
 import { uiTranslations } from '../../../utils/pokemon';
@@ -23,7 +24,7 @@ const generationCards = genKeys.map((genKey, i) => {
 });
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
+    { label: t.breadcrumb_home, href: pagePath(lang) },
     { label: t.generations },
 ];
 ---
@@ -39,7 +40,7 @@ const breadcrumbItems = [
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {generationCards.map(({ genNum, genKey, roman, region, count, range }) => (
                 <a
-                    href={`/${lang}/generacion/${genNum}/`}
+                    href={pagePath(lang, 'generacion', genNum)}
                     data-track-event="internal_entity_click"
                     data-entity-type="generation"
                     data-entity-slug={genKey}
