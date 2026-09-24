@@ -5,10 +5,10 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, canonicalPokemonSlug, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
-import { pagePath } from '../../../utils/seo';
+import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', name: rawName } = Astro.params;
@@ -288,7 +288,7 @@ const breadcrumbItems = [
             <div class="flex items-center gap-3">
                 {hasNavigation ? (
                     <>
-                        <a href={pagePath(lang, 'pokemon', prevPokemon.name)} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
+                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(prevPokemon))} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
                             <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
@@ -296,7 +296,7 @@ const breadcrumbItems = [
                             </div>
                         </a>
                         <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
-                        <a href={pagePath(lang, 'pokemon', nextPokemon.name)} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
+                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(nextPokemon))} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
@@ -438,7 +438,7 @@ const breadcrumbItems = [
         document.addEventListener('astro:after-swap', initShiny);
     </script>
 
-    <script is:inline define:vars={{ _pokemonName: detail.name, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+    <script is:inline define:vars={{ _pokemonName: canonicalSlug, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
         (function() {
             try {
                 const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');

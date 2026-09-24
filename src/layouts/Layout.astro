@@ -471,7 +471,7 @@ if (Astro.locals.cacheControl) {
 
     <div id="layout-data" data-lang={lang} class="hidden"></div>
     <script>
-        import { localizedPath, pagePath } from '../utils/seo';
+        import { canonicalPokemonSlug, localizedPath, pagePath } from '../utils/seo';
         import type { PokemonNameEntry } from '../services/pokeapi';
         import { trackEvent } from '../utils/analytics';
         import { fetchPokeApiJson, POKEAPI_BASE } from '../utils/pokeapiClient';
@@ -531,8 +531,8 @@ if (Astro.locals.cacheControl) {
                 btn.classList.add('animate-pulse', 'opacity-50');
                 const randomId = Math.floor(Math.random() * 1025) + 1;
                 try {
-                    const data = await fetchPokeApiJson<{ name: string }>(`${POKEAPI_BASE}/pokemon/${randomId}`);
-                    window.location.href = pagePath(lang, 'pokemon', data.name);
+                    const data = await fetchPokeApiJson<{ name: string; is_default?: boolean; species?: { name?: string } }>(`${POKEAPI_BASE}/pokemon/${randomId}`);
+                    window.location.href = pagePath(lang, 'pokemon', canonicalPokemonSlug(data));
                 } catch (e) {
                     btn.disabled = false;
                     btn.classList.remove('animate-pulse', 'opacity-50');

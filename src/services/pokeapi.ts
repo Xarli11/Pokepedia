@@ -313,7 +313,10 @@ export async function getGenerationMembershipMap(): Promise<Map<number, string>>
  * via getSmogonDataBatch, exactly like the homepage's generation view does.
  */
 export async function getPokemonByType(typeSlug: string): Promise<PokemonListEntry[]> {
-    const data = await fetchWithCache<PokeApiTypeResponse>(`https://pokeapi.co/api/v2/type/${typeSlug}`);
+    const [data, speciesNames] = await Promise.all([
+        fetchWithCache<PokeApiTypeResponse>(`https://pokeapi.co/api/v2/type/${typeSlug}`),
+        getSpeciesNamesById(),
+    ]);
 
     return data.pokemon
         .map((entry) => entry.pokemon)
@@ -322,7 +325,27 @@ export async function getPokemonByType(typeSlug: string): Promise<PokemonListEnt
             return { name: p.name, id, url: p.url, sprite: buildSpriteUrl(id) };
         })
         .filter((p) => p.id < 10000)
+        // Entries under 10000 are each species' default variety, whose
+        // canonical URL is the species name (see canonicalPokemonSlug):
+        // "basculin-red-striped" -> "basculin".
+        .map((p) => ({ ...p, name: speciesNames.get(p.id) ?? p.name }))
         .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * National Dex id -> species name, from the same cached species list the
+ * search suggestions use. Best-effort: if it can't be loaded, callers keep
+ * the PokeAPI `pokemon` names, which still 301 to the right page.
+ */
+async function getSpeciesNamesById(): Promise<Map<number, string>> {
+    try {
+        const data = await fetchWithCache<{ results: { name: string; url: string }[] }>(
+            'https://pokeapi.co/api/v2/pokemon-species?limit=2000'
+        );
+        return new Map(data.results.map((s) => [idFromResourceUrl(s.url), s.name]));
+    } catch {
+        return new Map();
+    }
 }
 
 /**
@@ -369,21 +392,6 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
     } catch (e) {
         return null;
     }
-}
-
-/**
- * Pokepedia's official URL slug for a PokeAPI `pokemon` resource.
- *
- * A species' default variety is the species itself, so it lives at the
- * species URL: basculin-red-striped -> basculin, deoxys-normal -> deoxys,
- * feraligatr -> feraligatr. Every other variety (megas, gmax, regional and
- * alternate forms) is its own page under its own name. Driven entirely by
- * PokeAPI's `is_default` + `species` fields — no hand-kept list. Verified
- * against all 1025 species: 37 have a default variety whose name differs
- * from the species name, and no species name collides with any form's.
- */
-export function canonicalPokemonSlug(pokemon: Pick<PokemonDetail, 'name' | 'is_default' | 'species'>): string {
-    return pokemon.is_default && pokemon.species?.name ? pokemon.species.name : pokemon.name;
 }
 
 export class PokemonNotFoundError extends NotFoundError {
@@ -480,11 +488,13 @@ export async function getAllItems(): Promise<{ name: string, url: string }[]> {
 
 /**
  * Lightweight, cached Pokémon name list for entity discovery (e.g. sitemap).
- * Deliberately limited to base species (no varieties) — matches the scope
- * the sitemap previously fetched directly and uncached.
+ * Deliberately limited to base species (no varieties). Read from
+ * pokemon-species, not pokemon: species names are the canonical URLs,
+ * whereas the `pokemon` list names 37 species by their default variety
+ * ("basculin-red-striped"), which now 301s to the species URL.
  */
 export async function getAllPokemonBasic(limit: number = 1025): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${limit}`);
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon-species?limit=${limit}`);
     return data.results || [];
 }
 

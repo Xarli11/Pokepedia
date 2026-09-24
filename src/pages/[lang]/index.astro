@@ -212,7 +212,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <script>
         import { trackEvent } from '../../utils/analytics';
         import { fetchPokeApiJson, POKEAPI_BASE } from '../../utils/pokeapiClient';
-        import { pagePath } from '../../utils/seo';
+        import { canonicalPokemonSlug, pagePath } from '../../utils/seo';
 
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
@@ -316,7 +316,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const accentColor = typeColorsClient[types[0]] || '#10b981';
             // Link covers entire card; fav button sits above it via z-index
             card.innerHTML = `
-                <a href="${escHtml(pagePath(lang, 'pokemon', p.name))}" class="absolute inset-0 z-10 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
+                <a href="${escHtml(pagePath(lang, 'pokemon', canonicalPokemonSlug(p)))}" class="absolute inset-0 z-10 rounded-[3rem]" aria-label="${safeDisplayName}"></a>
                 <div class="absolute top-0 left-0 right-0 h-0.5 opacity-60 pointer-events-none" style="background-color: ${accentColor}" aria-hidden="true"></div>
                 <div class="relative z-20 w-full flex items-center justify-between mb-10 pointer-events-none">
                     <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em]">#${String(p.id).padStart(4, '0')}</span>
