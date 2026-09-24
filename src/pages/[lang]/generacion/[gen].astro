@@ -9,10 +9,16 @@ import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonic
 import { errorResponse, notFoundResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', gen: genParam } = Astro.params;
-const genNum = parseInt(genParam as string, 10);
+// Digits only: parseInt() used to accept "2abc" or "2.5" as generation 2,
+// each a second 200 page. A padded number ("02") is the same generation and
+// 301s to its canonical form; anything else is a 404.
+const genNum = /^\d+$/.test(genParam as string) ? Number(genParam) : NaN;
 
 if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
     return notFoundResponse();
+}
+if (genParam !== String(genNum)) {
+    return Astro.redirect(pagePath(lang, 'generacion', genNum), 301);
 }
 
 const genKey = `gen${genNum}`;

@@ -12,9 +12,15 @@ const { lang, name } = Astro.params;
 
 let abilityData;
 try {
-    abilityData = await getAbilityDetailByName(name as string);
+    abilityData = await getAbilityDetailByName((name as string).toLowerCase());
 } catch (error) {
     return errorResponse(error);
+}
+
+// PokeAPI resolves numeric ids and any casing (/26/, /Levitate/ -> levitate), which
+// made each of those a second 200 page. Only the canonical slug renders.
+if (name !== abilityData.name) {
+    return Astro.redirect(pagePath(lang as string, 'habilidades', abilityData.name), 301);
 }
 
 const localizedName = getLocalizedName(abilityData.names, lang as string) || formatName(abilityData.name);

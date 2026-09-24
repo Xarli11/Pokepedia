@@ -15,6 +15,10 @@ const allTypes = Object.keys(typeColors);
 if (!allTypes.includes(typeSlug)) {
     return notFoundResponse();
 }
+// /tipo/Water/ is the same page as /tipo/water/: one URL only.
+if (type !== typeSlug) {
+    return Astro.redirect(pagePath(lang, 'tipo', typeSlug), 301);
+}
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const typeLabel = typeTranslations[lang as string]?.[typeSlug] || typeSlug;

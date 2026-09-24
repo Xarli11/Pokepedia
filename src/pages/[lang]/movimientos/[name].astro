@@ -12,9 +12,15 @@ const { lang, name } = Astro.params;
 
 let moveData;
 try {
-    moveData = await getMoveDetailByName(name as string);
+    moveData = await getMoveDetailByName((name as string).toLowerCase());
 } catch (error) {
     return errorResponse(error);
+}
+
+// PokeAPI resolves numeric ids and any casing (/57/, /Surf/ -> surf), which
+// made each of those a second 200 page. Only the canonical slug renders.
+if (name !== moveData.name) {
+    return Astro.redirect(pagePath(lang as string, 'movimientos', moveData.name), 301);
 }
 
 const localizedName = getLocalizedName(moveData.names, lang as string) || formatName(moveData.name);

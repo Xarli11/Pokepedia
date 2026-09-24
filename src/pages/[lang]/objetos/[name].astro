@@ -13,9 +13,15 @@ const { lang, name } = Astro.params;
 
 let itemData;
 try {
-    itemData = await getItemDetail(name as string);
+    itemData = await getItemDetail((name as string).toLowerCase());
 } catch (error) {
     return errorResponse(error);
+}
+
+// PokeAPI resolves numeric ids and any casing (/211/, /Leftovers/ -> leftovers), which
+// made each of those a second 200 page. Only the canonical slug renders.
+if (name !== itemData.name) {
+    return Astro.redirect(pagePath(lang as string, 'objetos', itemData.name), 301);
 }
 
 const localizedName = getLocalizedName(itemData.names, lang as string) || formatName(itemData.name);
