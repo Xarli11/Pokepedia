@@ -1,5 +1,7 @@
 // src/services/pokeapi.ts
 
+import { NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
+
 export interface PokemonType {
     slot: number;
     type: {
@@ -148,9 +150,24 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
         return cached.data;
     }
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
-    const data = await response.json();
+    let response: Response;
+    try {
+        response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    } catch (error) {
+        // fetch only rejects when no HTTP answer arrived: the 8s timeout
+        // (TimeoutError) or a network/DNS/TLS failure (TypeError).
+        throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
+    }
+    if (!response.ok) throw errorForUpstreamStatus(response.status, url);
+
+    let data: T;
+    try {
+        data = await response.json();
+    } catch (error) {
+        // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
+        // truncated body), not a missing entity.
+        throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
+    }
 
     cache.set(url, { data, timestamp: now });
     return data;
@@ -349,7 +366,7 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
     }
 }
 
-export class PokemonNotFoundError extends Error {
+export class PokemonNotFoundError extends NotFoundError {
     constructor(name: string) {
         super(`Pokemon not found: ${name}`);
         this.name = 'PokemonNotFoundError';
@@ -386,7 +403,12 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
         const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
         result = { detail, species };
     } catch (error) {
-        // 2. Si falla, intentar con especie
+        // Solo un "no existe" justifica probar la especie: un fallo temporal
+        // de PokeAPI (UpstreamError) se propaga tal cual para responder 503,
+        // nunca se reinterpreta como Pokémon inexistente.
+        if (!(error instanceof NotFoundError)) throw error;
+
+        // 2. Si no existe como pokemon, intentar con especie
         try {
             const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${cleanName}`);
             const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
@@ -394,7 +416,8 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
             result = { detail, species };
         } catch (innerError) {
             // 3. Fallo limpio — nunca adivinar la especie a partir del slug.
-            throw new PokemonNotFoundError(cleanName);
+            if (innerError instanceof NotFoundError) throw new PokemonNotFoundError(cleanName);
+            throw innerError;
         }
     }
 
