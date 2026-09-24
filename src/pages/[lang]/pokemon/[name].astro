@@ -13,7 +13,8 @@ import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
 
-// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// Only this primary lookup can 404 the page (EntityNotFoundError). An
+// UpstreamError or a missing related resource is answered 503 by
 // src/middleware.ts; any other error surfaces as a real 500.
 const pokemonData = await getPokemonByName(name);
 const detail: any = pokemonData.detail;

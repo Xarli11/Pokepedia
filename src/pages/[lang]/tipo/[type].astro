@@ -2,18 +2,18 @@
 import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import PokemonListCard from '../../../components/PokemonListCard.astro';
-import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getPokemonByType, getSpeciesNamesById, getGenerationMembershipMap, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
-import { NotFoundError } from '../../../services/errors';
+import { EntityNotFoundError, NotFoundError } from '../../../services/errors';
 
 const { lang = 'es', type } = Astro.params;
 const typeSlug = (type as string || '').toLowerCase();
 const allTypes = Object.keys(typeColors);
 
 if (!allTypes.includes(typeSlug)) {
-    throw new NotFoundError(`Unknown ${Astro.url.pathname}`);
+    throw new EntityNotFoundError(`Unknown type ${Astro.url.pathname}`);
 }
 // /tipo/Water/ is the same page as /tipo/water/: one URL only.
 if (type !== typeSlug) {
@@ -23,9 +23,13 @@ if (type !== typeSlug) {
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const typeLabel = typeTranslations[lang as string]?.[typeSlug] || typeSlug;
 
-// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
-// src/middleware.ts; any other error surfaces as a real 500.
-const pokemonList = await getPokemonByType(typeSlug);
+// The type itself is validated above (the only possible 404). Required
+// dependencies: its Pokémon list, and the species names that turn each
+// default variety into its canonical URL ("basculin-red-striped" ->
+// "basculin"). If PokeAPI can't provide either, src/middleware.ts answers
+// 503 rather than rendering links to redirecting URLs.
+const [typeEntries, speciesNames] = await Promise.all([getPokemonByType(typeSlug), getSpeciesNamesById()]);
+const pokemonList = typeEntries.map((p) => ({ ...p, name: speciesNames.get(p.id) ?? p.name }));
 
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
 const enrichedList = pokemonList.map((p) => {
@@ -36,7 +40,16 @@ const enrichedList = pokemonList.map((p) => {
 const count = enrichedList.length;
 
 // Derived stats — no invented text, everything computed from the list itself.
-const genMembership = await getGenerationMembershipMap();
+// Optional enrichment (the by-generation breakdown): a missing generation
+// resource drops this section instead of turning a valid type into a 404.
+// Any other failure still propagates.
+let genMembership = new Map<number, string>();
+try {
+    genMembership = await getGenerationMembershipMap();
+} catch (error) {
+    if (!(error instanceof NotFoundError)) throw error;
+    console.warn(`Type landing ${typeSlug}: generation breakdown unavailable`, error);
+}
 const genCounts = new Map<string, number>();
 for (const p of enrichedList) {
     const genKey = genMembership.get(p.id);

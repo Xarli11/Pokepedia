@@ -49,6 +49,18 @@ function mockFetch() {
           }),
         } as Response;
       }
+      // Species list: the landing's canonical-slug source (required dependency).
+      if (url.includes('/pokemon-species?limit=2000')) {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [
+              { name: 'dratini', url: 'https://pokeapi.co/api/v2/pokemon-species/147/' },
+              { name: 'dragonite', url: 'https://pokeapi.co/api/v2/pokemon-species/149/' },
+            ],
+          }),
+        } as Response;
+      }
       if (url.includes('/generation/')) {
         return { ok: true, json: async () => ({ pokemon_species: [] }) } as Response;
       }

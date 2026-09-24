@@ -10,7 +10,8 @@ import { pagePath } from '../../../utils/seo';
 
 const { lang, name } = Astro.params;
 
-// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// Only this primary lookup can 404 the page (EntityNotFoundError). An
+// UpstreamError or a missing related resource is answered 503 by
 // src/middleware.ts; any other error surfaces as a real 500.
 const itemData = await getItemDetail((name as string).toLowerCase());
 

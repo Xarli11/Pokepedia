@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { errorResponse, notFoundResponse, upstreamUnavailableResponse, RETRY_AFTER_SECONDS } from './httpResponses';
-import { NotFoundError, UpstreamError } from '../services/errors';
+import { EntityNotFoundError, NotFoundError, UpstreamError } from '../services/errors';
 
 describe('errorResponse: failure class -> HTTP status', () => {
-  it('NotFoundError -> 404 with an empty body (Astro reroutes it to 404.astro)', () => {
-    const response = errorResponse(new NotFoundError('gone'));
+  it('EntityNotFoundError -> 404 with an empty body (Astro reroutes it to 404.astro)', () => {
+    const response = errorResponse(new EntityNotFoundError('gone'));
     expect(response.status).toBe(404);
     expect(response.body).toBeNull();
     expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('a NotFoundError for a related resource (required dependency) -> 503, never 404', () => {
+    const response = errorResponse(new NotFoundError('species of an existing pokemon'));
+    expect(response.status).toBe(503);
+    expect(response.headers.get('retry-after')).toBe('60');
   });
 
   it('UpstreamError -> 503 with Retry-After and no caching', () => {

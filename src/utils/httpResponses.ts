@@ -5,7 +5,7 @@
 // src/middleware.ts answers with these — instead of the old redirect to a
 // listing, which told Google a missing or temporarily broken entity had
 // "moved" somewhere, when a listing is never a real replacement.
-import { NotFoundError, UpstreamError } from '../services/errors';
+import { EntityNotFoundError, NotFoundError, UpstreamError } from '../services/errors';
 
 /** Seconds a crawler/browser should wait before retrying after a 503. */
 export const RETRY_AFTER_SECONDS = 60;
@@ -40,12 +40,16 @@ export function upstreamUnavailableResponse(): Response {
 }
 
 /**
- * Maps a classified failure to its HTTP answer: NotFoundError -> 404,
- * UpstreamError -> 503. Anything else is a Pokepedia bug and is re-thrown
- * untouched so it surfaces as a real 500 — never masked as 404/302/200.
+ * Maps a classified failure to its HTTP answer:
+ * - EntityNotFoundError (the page's own entity doesn't exist) -> 404;
+ * - UpstreamError, or a NotFoundError for any *other* PokeAPI resource (a
+ *   required dependency of an entity that does exist) -> 503: the page is
+ *   real, PokeAPI just can't represent it right now;
+ * - anything else is a Pokepedia bug, re-thrown untouched so it surfaces as
+ *   a real 500 — never masked as 404/302/200.
  */
 export function errorResponse(error: unknown): Response {
-    if (error instanceof NotFoundError) return notFoundResponse();
-    if (error instanceof UpstreamError) return upstreamUnavailableResponse();
+    if (error instanceof EntityNotFoundError) return notFoundResponse();
+    if (error instanceof UpstreamError || error instanceof NotFoundError) return upstreamUnavailableResponse();
     throw error;
 }

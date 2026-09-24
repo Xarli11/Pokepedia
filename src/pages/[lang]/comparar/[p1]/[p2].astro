@@ -8,7 +8,8 @@ import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber, buil
 
 const { lang, p1, p2 } = Astro.params;
 
-// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// Only this primary lookup can 404 the page (EntityNotFoundError). An
+// UpstreamError or a missing related resource is answered 503 by
 // src/middleware.ts; any other error surfaces as a real 500.
 const [pokemon1, pokemon2] = await Promise.all([
     getPokemonByName(p1 as string),

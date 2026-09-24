@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { APIContext, MiddlewareNext } from 'astro';
 import { onRequest } from './middleware';
 import { SITE_URL } from './utils/seo';
-import { NotFoundError, UpstreamError } from './services/errors';
+import { EntityNotFoundError, NotFoundError, UpstreamError } from './services/errors';
 
 // The routePattern/params pairs below are what Astro's router hands the
 // middleware for these requests: every page under src/pages/[lang]/ matches
@@ -54,7 +54,7 @@ describe('middleware: unsupported locales are 404', () => {
     }
   });
 
-  it('maps a page\'s thrown NotFoundError / UpstreamError to 404 / 503 and re-throws real bugs', async () => {
+  it('maps a page\'s thrown EntityNotFoundError / UpstreamError to 404 / 503 and re-throws real bugs', async () => {
     const withNext = (next: () => Promise<Response>) =>
       onRequest(
         {
@@ -65,7 +65,9 @@ describe('middleware: unsupported locales are 404', () => {
         next as unknown as MiddlewareNext
       );
 
-    expect((await withNext(async () => { throw new NotFoundError('x'); })).status).toBe(404);
+    expect((await withNext(async () => { throw new EntityNotFoundError('x'); })).status).toBe(404);
+    // A missing *related* resource never 404s the page.
+    expect((await withNext(async () => { throw new NotFoundError('related'); })).status).toBe(503);
     const unavailable = await withNext(async () => { throw new UpstreamError('x', 504); });
     expect(unavailable.status).toBe(503);
     expect(unavailable.headers.get('retry-after')).toBe('60');
