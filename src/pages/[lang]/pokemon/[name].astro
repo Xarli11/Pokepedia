@@ -5,7 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, canonicalPokemonSlug, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
@@ -25,6 +25,14 @@ try {
     species = pokemonData.species;
 } catch (error) {
     return errorResponse(error);
+}
+
+// One URL per Pokémon: a numeric id (/160/), a case variant (/Feraligatr/)
+// or a species' default form (/basculin-red-striped/) all 301 to the
+// canonical slug. Only the canonical request renders.
+const canonicalSlug = canonicalPokemonSlug(detail);
+if (rawName !== canonicalSlug) {
+    return Astro.redirect(pagePath(lang, 'pokemon', canonicalSlug), 301);
 }
 
 // Inicializar arrays para evitar errores de undefined

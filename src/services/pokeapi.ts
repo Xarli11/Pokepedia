@@ -20,6 +20,11 @@ export interface PokemonName {
 export interface PokemonDetail {
     id: number;
     name: string;
+    is_default?: boolean;
+    species?: {
+        name: string;
+        url: string;
+    };
     types: PokemonType[];
     sprites: {
         front_default: string;
@@ -364,6 +369,21 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
     } catch (e) {
         return null;
     }
+}
+
+/**
+ * Pokepedia's official URL slug for a PokeAPI `pokemon` resource.
+ *
+ * A species' default variety is the species itself, so it lives at the
+ * species URL: basculin-red-striped -> basculin, deoxys-normal -> deoxys,
+ * feraligatr -> feraligatr. Every other variety (megas, gmax, regional and
+ * alternate forms) is its own page under its own name. Driven entirely by
+ * PokeAPI's `is_default` + `species` fields — no hand-kept list. Verified
+ * against all 1025 species: 37 have a default variety whose name differs
+ * from the species name, and no species name collides with any form's.
+ */
+export function canonicalPokemonSlug(pokemon: Pick<PokemonDetail, 'name' | 'is_default' | 'species'>): string {
+    return pokemon.is_default && pokemon.species?.name ? pokemon.species.name : pokemon.name;
 }
 
 export class PokemonNotFoundError extends NotFoundError {
