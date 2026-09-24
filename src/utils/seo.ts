@@ -93,6 +93,16 @@ export function canonicalPokemonSlug(pokemon: {
   return pokemon.is_default && pokemon.species?.name ? pokemon.species.name : pokemon.name;
 }
 
+/**
+ * The other direction: the variety a species URL renders (its default
+ * variety, e.g. basculin -> basculin-red-striped). Shared by the server
+ * resolver (services/pokeapi.ts getPokemonByName) and the browser one
+ * (utils/pokeapiClient.ts fetchPokemonBySlug) so they can't diverge.
+ */
+export function defaultVariety<V extends { is_default: boolean }>(species: { varieties: V[] }): V {
+  return species.varieties.find((v) => v.is_default) || species.varieties[0];
+}
+
 function stripQuery(pathname: string): string {
   return pathname.split('?')[0].split('#')[0];
 }
