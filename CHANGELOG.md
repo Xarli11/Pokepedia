@@ -2,6 +2,37 @@
 
 All notable changes to Pokepedia are documented in this file.
 
+## [0.11.0] - 2026-09-25
+
+### Added
+
+- Added an explicit error model that distinguishes a missing primary entity, a missing required dependency, a temporary upstream (PokeAPI) failure, and an unexpected internal error.
+- Added real 404 and 500 pages: `noindex` and with no external data dependencies.
+- Added tests for entity routing, HTTP status codes, canonicalization, and favorites.
+
+### Fixed
+
+- Missing entities now return a real 404 instead of redirecting to the listing page.
+- Temporary PokeAPI failures (timeouts, network errors, 5xx) now return 503 with `Retry-After` instead of looking like the page doesn't exist.
+- Unexpected internal errors now correctly end in a 500.
+- Fixed a case where Astro could turn internal crashes into 404s, because its `/500/` error route matched `/[lang]/`.
+- Favorites now work with canonical species slugs such as `basculin`, `deoxys`, and `zygarde`.
+- Legacy favorites saved under a default-form slug now resolve and are migrated to the canonical slug.
+
+### Changed
+
+- The 37 duplicate default Pokémon forms now 301-redirect to their official species URL, consolidating 74 duplicate ES/EN URLs.
+- Numeric entity IDs now redirect to their canonical slugs.
+- Case variants now redirect to the lowercase slug.
+- Generation parameters are normalized (e.g. `/02/` → `/2/`).
+- Internal links now use the canonical species URLs.
+- The sitemap now lists species URLs instead of default-form URLs.
+- Final HTTP semantics:
+  - primary entity missing → 404;
+  - required dependency missing → 503;
+  - optional enrichment missing → the page returns 200 with only that section degraded;
+  - unexpected internal error → 500.
+
 ## [0.10.1] - 2026-09-25
 
 ### Added
