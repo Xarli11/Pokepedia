@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { NotFoundError, UpstreamError } from './errors';
+import { EntityNotFoundError, NotFoundError, UpstreamError } from './errors';
 import {
+  getMoveDetail,
   getMoveDetailByName,
+  getAbilityDetailByName,
+  getAbilityDetail,
   getPokemonByName,
   getPokemonByType,
+  getSpeciesNamesById,
   getAllPokemonBasic,
   PokemonNotFoundError,
 } from './pokeapi';
+import { errorResponse } from '../utils/httpResponses';
 
 // How the PokeAPI fetch layer classifies failures. Every case uses its own
 // slug: fetchWithCache() caches successful responses by URL for the life of
@@ -40,9 +45,16 @@ function stubFetch(routes: Record<string, FakeAnswer>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('PokeAPI failure classification', () => {
-  it.each([404, 400, 410])('HTTP %i -> NotFoundError', async (status) => {
+  it.each([404, 410])('HTTP %i on the primary entity lookup -> EntityNotFoundError', async (status) => {
     stubFetch({ [`/move/nf-${status}`]: { status } });
-    await expect(getMoveDetailByName(`nf-${status}`)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(getMoveDetailByName(`nf-${status}`)).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+
+  it.each([404, 410])('HTTP %i on a related (non-entity) fetch -> NotFoundError, never EntityNotFoundError', async (status) => {
+    stubFetch({ [`/move/related-${status}`]: { status } });
+    const error = await getMoveDetail(`https://pokeapi.co/api/v2/move/related-${status}/`).catch((e) => e);
+    expect(error).toBeInstanceOf(NotFoundError);
+    expect(error).not.toBeInstanceOf(EntityNotFoundError);
   });
 
   it.each([500, 502, 503, 504, 429])('HTTP %i -> UpstreamError carrying the status', async (status) => {
@@ -73,6 +85,33 @@ describe('PokeAPI failure classification', () => {
   });
 });
 
+describe('HTTP 400: "no such entity" only where explicitly allowed', () => {
+  it("allowed: an entity lookup by slug that PokeAPI rejects with 400 (ability/mind's-eye) -> EntityNotFoundError -> 404", async () => {
+    stubFetch({ "/ability/mind's-eye": { status: 400 } });
+    const error = await getAbilityDetailByName("mind's-eye").catch((e) => e);
+    expect(error).toBeInstanceOf(EntityNotFoundError);
+    expect(errorResponse(error).status).toBe(404);
+  });
+
+  it('not allowed: a 400 on a request Pokepedia built (related fetch) is a bug -> plain Error -> 500', async () => {
+    stubFetch({ '/ability/secondary-400': { status: 400 } });
+    const error = await getAbilityDetail('https://pokeapi.co/api/v2/ability/secondary-400/').catch((e) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(NotFoundError);
+    expect(error).not.toBeInstanceOf(UpstreamError);
+    expect(error.message).toMatch(/HTTP 400/);
+    // errorResponse re-throws it untouched: Astro answers 500, never 404/503.
+    expect(() => errorResponse(error)).toThrow(error);
+  });
+
+  it('not allowed: a 400 on a list/landing fetch is not "not found" either', async () => {
+    stubFetch({ '/type/bad-request-400': { status: 400 } });
+    const error = await getPokemonByType('bad-request-400').catch((e) => e);
+    expect(error).not.toBeInstanceOf(NotFoundError);
+    expect(error).not.toBeInstanceOf(UpstreamError);
+  });
+});
+
 describe('getPokemonByName: transient failures are not "not found"', () => {
   it('a PokeAPI 503 on the pokemon lookup propagates, without falling back to the species', async () => {
     const calls = stubFetch({ '/pokemon/flaky-mon': { status: 503 } });
@@ -90,27 +129,39 @@ describe('getPokemonByName: transient failures are not "not found"', () => {
     expect(error).not.toBeInstanceOf(PokemonNotFoundError);
   });
 
-  it('404 on both lookups is PokemonNotFoundError (a NotFoundError)', async () => {
+  it('404 on both lookups is PokemonNotFoundError (an EntityNotFoundError -> 404)', async () => {
     stubFetch({});
     const error = await getPokemonByName('ghost-mon').catch((e) => e);
     expect(error).toBeInstanceOf(PokemonNotFoundError);
+    expect(error).toBeInstanceOf(EntityNotFoundError);
+  });
+
+  it('the pokemon exists but its species is missing: a required dependency, not a 404', async () => {
+    stubFetch({
+      '/pokemon/orphan-mon': { status: 200, body: { id: 1, name: 'orphan-mon', is_default: true, species: { name: 'orphan-mon', url: 'https://pokeapi.co/api/v2/pokemon-species/orphan-mon/' } } },
+      '/pokemon-species/orphan-mon': { status: 404 },
+    });
+    const error = await getPokemonByName('orphan-mon').catch((e) => e);
     expect(error).toBeInstanceOf(NotFoundError);
+    expect(error).not.toBeInstanceOf(EntityNotFoundError);
+    expect(errorResponse(error).status).toBe(503);
+  });
+
+  it("the species exists but its default variety is missing: a required dependency, not a 404", async () => {
+    stubFetch({
+      '/pokemon/hollow-species': { status: 404 },
+      '/pokemon-species/hollow-species': { status: 200, body: { name: 'hollow-species', varieties: [{ is_default: true, pokemon: { name: 'hollow-species-form', url: 'https://pokeapi.co/api/v2/pokemon/99001/' } }] } },
+      '/pokemon/99001': { status: 404 },
+    });
+    const error = await getPokemonByName('hollow-species').catch((e) => e);
+    expect(error).not.toBeInstanceOf(EntityNotFoundError);
+    expect(errorResponse(error).status).toBe(503);
   });
 });
 
 describe('canonical species names in entity lists', () => {
-  it('getPokemonByType names each default form by its species (canonical URL slug)', async () => {
+  it('getSpeciesNamesById maps National Dex ids to species names (canonical slugs)', async () => {
     stubFetch({
-      '/type/water-canon': {
-        status: 200,
-        body: {
-          pokemon: [
-            { pokemon: { name: 'basculin-red-striped', url: 'https://pokeapi.co/api/v2/pokemon/550/' } },
-            { pokemon: { name: 'feraligatr', url: 'https://pokeapi.co/api/v2/pokemon/160/' } },
-            { pokemon: { name: 'basculin-blue-striped', url: 'https://pokeapi.co/api/v2/pokemon/10016/' } },
-          ],
-        },
-      },
       '/pokemon-species?limit=2000': {
         status: 200,
         body: {
@@ -121,8 +172,9 @@ describe('canonical species names in entity lists', () => {
         },
       },
     });
-    const list = await getPokemonByType('water-canon');
-    expect(list.map((p) => p.name)).toEqual(['feraligatr', 'basculin']);
+    const names = await getSpeciesNamesById();
+    expect(names.get(550)).toBe('basculin');
+    expect(names.get(160)).toBe('feraligatr');
   });
 
   it('the sitemap Pokémon source reads pokemon-species (canonical names), not pokemon', async () => {
