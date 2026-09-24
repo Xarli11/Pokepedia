@@ -9,6 +9,7 @@ import MovesIndexPage from './[lang]/movimientos/index.astro';
 import AbilitiesIndexPage from './[lang]/habilidades/index.astro';
 import ItemsIndexPage from './[lang]/objetos/index.astro';
 import { SITE_URL } from '../utils/seo';
+import { renderRoute } from '../testing/renderRoute';
 
 // Anti-regression for the trailing-slash URL convention: every internal page
 // link rendered server-side must be the canonical form (`/es/pokemon/x/`),
@@ -264,10 +265,10 @@ describe('internal links use the trailing-slash canonical form (SSR)', () => {
   });
 
   it('a missing entity is a real 404, not a redirect to the listing', async () => {
-    const container = await AstroContainer.create();
-    const response = await container.renderToResponse(MovePage, {
+    const response = await renderRoute(MovePage, {
+      routePattern: '/[lang]/movimientos/[name]',
       params: { lang: 'es', name: 'does-not-exist' },
-      request: new Request(`${SITE_URL}/es/movimientos/does-not-exist/`),
+      path: '/es/movimientos/does-not-exist/',
     });
     expect(response.status).toBe(404);
     expect(response.headers.get('location')).toBeNull();

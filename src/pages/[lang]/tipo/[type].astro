@@ -6,14 +6,14 @@ import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
-import { errorResponse, notFoundResponse } from '../../../utils/httpResponses';
+import { NotFoundError } from '../../../services/errors';
 
 const { lang = 'es', type } = Astro.params;
 const typeSlug = (type as string || '').toLowerCase();
 const allTypes = Object.keys(typeColors);
 
 if (!allTypes.includes(typeSlug)) {
-    return notFoundResponse();
+    throw new NotFoundError(`Unknown ${Astro.url.pathname}`);
 }
 // /tipo/Water/ is the same page as /tipo/water/: one URL only.
 if (type !== typeSlug) {
@@ -23,12 +23,9 @@ if (type !== typeSlug) {
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const typeLabel = typeTranslations[lang as string]?.[typeSlug] || typeSlug;
 
-let pokemonList: Awaited<ReturnType<typeof getPokemonByType>> = [];
-try {
-    pokemonList = await getPokemonByType(typeSlug);
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const pokemonList = await getPokemonByType(typeSlug);
 
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};
 const enrichedList = pokemonList.map((p) => {

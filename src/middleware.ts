@@ -34,10 +34,10 @@ export async function onRequest(context: APIContext, next: MiddlewareNext) {
         return notFoundResponse();
     }
 
-    // Safety net for pages that don't handle their own data failures
-    // (listings, homepage, landings): a classified PokeAPI failure still
-    // gets its correct status (404/503). errorResponse() re-throws any other
-    // error, so real bugs keep surfacing as 500.
+    // Single place where data failures become HTTP: pages throw
+    // NotFoundError / UpstreamError (entity pages, listings, homepage,
+    // landings alike) and get 404 / 503 here. errorResponse() re-throws any
+    // other error, so real bugs surface as a 500 (src/pages/500.astro).
     try {
         return await next();
     } catch (error) {

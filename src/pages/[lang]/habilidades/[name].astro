@@ -6,16 +6,12 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getAbilityDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
-import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang, name } = Astro.params;
 
-let abilityData;
-try {
-    abilityData = await getAbilityDetailByName((name as string).toLowerCase());
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const abilityData = await getAbilityDetailByName((name as string).toLowerCase());
 
 // PokeAPI resolves numeric ids and any casing (/26/, /Levitate/ -> levitate), which
 // made each of those a second 200 page. Only the canonical slug renders.

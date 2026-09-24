@@ -9,23 +9,15 @@ import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedName
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
-import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
 
-let detail: any = null;
-let species: any = null;
-let pokemonData: any = null;
-
-try {
-    pokemonData = await getPokemonByName(name);
-    if (!pokemonData) throw new Error("No data");
-    detail = pokemonData.detail;
-    species = pokemonData.species;
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const pokemonData = await getPokemonByName(name);
+const detail: any = pokemonData.detail;
+const species: any = pokemonData.species;
 
 // One URL per Pokémon: a numeric id (/160/), a case variant (/Feraligatr/)
 // or a species' default form (/basculin-red-striped/) all 301 to the

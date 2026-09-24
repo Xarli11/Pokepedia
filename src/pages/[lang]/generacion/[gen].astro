@@ -6,7 +6,7 @@ import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
-import { errorResponse, notFoundResponse } from '../../../utils/httpResponses';
+import { NotFoundError } from '../../../services/errors';
 
 const { lang = 'es', gen: genParam } = Astro.params;
 // Digits only: parseInt() used to accept "2abc" or "2.5" as generation 2,
@@ -15,7 +15,7 @@ const { lang = 'es', gen: genParam } = Astro.params;
 const genNum = /^\d+$/.test(genParam as string) ? Number(genParam) : NaN;
 
 if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
-    return notFoundResponse();
+    throw new NotFoundError(`Unknown ${Astro.url.pathname}`);
 }
 if (genParam !== String(genNum)) {
     return Astro.redirect(pagePath(lang, 'generacion', genNum), 301);
@@ -26,12 +26,9 @@ const genInfo = GENERATIONS[genKey];
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const roman = GENERATION_ROMAN[genKey];
 
-let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
-try {
-    pokemonList = await getPokemonByGeneration(genKey);
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const pokemonList = await getPokemonByGeneration(genKey);
 
 // Derived from the list PokeAPI's generation/{n} just gave us — no second
 // fetch, no static range table.

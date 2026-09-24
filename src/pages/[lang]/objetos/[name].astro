@@ -7,16 +7,12 @@ import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls }
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
-import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang, name } = Astro.params;
 
-let itemData;
-try {
-    itemData = await getItemDetail((name as string).toLowerCase());
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const itemData = await getItemDetail((name as string).toLowerCase());
 
 // PokeAPI resolves numeric ids and any casing (/211/, /Leftovers/ -> leftovers), which
 // made each of those a second 200 page. Only the canonical slug renders.

@@ -1,7 +1,6 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import { pagePath } from '../../../../utils/seo';
-import { errorResponse } from '../../../../utils/httpResponses';
 import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
 import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
 import { getPokemonByName } from '../../../../services/pokeapi';
@@ -9,15 +8,12 @@ import { uiTranslations, typeColors, typeTranslations, formatPokemonNumber, buil
 
 const { lang, p1, p2 } = Astro.params;
 
-let pokemon1, pokemon2;
-try {
-    [pokemon1, pokemon2] = await Promise.all([
-        getPokemonByName(p1 as string),
-        getPokemonByName(p2 as string)
-    ]);
-} catch (error) {
-    return errorResponse(error);
-}
+// A NotFoundError / UpstreamError thrown here is answered 404 / 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const [pokemon1, pokemon2] = await Promise.all([
+    getPokemonByName(p1 as string),
+    getPokemonByName(p2 as string)
+]);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 

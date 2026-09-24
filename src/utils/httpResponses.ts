@@ -1,9 +1,10 @@
 // src/utils/httpResponses.ts
 //
 // HTTP answers for the three failure classes a page can hit (see
-// src/services/errors.ts). Pages return these instead of redirecting to a
-// listing: a redirect told Google a missing or temporarily broken entity
-// had "moved" somewhere, and a listing is never a real replacement.
+// src/services/errors.ts). Pages just throw the classified error and
+// src/middleware.ts answers with these — instead of the old redirect to a
+// listing, which told Google a missing or temporarily broken entity had
+// "moved" somewhere, when a listing is never a real replacement.
 import { NotFoundError, UpstreamError } from '../services/errors';
 
 /** Seconds a crawler/browser should wait before retrying after a 503. */
