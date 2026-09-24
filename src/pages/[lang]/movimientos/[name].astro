@@ -6,14 +6,15 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
+import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang, name } = Astro.params;
 
 let moveData;
 try {
     moveData = await getMoveDetailByName(name as string);
-} catch (e) {
-    return Astro.redirect(pagePath(lang as string, 'movimientos'));
+} catch (error) {
+    return errorResponse(error);
 }
 
 const localizedName = getLocalizedName(moveData.names, lang as string) || formatName(moveData.name);

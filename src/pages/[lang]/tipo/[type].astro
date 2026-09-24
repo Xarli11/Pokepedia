@@ -6,13 +6,14 @@ import { getPokemonByType, getGenerationMembershipMap, GENERATION_ROMAN } from '
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildTypeLandingTitle, buildTypeLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
+import { errorResponse, notFoundResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', type } = Astro.params;
 const typeSlug = (type as string || '').toLowerCase();
 const allTypes = Object.keys(typeColors);
 
 if (!allTypes.includes(typeSlug)) {
-    return Astro.redirect(pagePath(lang));
+    return notFoundResponse();
 }
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
@@ -21,8 +22,8 @@ const typeLabel = typeTranslations[lang as string]?.[typeSlug] || typeSlug;
 let pokemonList: Awaited<ReturnType<typeof getPokemonByType>> = [];
 try {
     pokemonList = await getPokemonByType(typeSlug);
-} catch (e) {
-    return Astro.redirect(pagePath(lang));
+} catch (error) {
+    return errorResponse(error);
 }
 
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map((p) => p.name)) : {};

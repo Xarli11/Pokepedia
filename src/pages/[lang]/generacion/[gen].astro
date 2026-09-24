@@ -6,12 +6,13 @@ import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
+import { errorResponse, notFoundResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', gen: genParam } = Astro.params;
 const genNum = parseInt(genParam as string, 10);
 
 if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
-    return Astro.redirect(pagePath(lang));
+    return notFoundResponse();
 }
 
 const genKey = `gen${genNum}`;
@@ -22,8 +23,8 @@ const roman = GENERATION_ROMAN[genKey];
 let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
 try {
     pokemonList = await getPokemonByGeneration(genKey);
-} catch (e) {
-    return Astro.redirect(pagePath(lang));
+} catch (error) {
+    return errorResponse(error);
 }
 
 // Derived from the list PokeAPI's generation/{n} just gave us — no second

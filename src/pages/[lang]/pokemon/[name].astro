@@ -9,6 +9,7 @@ import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedName
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
+import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -22,9 +23,8 @@ try {
     if (!pokemonData) throw new Error("No data");
     detail = pokemonData.detail;
     species = pokemonData.species;
-} catch (e) {
-    console.error("Critical error loading pokemon base data:", e);
-    return Astro.redirect(pagePath(lang));
+} catch (error) {
+    return errorResponse(error);
 }
 
 // Inicializar arrays para evitar errores de undefined

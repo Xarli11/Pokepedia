@@ -7,14 +7,15 @@ import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls }
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
+import { errorResponse } from '../../../utils/httpResponses';
 
 const { lang, name } = Astro.params;
 
 let itemData;
 try {
     itemData = await getItemDetail(name as string);
-} catch (e) {
-    return Astro.redirect(pagePath(lang as string, 'objetos'));
+} catch (error) {
+    return errorResponse(error);
 }
 
 const localizedName = getLocalizedName(itemData.names, lang as string) || formatName(itemData.name);

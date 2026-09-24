@@ -263,12 +263,13 @@ describe('internal links use the trailing-slash canonical form (SSR)', () => {
     expect(items).toContain('href="/es/objetos/leftovers/"');
   });
 
-  it('entity-not-found redirects target the trailing-slash listing', async () => {
+  it('a missing entity is a real 404, not a redirect to the listing', async () => {
     const container = await AstroContainer.create();
     const response = await container.renderToResponse(MovePage, {
       params: { lang: 'es', name: 'does-not-exist' },
       request: new Request(`${SITE_URL}/es/movimientos/does-not-exist/`),
     });
-    expect(response.headers.get('location')).toBe('/es/movimientos/');
+    expect(response.status).toBe(404);
+    expect(response.headers.get('location')).toBeNull();
   });
 });

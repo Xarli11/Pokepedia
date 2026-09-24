@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import { pagePath } from '../../../../utils/seo';
+import { errorResponse } from '../../../../utils/httpResponses';
 import ComparatorRadar from '../../../../components/ComparatorRadar.astro';
 import ComparatorSelector from '../../../../components/ComparatorSelector.astro';
 import { getPokemonByName } from '../../../../services/pokeapi';
@@ -14,8 +15,8 @@ try {
         getPokemonByName(p1 as string),
         getPokemonByName(p2 as string)
     ]);
-} catch (e) {
-    return Astro.redirect(`${pagePath(lang as string)}?error=notfound`);
+} catch (error) {
+    return errorResponse(error);
 }
 
 const t = uiTranslations[lang as string] || uiTranslations.es;

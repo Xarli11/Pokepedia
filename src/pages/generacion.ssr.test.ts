@@ -84,14 +84,15 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     expect(html).toContain('"@type":"ItemList"');
   });
 
-  it('redirects out-of-range generation numbers instead of rendering garbage', async () => {
+  it('answers 404 (not a redirect) for an out-of-range generation number', async () => {
     const container = await AstroContainer.create();
     const response = await container.renderToResponse(GeneracionPage, {
       params: { lang: 'es', gen: '99' },
       request: new Request(`${SITE_URL}/es/generacion/99/`),
     });
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(404);
+    expect(response.headers.get('location')).toBeNull();
   });
 });
 
