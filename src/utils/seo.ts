@@ -41,6 +41,37 @@ export function buildPageTitle(rawTitle: string | undefined | null, lang: string
   return `${base} | ${BRAND_NAME}`;
 }
 
+/**
+ * Single builder for every internal page path (links, redirects, client-side
+ * navigation). Pokepedia's official URL convention is a trailing slash on
+ * every page (`trailingSlash: 'always'` in astro.config.mjs); links built by
+ * hand without it each cost Googlebot a 301 and fed Google a competing
+ * no-slash variant of the canonical URL.
+ *
+ *   pagePath('es')                          -> /es/
+ *   pagePath('es', 'pokemon', 'feraligatr') -> /es/pokemon/feraligatr/
+ *   pagePath('en', 'generacion', 2)         -> /en/generacion/2/
+ *
+ * Path only (never host/www): callers needing an absolute URL wrap it in
+ * canonicalUrl(). Query strings are appended by the caller after the slash
+ * (`${pagePath(lang)}?gen=favorites`). Throws on an unsupported lang or an
+ * empty / slash-containing segment, so a bad input can never silently
+ * produce a malformed URL like `/${lang}/…` or `/es//pokemon/`.
+ */
+export function pagePath(lang: string, ...segments: Array<string | number>): string {
+  if (!isSupportedLang(lang)) {
+    throw new Error(`pagePath: unsupported lang "${lang}"`);
+  }
+  const parts = segments.map((segment) => {
+    const value = String(segment).trim();
+    if (!value || value.includes('/')) {
+      throw new Error(`pagePath: invalid path segment "${value}"`);
+    }
+    return encodeURIComponent(value);
+  });
+  return `/${[lang, ...parts].join('/')}/`;
+}
+
 function stripQuery(pathname: string): string {
   return pathname.split('?')[0].split('#')[0];
 }

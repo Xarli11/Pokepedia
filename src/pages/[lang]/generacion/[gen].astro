@@ -5,13 +5,13 @@ import PokemonListCard from '../../../components/PokemonListCard.astro';
 import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
-import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl } from '../../../utils/seo';
+import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
 
 const { lang = 'es', gen: genParam } = Astro.params;
 const genNum = parseInt(genParam as string, 10);
 
 if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
-    return Astro.redirect(`/${lang}/`);
+    return Astro.redirect(pagePath(lang));
 }
 
 const genKey = `gen${genNum}`;
@@ -23,7 +23,7 @@ let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
 try {
     pokemonList = await getPokemonByGeneration(genKey);
 } catch (e) {
-    return Astro.redirect(`/${lang}/`);
+    return Astro.redirect(pagePath(lang));
 }
 
 // Derived from the list PokeAPI's generation/{n} just gave us — no second
@@ -54,8 +54,8 @@ const seoTitle = buildGenerationLandingTitle(roman, genInfo.region, lang as 'es'
 const seoDescription = buildGenerationLandingDescription(roman, genInfo.region, count, lang as 'es' | 'en');
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
-    { label: t.generations, href: `/${lang}/generaciones/` },
+    { label: t.breadcrumb_home, href: pagePath(lang) },
+    { label: t.generations, href: pagePath(lang, 'generaciones') },
     { label: `${t.generation_label} ${roman}` },
 ];
 
@@ -65,7 +65,7 @@ const itemListJsonLd = {
     itemListElement: enrichedList.map((p, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        url: canonicalUrl(`/${lang}/pokemon/${p.name}`),
+        url: canonicalUrl(pagePath(lang, 'pokemon', p.name)),
     })),
 };
 
@@ -103,7 +103,7 @@ const otherGenerations = Object.keys(GENERATIONS)
                 <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.pokemon_types}</h2>
                 <div class="flex flex-wrap gap-2">
                     {typeDistribution.map((tp) => (
-                        <a href={`/${lang}/tipo/${tp.typeName}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp.typeName} data-source-surface="generation_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
+                        <a href={pagePath(lang, 'tipo', tp.typeName)} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={tp.typeName} data-source-surface="generation_landing" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline capitalize">
                             <span class="w-2 h-2 rounded-full" style={`background-color: ${(typeColors as Record<string, string>)[tp.typeName]}`} aria-hidden="true"></span>
                             {typeTranslations[lang as string]?.[tp.typeName]} <span class="opacity-60">({tp.typeCount})</span>
                         </a>
@@ -122,12 +122,12 @@ const otherGenerations = Object.keys(GENERATIONS)
             <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">{t.other_generations_label}</h2>
             <div class="flex flex-wrap gap-2">
                 {otherGenerations.map((g) => (
-                    <a href={`/${lang}/generacion/${g.genNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="generation_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                    <a href={pagePath(lang, 'generacion', g.genNum)} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={g.genKey} data-source-surface="generation_landing" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all no-underline">
                         {t.generation_label} {g.roman} <span class="opacity-60">({g.region})</span>
                     </a>
                 ))}
             </div>
-            <a href={`/${lang}/generaciones/`} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
+            <a href={pagePath(lang, 'generaciones')} class="inline-block mt-6 text-xs font-bold text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 underline decoration-slate-300/50 dark:decoration-slate-700 underline-offset-4 transition-colors">
                 {t.back_to_generations}
             </a>
         </div>

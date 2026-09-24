@@ -2,6 +2,7 @@
 // src/components/PokemonCard.astro
 import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
 import type { PokemonDetail } from '../services/pokeapi';
+import { pagePath } from '../utils/seo';
 
 interface Props {
     pokemon: PokemonDetail;
@@ -13,7 +14,7 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
 ---
 
 <a 
-    href={`/${lang}/pokemon/${pokemon.name}`} 
+    href={pagePath(lang, 'pokemon', pokemon.name)} 
     class="group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card" 
     data-name={pokemon.name} 
     data-id={pokemon.id} 

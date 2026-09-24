@@ -5,6 +5,7 @@ import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getAbilityDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang, name } = Astro.params;
 
@@ -12,7 +13,7 @@ let abilityData;
 try {
     abilityData = await getAbilityDetailByName(name as string);
 } catch (e) {
-    return Astro.redirect(`/${lang}/habilidades`);
+    return Astro.redirect(pagePath(lang as string, 'habilidades'));
 }
 
 const localizedName = getLocalizedName(abilityData.names, lang as string) || formatName(abilityData.name);
@@ -29,8 +30,8 @@ const pokemonList = await getPokemonListByUrls(abilityData.pokemon.map(p => p.po
 const t = uiTranslations[lang as string] || uiTranslations.es;
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
-    { label: t.abilities, href: `/${lang}/habilidades/` },
+    { label: t.breadcrumb_home, href: pagePath(lang as string) },
+    { label: t.abilities, href: pagePath(lang as string, 'habilidades') },
     { label: localizedName },
 ];
 ---
@@ -42,7 +43,7 @@ const breadcrumbItems = [
 >
     <div class="max-w-5xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
-        <a href={`/${lang}/habilidades`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
+        <a href={pagePath(lang as string, 'habilidades')} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
             <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             {t.back_to_abilities}
         </a>

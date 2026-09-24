@@ -8,6 +8,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -23,7 +24,7 @@ try {
     species = pokemonData.species;
 } catch (e) {
     console.error("Critical error loading pokemon base data:", e);
-    return Astro.redirect(`/${lang}`);
+    return Astro.redirect(pagePath(lang));
 }
 
 // Inicializar arrays para evitar errores de undefined
@@ -244,8 +245,8 @@ const pokemonGenRoman = pokemonGenKey ? GENERATION_ROMAN[pokemonGenKey] : null;
 const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 
 const breadcrumbItems = [
-    { label: t.breadcrumb_home, href: `/${lang}/` },
-    { label: 'Pokédex', href: `/${lang}/` },
+    { label: t.breadcrumb_home, href: pagePath(lang) },
+    { label: 'Pokédex', href: pagePath(lang) },
     { label: localizedName },
 ];
 ---
@@ -261,7 +262,7 @@ const breadcrumbItems = [
         <Breadcrumbs items={breadcrumbItems} />
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
             <div class="flex flex-col gap-4">
-                <a href={`/${lang}`} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group">
+                <a href={pagePath(lang)} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 font-bold transition-colors group">
                     <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:border-emerald-500/30 shadow-sm">
                         <svg class="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                     </div>
@@ -279,7 +280,7 @@ const breadcrumbItems = [
             <div class="flex items-center gap-3">
                 {hasNavigation ? (
                     <>
-                        <a href={`/${lang}/pokemon/${prevPokemon.name}`} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
+                        <a href={pagePath(lang, 'pokemon', prevPokemon.name)} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
                             <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
@@ -287,7 +288,7 @@ const breadcrumbItems = [
                             </div>
                         </a>
                         <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
-                        <a href={`/${lang}/pokemon/${nextPokemon.name}`} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
+                        <a href={pagePath(lang, 'pokemon', nextPokemon.name)} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
@@ -317,7 +318,7 @@ const breadcrumbItems = [
                             <p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.abilities}</p>
                             <div class="space-y-3 mt-3">
                                 {abilitiesWithTranslation.map((a: any) => (
-                                    <a href={`/${lang}/habilidades/${a.ability.name}`} class="block bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-white dark:hover:bg-slate-700/50 transition-all group/ability no-underline">
+                                    <a href={pagePath(lang, 'habilidades', a.ability.name)} class="block bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-white dark:hover:bg-slate-700/50 transition-all group/ability no-underline">
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400 group-hover/ability:underline">
                                                 {a.displayName}
@@ -337,11 +338,11 @@ const breadcrumbItems = [
                 <div class="flex flex-wrap items-center gap-4 mb-6">
                     <div class="flex gap-2">
                         {detail.types.map((t2: any) => (
-                            <a href={`/${lang}/tipo/${t2.type.name}/`} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={t2.type.name} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm hover:opacity-90 transition-opacity no-underline" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</a>
+                            <a href={pagePath(lang, 'tipo', t2.type.name)} data-track-event="internal_entity_click" data-entity-type="type" data-entity-slug={t2.type.name} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-sm hover:opacity-90 transition-opacity no-underline" style={`background-color: ${typeColors[t2.type.name]}`}>{typeTranslations[lang as string][t2.type.name]}</a>
                         ))}
                     </div>
-                    {pokemonGenRoman && (
-                        <a href={`/${lang}/generacion/${pokemonGenNum}/`} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={pokemonGenKey} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                    {pokemonGenRoman && pokemonGenNum && (
+                        <a href={pagePath(lang, 'generacion', pokemonGenNum)} data-track-event="internal_entity_click" data-entity-type="generation" data-entity-slug={pokemonGenKey} data-source-surface="pokemon_detail" class="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white transition-all no-underline">
                             {t.generation_label} {pokemonGenRoman}
                         </a>
                     )}
@@ -395,7 +396,7 @@ const breadcrumbItems = [
                         <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
                             {varieties.map((v: any) => (
-                                <a href={`/${lang}/pokemon/${v.name}`} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-all group no-underline">
+                                <a href={pagePath(lang, 'pokemon', v.name)} class="flex flex-col items-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700 hover:border-emerald-500 transition-all group no-underline">
                                     <img src={v.sprites?.other?.["official-artwork"]?.front_default || v.sprites?.front_default} alt={v.name} class="w-24 h-24 object-contain mb-3 drop-shadow-md group-hover:scale-110 transition-transform" />
                                     <span class="text-[11px] font-black text-slate-700 dark:text-slate-200 text-center capitalize tracking-tight">{v.name.replace(/-/g, ' ')}</span>
                                 </a>
