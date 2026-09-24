@@ -1,0 +1,8 @@
+---
+// Rendered by Astro for every empty-body 404 (unknown route, unsupported
+// locale, missing entity). It must exist as a static /404 route: without it
+// Astro's error lookup for "/404/" matched /[lang]/ (lang = "404").
+import ErrorPage from '../components/ErrorPage.astro';
+---
+
+<ErrorPage status={404} />

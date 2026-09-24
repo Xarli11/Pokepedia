@@ -9,11 +9,15 @@ import { pagePath } from '../../../utils/seo';
 
 const { lang, name } = Astro.params;
 
-let abilityData;
-try {
-    abilityData = await getAbilityDetailByName(name as string);
-} catch (e) {
-    return Astro.redirect(pagePath(lang as string, 'habilidades'));
+// Only this primary lookup can 404 the page (EntityNotFoundError). An
+// UpstreamError or a missing related resource is answered 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const abilityData = await getAbilityDetailByName((name as string).toLowerCase());
+
+// PokeAPI resolves numeric ids and any casing (/26/, /Levitate/ -> levitate), which
+// made each of those a second 200 page. Only the canonical slug renders.
+if (name !== abilityData.name) {
+    return Astro.redirect(pagePath(lang as string, 'habilidades', abilityData.name), 301);
 }
 
 const localizedName = getLocalizedName(abilityData.names, lang as string) || formatName(abilityData.name);

@@ -1,5 +1,8 @@
 // src/services/pokeapi.ts
 
+import { EntityNotFoundError, NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
+import { defaultVariety } from '../utils/seo';
+
 export interface PokemonType {
     slot: number;
     type: {
@@ -18,6 +21,11 @@ export interface PokemonName {
 export interface PokemonDetail {
     id: number;
     name: string;
+    is_default?: boolean;
+    species?: {
+        name: string;
+        url: string;
+    };
     types: PokemonType[];
     sprites: {
         front_default: string;
@@ -140,7 +148,13 @@ export interface AbilityDetail {
 const cache = new Map<string, { data: any, timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
 
-async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<T> {
+interface FetchOptions {
+    ttl?: number;
+    /** See UpstreamStatusOptions: only primary entity lookups by slug set it. */
+    invalidIdIsNotFound?: boolean;
+}
+
+async function fetchWithCache<T>(url: string, { ttl = CACHE_TTL, invalidIdIsNotFound = false }: FetchOptions = {}): Promise<T> {
     const cached = cache.get(url);
     const now = Date.now();
 
@@ -148,12 +162,42 @@ async function fetchWithCache<T>(url: string, ttl: number = CACHE_TTL): Promise<
         return cached.data;
     }
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`Error al conectar con PokeAPI: ${url}`);
-    const data = await response.json();
+    let response: Response;
+    try {
+        response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    } catch (error) {
+        // fetch only rejects when no HTTP answer arrived: the 8s timeout
+        // (TimeoutError) or a network/DNS/TLS failure (TypeError).
+        throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
+    }
+    if (!response.ok) throw errorForUpstreamStatus(response.status, url, { invalidIdIsNotFound });
+
+    let data: T;
+    try {
+        data = await response.json();
+    } catch (error) {
+        // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
+        // truncated body), not a missing entity.
+        throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
+    }
 
     cache.set(url, { data, timestamp: now });
     return data;
+}
+
+/**
+ * Fetch of the primary entity a page URL names (/movimientos/{slug}/ ...).
+ * The only place where "PokeAPI has no such resource" — including its 400
+ * for an unparseable identifier — becomes EntityNotFoundError, i.e. a 404
+ * page. Related/secondary fetches use fetchWithCache and never 404 a page.
+ */
+async function lookupEntity<T>(url: string): Promise<T> {
+    try {
+        return await fetchWithCache<T>(url, { invalidIdIsNotFound: true });
+    } catch (error) {
+        if (error instanceof NotFoundError) throw new EntityNotFoundError(error.message);
+        throw error;
+    }
 }
 
 // Presentation-only metadata now — species membership comes from PokeAPI's
@@ -304,6 +348,20 @@ export async function getPokemonByType(typeSlug: string): Promise<PokemonListEnt
 }
 
 /**
+ * National Dex id -> species name (the canonical URL slug of each species'
+ * default variety), from the same cached species list the search
+ * suggestions use. Not best-effort on purpose: callers build canonical
+ * links from it, so if it can't be loaded the failure propagates (-> 503)
+ * instead of silently emitting links to redirecting default-form URLs.
+ */
+export async function getSpeciesNamesById(): Promise<Map<number, string>> {
+    const data = await fetchWithCache<{ results: { name: string; url: string }[] }>(
+        'https://pokeapi.co/api/v2/pokemon-species?limit=2000'
+    );
+    return new Map(data.results.map((s) => [idFromResourceUrl(s.url), s.name]));
+}
+
+/**
  * Parches manuales para datos que faltan en PokeAPI (Gen 8/9 en Español)
  */
 const SPANISH_PATCHES: Record<string, any> = {
@@ -349,7 +407,7 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
     }
 }
 
-export class PokemonNotFoundError extends Error {
+export class PokemonNotFoundError extends EntityNotFoundError {
     constructor(name: string) {
         super(`Pokemon not found: ${name}`);
         this.name = 'PokemonNotFoundError';
@@ -380,22 +438,37 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
 
     let result: { detail: PokemonDetail, species: PokemonSpecies };
 
+    // Solo los lookups por el slug de la URL (pasos 1 y 2) pueden concluir
+    // "este Pokémon no existe" (404). La especie de un pokemon que sí existe,
+    // o la variedad por defecto de una especie que sí existe, son
+    // dependencias obligatorias: si PokeAPI no las tiene, su NotFoundError se
+    // propaga tal cual (-> 503), nunca como PokemonNotFoundError.
+    let detail: PokemonDetail | null;
     try {
-        // 1. Intentar obtener el detalle del Pokémon
-        const detail = await fetchWithCache<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
+        // 1. pokemon/{name}
+        detail = await lookupEntity<PokemonDetail>(`https://pokeapi.co/api/v2/pokemon/${cleanName}`);
+    } catch (error) {
+        // Solo un "no existe" justifica probar la especie: un fallo temporal
+        // de PokeAPI (UpstreamError) se propaga tal cual para responder 503.
+        if (!(error instanceof EntityNotFoundError)) throw error;
+        detail = null;
+    }
+
+    if (detail) {
         const species = await fetchWithCache<PokemonSpecies>((detail as any).species.url);
         result = { detail, species };
-    } catch (error) {
-        // 2. Si falla, intentar con especie
+    } else {
+        // 2. pokemon-species/{name} -> variedad por defecto
+        let species: PokemonSpecies;
         try {
-            const species = await fetchWithCache<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${cleanName}`);
-            const defaultVariety = species.varieties.find(v => v.is_default) || species.varieties[0];
-            const detail = await fetchWithCache<PokemonDetail>(defaultVariety.pokemon.url);
-            result = { detail, species };
-        } catch (innerError) {
+            species = await lookupEntity<PokemonSpecies>(`https://pokeapi.co/api/v2/pokemon-species/${cleanName}`);
+        } catch (error) {
             // 3. Fallo limpio — nunca adivinar la especie a partir del slug.
-            throw new PokemonNotFoundError(cleanName);
+            if (error instanceof EntityNotFoundError) throw new PokemonNotFoundError(cleanName);
+            throw error;
         }
+        const defaultDetail = await fetchWithCache<PokemonDetail>(defaultVariety(species).pokemon.url);
+        result = { detail: defaultDetail, species };
     }
 
     // APLICAR PARCHES EN ESPAÑOL
@@ -424,9 +497,9 @@ export async function getPokemonByName(name: string): Promise<{ detail: PokemonD
     return result;
 }
 
-export async function getItemDetail(urlOrName: string) {
-    const url = urlOrName.startsWith('http') ? urlOrName : `https://pokeapi.co/api/v2/item/${urlOrName}`;
-    return fetchWithCache<any>(url);
+/** Primary lookup for /objetos/{name}/ (see lookupEntity). */
+export async function getItemDetail(name: string) {
+    return lookupEntity<any>(`https://pokeapi.co/api/v2/item/${name}`);
 }
 
 export async function getAllItems(): Promise<{ name: string, url: string }[]> {
@@ -437,11 +510,13 @@ export async function getAllItems(): Promise<{ name: string, url: string }[]> {
 
 /**
  * Lightweight, cached Pokémon name list for entity discovery (e.g. sitemap).
- * Deliberately limited to base species (no varieties) — matches the scope
- * the sitemap previously fetched directly and uncached.
+ * Deliberately limited to base species (no varieties). Read from
+ * pokemon-species, not pokemon: species names are the canonical URLs,
+ * whereas the `pokemon` list names 37 species by their default variety
+ * ("basculin-red-striped"), which now 301s to the species URL.
  */
 export async function getAllPokemonBasic(limit: number = 1025): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon?limit=${limit}`);
+    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon-species?limit=${limit}`);
     return data.results || [];
 }
 
@@ -449,12 +524,21 @@ export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
     return fetchWithCache<AbilityDetail>(url);
 }
 
+/** Primary lookup for /habilidades/{name}/ (see lookupEntity). */
 export async function getAbilityDetailByName(name: string): Promise<AbilityDetail> {
-    return getAbilityDetail(`https://pokeapi.co/api/v2/ability/${name}`);
+    return lookupEntity<AbilityDetail>(`https://pokeapi.co/api/v2/ability/${name}`);
 }
 
 export async function getMoveDetail(url: string): Promise<MoveDetail> {
-    const data = await fetchWithCache<any>(url);
+    return applyMovePatches(await fetchWithCache<any>(url));
+}
+
+/** Primary lookup for /movimientos/{name}/ (see lookupEntity). */
+export async function getMoveDetailByName(name: string): Promise<MoveDetail> {
+    return applyMovePatches(await lookupEntity<any>(`https://pokeapi.co/api/v2/move/${name}`));
+}
+
+function applyMovePatches(data: any): MoveDetail {
     const cleanName = data.name.toLowerCase();
 
     // Aplicar parches de nombres y descripciones para movimientos
@@ -471,9 +555,6 @@ export async function getMoveDetail(url: string): Promise<MoveDetail> {
     return data;
 }
 
-export async function getMoveDetailByName(name: string): Promise<MoveDetail> {
-    return getMoveDetail(`https://pokeapi.co/api/v2/move/${name}`);
-}
 
 /**
  * Resuelve el movimiento que enseña una MT/MO (item category "all-machines"),

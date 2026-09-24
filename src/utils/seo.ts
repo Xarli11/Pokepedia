@@ -72,6 +72,37 @@ export function pagePath(lang: string, ...segments: Array<string | number>): str
   return `/${[lang, ...parts].join('/')}/`;
 }
 
+/**
+ * Pokepedia's official URL slug for a PokeAPI `pokemon` resource.
+ *
+ * A species' default variety is the species itself, so it lives at the
+ * species URL: basculin-red-striped -> basculin, deoxys-normal -> deoxys,
+ * feraligatr -> feraligatr. Every other variety (megas, gmax, regional and
+ * alternate forms) is its own page under its own name. Driven entirely by
+ * PokeAPI's `is_default` + `species` fields — no hand-kept list. Verified
+ * against all 1025 species: 37 have a default variety whose name differs
+ * from the species name, and no species name collides with any form's.
+ * Lives here (not in services/pokeapi.ts) because client-side navigation
+ * (random Pokémon, favorites) needs it too.
+ */
+export function canonicalPokemonSlug(pokemon: {
+  name: string;
+  is_default?: boolean;
+  species?: { name?: string };
+}): string {
+  return pokemon.is_default && pokemon.species?.name ? pokemon.species.name : pokemon.name;
+}
+
+/**
+ * The other direction: the variety a species URL renders (its default
+ * variety, e.g. basculin -> basculin-red-striped). Shared by the server
+ * resolver (services/pokeapi.ts getPokemonByName) and the browser one
+ * (utils/pokeapiClient.ts fetchPokemonBySlug) so they can't diverge.
+ */
+export function defaultVariety<V extends { is_default: boolean }>(species: { varieties: V[] }): V {
+  return species.varieties.find((v) => v.is_default) || species.varieties[0];
+}
+
 function stripQuery(pathname: string): string {
   return pathname.split('?')[0].split('#')[0];
 }
