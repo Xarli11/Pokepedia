@@ -54,8 +54,8 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     expect(html).toContain('Generación I');
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/es/generacion/1/">`);
     expect(html).toContain(`<link rel="alternate" hreflang="en" href="${SITE_URL}/en/generacion/1/">`);
-    expect(html).toContain('href="/es/pokemon/bulbasaur"');
-    expect(html).toContain('href="/es/pokemon/charizard"');
+    expect(html).toContain('href="/es/pokemon/bulbasaur/"');
+    expect(html).toContain('href="/es/pokemon/charizard/"');
     expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/es/generation/1.png/">`);
   });
 
@@ -137,9 +137,9 @@ describe('/[lang]/generacion/9/ SSR — full DLC coverage', () => {
     });
 
     expect(html).toContain('#0906–#1025');
-    expect(html).toContain('href="/es/pokemon/ogerpon"');
-    expect(html).toContain('href="/es/pokemon/terapagos"');
-    expect(html).toContain('href="/es/pokemon/pecharunt"');
+    expect(html).toContain('href="/es/pokemon/ogerpon/"');
+    expect(html).toContain('href="/es/pokemon/terapagos/"');
+    expect(html).toContain('href="/es/pokemon/pecharunt/"');
     // The count shown in the description must be the real 120, not the old 110.
     expect(html).toContain('Los 120 Pokémon de la Generación IX');
   });

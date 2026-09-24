@@ -5,6 +5,7 @@ import {
   canonicalUrl,
   localeAlternates,
   localizedPath,
+  pagePath,
   buildTypeLandingTitle,
   buildTypeLandingDescription,
   buildGenerationLandingTitle,
@@ -50,6 +51,63 @@ describe('buildPageTitle', () => {
 
   it('defaults to Spanish for an unknown/missing lang', () => {
     expect(buildPageTitle(undefined, 'fr')).toContain('La Enciclopedia Pokémon Técnica Definitiva');
+  });
+});
+
+describe('pagePath', () => {
+  it('builds the language root with a trailing slash', () => {
+    expect(pagePath('es')).toBe('/es/');
+    expect(pagePath('en')).toBe('/en/');
+  });
+
+  it('builds every main family and entity path with a trailing slash', () => {
+    expect(pagePath('es', 'pokemon')).toBe('/es/pokemon/');
+    expect(pagePath('es', 'pokemon', 'feraligatr')).toBe('/es/pokemon/feraligatr/');
+    expect(pagePath('es', 'movimientos')).toBe('/es/movimientos/');
+    expect(pagePath('es', 'movimientos', 'surf')).toBe('/es/movimientos/surf/');
+    expect(pagePath('es', 'habilidades', 'levitate')).toBe('/es/habilidades/levitate/');
+    expect(pagePath('es', 'objetos', 'leftovers')).toBe('/es/objetos/leftovers/');
+    expect(pagePath('es', 'tipo', 'water')).toBe('/es/tipo/water/');
+    expect(pagePath('es', 'generacion', 2)).toBe('/es/generacion/2/');
+    expect(pagePath('en', 'comparar', 'charizard', 'venusaur')).toBe('/en/comparar/charizard/venusaur/');
+  });
+
+  it('keeps the requested language as the first segment', () => {
+    expect(pagePath('en', 'objetos', 'leftovers').startsWith('/en/')).toBe(true);
+    expect(pagePath('es', 'objetos', 'leftovers').startsWith('/es/')).toBe(true);
+  });
+
+  it('never produces a double slash, a host or a template placeholder', () => {
+    const samples = [
+      pagePath('es'),
+      pagePath('en', 'pokemon', 'porygon-z'),
+      pagePath('es', 'generacion', 9),
+      pagePath('en', 'tipos'),
+    ];
+    for (const path of samples) {
+      expect(path).not.toMatch(/\/\//);
+      expect(path).not.toContain('www');
+      expect(path).not.toContain('http');
+      expect(path).not.toContain('${');
+      expect(path.endsWith('/')).toBe(true);
+    }
+  });
+
+  it('throws on an unsupported language instead of emitting a bogus URL', () => {
+    expect(() => pagePath('fr', 'pokemon', 'pikachu')).toThrow(/unsupported lang/);
+    expect(() => pagePath('${lang}', 'objetos', 'potion')).toThrow(/unsupported lang/);
+    expect(() => pagePath('', 'pokemon')).toThrow(/unsupported lang/);
+  });
+
+  it('throws on empty or slash-containing segments', () => {
+    expect(() => pagePath('es', '')).toThrow(/invalid path segment/);
+    expect(() => pagePath('es', 'pokemon', '  ')).toThrow(/invalid path segment/);
+    expect(() => pagePath('es', 'pokemon/pikachu')).toThrow(/invalid path segment/);
+  });
+
+  it('is deterministic and percent-encodes unsafe characters in a segment', () => {
+    expect(pagePath('es', 'pokemon', 'mr-mime')).toBe(pagePath('es', 'pokemon', 'mr-mime'));
+    expect(pagePath('es', 'comparar', 'a b', 'c?d')).toBe('/es/comparar/a%20b/c%3Fd/');
   });
 });
 

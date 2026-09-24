@@ -72,8 +72,8 @@ describe('/[lang]/tipo/[type]/ SSR', () => {
     expect(html).toContain('>Dragón<');
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/es/tipo/dragon/">`);
     expect(html).toContain(`<link rel="alternate" hreflang="en" href="${SITE_URL}/en/tipo/dragon/">`);
-    expect(html).toContain('href="/es/pokemon/dratini"');
-    expect(html).toContain('href="/es/pokemon/dragonite"');
+    expect(html).toContain('href="/es/pokemon/dratini/"');
+    expect(html).toContain('href="/es/pokemon/dragonite/"');
     expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/es/type/dragon.png/">`);
   });
 
@@ -88,7 +88,7 @@ describe('/[lang]/tipo/[type]/ SSR', () => {
     expect(html).toContain('>Dragon<');
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/en/tipo/dragon/">`);
     expect(html).toContain(`<link rel="alternate" hreflang="es" href="${SITE_URL}/es/tipo/dragon/">`);
-    expect(html).toContain('href="/en/pokemon/dratini"');
+    expect(html).toContain('href="/en/pokemon/dratini/"');
     expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/og/v1/en/type/dragon.png/">`);
   });
 

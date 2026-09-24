@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getAllMoves } from '../../../services/pokeapi';
 import { typeTranslations, typeColors, formatName, uiTranslations } from '../../../utils/pokemon';
+import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 const moves = await getAllMoves();
@@ -63,12 +64,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     <tbody id="move-table-body" class="divide-y divide-slate-50 dark:divide-slate-700/50">
                         {moves.map((move) => (
                             <tr class="move-row hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-colors cursor-pointer group" data-name={move.name} data-url={move.url}>
-                                <td class="px-10 py-5" onclick={`window.location.href='/${lang}/movimientos/${move.name}'`}>
+                                <td class="px-10 py-5" onclick={`window.location.href='${pagePath(lang, 'movimientos', move.name)}'`}>
                                     <span class="font-bold text-slate-900 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-move-name-url={move.url}>
                                         {formatName(move.name)}
                                     </span>
                                 </td>
-                                <td class="px-10 py-5 text-center" onclick={`window.location.href='/${lang}/movimientos/${move.name}'`}>
+                                <td class="px-10 py-5 text-center" onclick={`window.location.href='${pagePath(lang, 'movimientos', move.name)}'`}>
                                     <div class="inline-block" data-move-type-url={move.url}>
                                         <div class="h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full"></div>
                                     </div>

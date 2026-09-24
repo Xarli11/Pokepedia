@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import { uiTranslations } from '../utils/pokemon';
-import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath } from '../utils/seo';
+import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath, pagePath } from '../utils/seo';
 
 interface Props {
 	title?: string;
@@ -188,7 +188,7 @@ if (Astro.locals.cacheControl) {
         >
             <div class="container mx-auto px-4 py-3 flex items-center justify-between">
                 <!-- Logo Edition -->
-                <a href={`/${lang}`} class="flex items-center gap-2 md:gap-4 group no-underline">
+                <a href={pagePath(lang)} class="flex items-center gap-2 md:gap-4 group no-underline">
                     <div class="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center shrink-0">
                         <!-- Hexágono de Fondo -->
                         <div class="absolute inset-0 bg-slate-900 dark:bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700 shadow-[0_0_15px_rgba(16,185,129,0.2)]"></div>
@@ -218,14 +218,14 @@ if (Astro.locals.cacheControl) {
                 
                 <div class="flex items-center gap-3 md:gap-6">
                     <nav class="hidden md:flex gap-8 text-sm font-bold text-slate-600 dark:text-slate-400">
-                        <a href={`/${lang}`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Pokedex</a>
-                        <a href={`/${lang}/movimientos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                        <a href={pagePath(lang)} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Pokedex</a>
+                        <a href={pagePath(lang, 'movimientos')} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
                             {uiTranslations[lang]?.moves || uiTranslations.es.moves}
                         </a>
-                        <a href={`/${lang}/habilidades`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                        <a href={pagePath(lang, 'habilidades')} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
                             {uiTranslations[lang]?.abilities || uiTranslations.es.abilities}
                         </a>
-                        <a href={`/${lang}/objetos`} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
+                        <a href={pagePath(lang, 'objetos')} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
                             {uiTranslations[lang]?.items || uiTranslations.es.items}
                         </a>
                     </nav>
@@ -275,7 +275,7 @@ if (Astro.locals.cacheControl) {
 
                         <!-- Favoritos -->
                         <a 
-                            href={`/${lang}?gen=favorites`}
+                            href={`${pagePath(lang)}?gen=favorites`}
                             class="h-8 w-8 md:h-9 md:w-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-500 hover:text-white transition-all group shrink-0"
                             title={uiTranslations[lang]?.favorites || uiTranslations.es.favorites}
                         >
@@ -300,13 +300,13 @@ if (Astro.locals.cacheControl) {
             class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between"
             transition:persist
         >
-            <a href={`/${lang}`} class={`flex flex-col items-center gap-1 group ${currentPath === `/${lang}` || (currentPath === '/' && lang === 'es') ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <a href={pagePath(lang)} class={`flex flex-col items-center gap-1 group ${currentPath === pagePath(lang) || (currentPath === '/' && lang === 'es') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><circle cx="12" cy="12" r="3" fill="currentColor"/>
                 </svg>
                 <span class="text-[9px] font-black uppercase tracking-widest">Dex</span>
             </a>
-            <a href={`/${lang}/movimientos`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/movimientos') ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <a href={pagePath(lang, 'movimientos')} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/movimientos') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                 </svg>
@@ -314,7 +314,7 @@ if (Astro.locals.cacheControl) {
             </a>
 
             <!-- Botón Central de Favoritos (Móvil) -->
-            <a href={`/${lang}?gen=favorites`} class={`flex flex-col items-center gap-1 group ${Astro.url.searchParams.get('gen') === 'favorites' ? 'text-rose-500' : 'text-slate-400'}`}>
+            <a href={`${pagePath(lang)}?gen=favorites`} class={`flex flex-col items-center gap-1 group ${Astro.url.searchParams.get('gen') === 'favorites' ? 'text-rose-500' : 'text-slate-400'}`}>
                 <div class={`p-2 rounded-2xl ${Astro.url.searchParams.get('gen') === 'favorites' ? 'bg-rose-500/10' : ''}`}>
                     <svg class="w-6 h-6 transition-transform group-active:scale-125" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path>
@@ -322,13 +322,13 @@ if (Astro.locals.cacheControl) {
                 </div>
             </a>
 
-            <a href={`/${lang}/habilidades`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/habilidades') ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <a href={pagePath(lang, 'habilidades')} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/habilidades') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                 </svg>
                 <span class="text-[9px] font-black uppercase tracking-widest">{lang === 'es' ? 'Habs' : 'Abil'}</span>
             </a>
-            <a href={`/${lang}/objetos`} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/objetos') ? 'text-emerald-500' : 'text-slate-400'}`}>
+            <a href={pagePath(lang, 'objetos')} class={`flex flex-col items-center gap-1 group ${currentPath.includes('/objetos') ? 'text-emerald-500' : 'text-slate-400'}`}>
                 <svg class="w-5 h-5 transition-transform group-active:scale-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                 </svg>
@@ -436,7 +436,7 @@ if (Astro.locals.cacheControl) {
                             </div>
                             <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
                                 <a
-                                    href={`/${lang}/tipos`}
+                                    href={pagePath(lang, 'tipos')}
                                     data-track-event="internal_entity_click"
                                     data-entity-type="types_hub"
                                     data-source-surface="footer"
@@ -445,7 +445,7 @@ if (Astro.locals.cacheControl) {
                                     {uiTranslations[lang]?.pokemon_types || uiTranslations.es.pokemon_types}
                                 </a>
                                 <a
-                                    href={`/${lang}/generaciones`}
+                                    href={pagePath(lang, 'generaciones')}
                                     data-track-event="internal_entity_click"
                                     data-entity-type="generations_hub"
                                     data-source-surface="footer"
@@ -454,7 +454,7 @@ if (Astro.locals.cacheControl) {
                                     {uiTranslations[lang]?.generations || uiTranslations.es.generations}
                                 </a>
                                 <a
-                                    href={`/${lang}/fuentes`}
+                                    href={pagePath(lang, 'fuentes')}
                                     data-track-event="sources_click"
                                     data-track-target="footer_link"
                                     data-source-surface="footer"
@@ -471,7 +471,7 @@ if (Astro.locals.cacheControl) {
 
     <div id="layout-data" data-lang={lang} class="hidden"></div>
     <script>
-        import { localizedPath } from '../utils/seo';
+        import { localizedPath, pagePath } from '../utils/seo';
         import type { PokemonNameEntry } from '../services/pokeapi';
         import { trackEvent } from '../utils/analytics';
         import { fetchPokeApiJson, POKEAPI_BASE } from '../utils/pokeapiClient';
@@ -532,7 +532,7 @@ if (Astro.locals.cacheControl) {
                 const randomId = Math.floor(Math.random() * 1025) + 1;
                 try {
                     const data = await fetchPokeApiJson<{ name: string }>(`${POKEAPI_BASE}/pokemon/${randomId}`);
-                    window.location.href = `/${lang}/pokemon/${data.name}`;
+                    window.location.href = pagePath(lang, 'pokemon', data.name);
                 } catch (e) {
                     btn.disabled = false;
                     btn.classList.remove('animate-pulse', 'opacity-50');
@@ -558,10 +558,6 @@ if (Astro.locals.cacheControl) {
             window.addEventListener('scroll', window._backToTopHandler, { passive: true });
 
             btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function escHtml(str: string) {
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         interface HistoryEntry {
@@ -622,7 +618,7 @@ if (Astro.locals.cacheControl) {
                     resultsEl.appendChild(header);
                     history.forEach((p: HistoryEntry) => {
                         const a = document.createElement('a');
-                        a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
+                        a.href = pagePath(lang, 'pokemon', p.name);
                         a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group';
                         const imgWrap = document.createElement('div');
                         imgWrap.className = 'w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800';
@@ -761,7 +757,7 @@ if (Astro.locals.cacheControl) {
                                 const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
                                 const isVariety = p.id > 10000;
                                 const a = document.createElement('a');
-                                a.href = `/${lang}/pokemon/${escHtml(p.name)}`;
+                                a.href = pagePath(lang, 'pokemon', p.name);
                                 a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-l-4 border-transparent transition-all group';
                                 const imgWrap = document.createElement('div');
                                 imgWrap.className = 'w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-800 transition-colors group-hover:bg-white dark:group-hover:bg-slate-800';

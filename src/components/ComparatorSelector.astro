@@ -38,6 +38,7 @@ const { lang, p1, p2 } = Astro.props;
 
 <script>
     import { trackEvent } from '../utils/analytics';
+    import { pagePath } from '../utils/seo';
 
     interface PokemonSuggestion {
         name: string;
@@ -76,8 +77,8 @@ const { lang, p1, p2 } = Astro.props;
                             const newP = div.dataset.name;
                             if (!newP) return;
                             const path = pos === 1
-                                ? `/${lang}/comparar/${newP}/${otherPokemon}`
-                                : `/${lang}/comparar/${otherPokemon}/${newP}`;
+                                ? pagePath(lang, 'comparar', newP, otherPokemon)
+                                : pagePath(lang, 'comparar', otherPokemon, newP);
                             trackEvent('compare_start', { language: lang, entity_type: 'pokemon', target: pos === 1 ? newP : otherPokemon });
                             window.location.href = path;
                         };
