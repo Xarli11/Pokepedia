@@ -2,24 +2,52 @@
 
 All notable changes to Pokepedia are documented in this file.
 
-## [Unreleased]
+## [0.13.0] - 2026-09-25
 
 ### Added
 
-- Item quality and indexation policy (`src/utils/itemSeo.ts`) with placeholder detection; `npm run data:items-seo` regenerates the committed manifest of `noindex,follow` items shared by the item pages and the sitemap.
+- Complete loading of the PokeAPI item catalog (2222 unique slugs), using the API's own `count`.
+- Explicit item indexation policy (`src/utils/itemSeo.ts`) with placeholder detection, and a committed manifest of `noindex,follow` items (`npm run data:items-seo`, `-- --check` detects staleness) shared by the item pages and the sitemap.
 - Own title, meta description and visible factual sentence for item pages: real text in the page language, else a factual ES/EN fallback built only from explicit fields.
-- TM / TR / HM pages show the move taught in the most recent game, with that game, and link its move page. Tera Shards link their Tera type.
+- Item → Move for TM / TR / HM: the move of the most recent game, shown with that game, linking its move page.
+- Tera Shard → Type link.
+- Tests for the catalog, the policy, placeholders, metadata, machines, the manifest, the sitemap and item pages (297 → 396).
 
 ### Fixed
 
-- The item catalog is loaded completely (2223 items; it stopped at 2000 and dropped 223 items from the sitemap and the items index).
-- Placeholder texts (`[VAR (0000)]`, `XXX new effect for …`, `Unknown.`, dashes) are no longer shown as descriptions.
-- Spanish item pages no longer use English text as their meta description.
+- `getAllItems()` used `limit=2000` and truncated the catalog: 223 items were missing from the sitemap and the items index.
+- Spanish item pages no longer use English text as their meta description (950 pages before).
+- Placeholder texts (`[VAR (0000)]`, `XXX new effect for …`, `Unknown.`, dash-only) are no longer shown as descriptions or in meta.
+- TM / TR / HM pages used the oldest machine (`machines[0]`), which named a different move than the current games for most TMs.
+- Machine titles no longer name a move: 160 of 230 TMs teach different moves in different games.
+- The held-by counter on item pages shows the real total and how many are displayed.
+- A slug listed twice by PokeAPI (`roseli-berry`) no longer yields a duplicated URL.
 
 ### Changed
 
-- 374 low-value item pages are `noindex,follow` and left out of the sitemap (8740 → 8436 URLs; they remain reachable 200 pages): the 300 dynamax crystals (system data: internal names and "[VAR (0000)]" text), 6 bag-UI pockets of the `unused` category, and 68 game-specific variants that share their exact ES+EN name with an indexable primary. Name-only but real entities (tm-materials, picnic, sandwich ingredients, Tera Shards) stay indexable.
-- TM / TR / HM titles no longer name a move (most TMs teach different moves in different games); the newest game's move is shown with its game.
+- Sitemap 8740 → 8436 URLs; item URLs 4000 → 3696.
+- Indexable items: 2000 → 1848 per language; 374 per language are `noindex,follow` and left out of the sitemap.
+- The items index now covers all 2222 unique slugs, with real anchors.
+
+### Noindex policy
+
+`noindex,follow` pages remain accessible in Pokepedia (200, self canonical, linked from the index): noindex is not a removal of the product entity, and robots.txt does not block them.
+
+- 300 `dynamax-crystal-*`: system data (internal `★` names, one identical `[VAR (0000)]` text, no sprite, attributes or relations).
+- 6 internal bag-UI pockets of the `unused` category (Battle Pocket, Candy Jar, Medicine Pocket, Catching Pocket, Power-Up Pocket, Pokémon Box): blank or dash-only text, no sprite.
+- 68 game-specific variants that share their exact ES+EN name with an indexable primary (`laultra-ball` → `ultra-ball`, `firium-z--held` ↔ `firium-z--bag`…). They keep their own data and are not 1:1 equivalents, so they are not redirected: 200, `noindex,follow`, self canonical.
+
+### Kept indexable / to improve
+
+tm-materials (222), picnic (81), sandwich ingredients (59), Tera Shards (18), Data Cards (27), TMs, TRs and HMs, and the other families, including entities for which PokeAPI has few fields: a real entity with a distinct, specific name is not hidden for lack of data.
+
+### Known limits
+
+- `/objetos/` HTML is about 5.6 MB.
+- The manifest is a snapshot of PokeAPI data; regenerate it when the data changes.
+- Some indexable items are still very thin (name and category only).
+- `getAllMoves` and `getAllAbilities` still use fixed limits; they do not truncate today.
+- Search Console has not yet validated any SEO impact; no traffic, indexing or crawled-not-indexed improvement is claimed. Performance and Phase 5 work are not part of this release. See `docs/audits/seo-phase4-item-indexation.md`.
 
 ## [0.12.0] - 2026-09-25
 
