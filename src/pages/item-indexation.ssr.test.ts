@@ -63,11 +63,11 @@ const item = (over: Record<string, unknown>) => ({
 });
 
 const FIXTURES: Record<string, unknown> = {
-  '/item?limit=1': { count: 5, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
-  '/item?limit=5': {
-    count: 5,
+  '/item?limit=1': { count: 7, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
+  '/item?limit=7': {
+    count: 7,
     next: null,
-    results: ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down'].map((name, i) => ({ name, url: `${API}/item/${i + 1}/` })),
+    results: ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down', 'battle-pocket', 'water-tera-shard'].map((name, i) => ({ name, url: `${API}/item/${i + 1}/` })),
   },
   '/item/leftovers': item({
     name: 'leftovers',
@@ -101,6 +101,19 @@ const FIXTURES: Record<string, unknown> = {
     sprites: { default: null },
   }),
   // machines[0] is the OLDEST version group; the latest must win.
+  '/item/battle-pocket': item({
+    name: 'battle-pocket',
+    category: { name: 'unused' },
+    names: [es('Bolsillo de combate'), en('Battle Pocket')],
+    sprites: { default: null },
+    flavor_text_entries: [flavor('es', ''), flavor('en', '-\n-\n-')],
+  }),
+  '/item/water-tera-shard': item({
+    name: 'water-tera-shard',
+    category: { name: 'tera-shard' },
+    names: [es('Teralito Agua'), en('Water Tera Shard')],
+    sprites: { default: null },
+  }),
   '/item/tm26': item({
     name: 'tm26',
     category: { name: 'all-machines' },
@@ -177,9 +190,25 @@ describe('item robots policy (SSR)', () => {
     });
   }
 
-  it('the name-only family member is noindex too (tm-materials)', async () => {
-    const html = await (await renderItem('en', 'psyduck-down')).text();
+  it('a bag-UI pocket of the "unused" category is noindex,follow, without its dash-only text', async () => {
+    const html = await (await renderItem('en', 'battle-pocket')).text();
     expect(meta(html, 'robots')).toBe('noindex,follow');
+    expect(html).not.toContain('-\n-\n-');
+  });
+
+  it('name-only families are indexable real entities (tm-materials): no robots meta, factual page', async () => {
+    const html = await (await renderItem('en', 'psyduck-down')).text();
+    expect(meta(html, 'robots')).toBeUndefined();
+    expect(meta(html, 'description')).toBe('Psyduck Down is a Pokémon item in the TM Materials category.');
+  });
+
+  it('tera shards are indexable and link their Tera type page', async () => {
+    const es = await (await renderItem('es', 'water-tera-shard')).text();
+    expect(meta(es, 'robots')).toBeUndefined();
+    expect(meta(es, 'description')).toBe('Teralito Agua es un objeto Pokémon de la categoría Teralitos. Tipo Tera: Agua.');
+    expect(es).toContain('href="/es/tipo/water/"');
+    const en = await (await renderItem('en', 'water-tera-shard')).text();
+    expect(en).toContain('href="/en/tipo/water/"');
   });
 
   it('numeric ids still 301 to the canonical slug (Phase 2 unchanged)', async () => {
@@ -246,13 +275,15 @@ describe('machine items -> moves (SSR)', () => {
     expect(es).toContain('href="/es/movimientos/energy-ball/"');
     expect(es).not.toContain('/movimientos/karate-chop/');
     expect(es).not.toContain('/movimientos/earthquake/');
-    expect(titleOf(es)).toBe('MT26 (Energibola) — Máquina técnica Pokémon | Pokepedia.app');
+    expect(titleOf(es)).toBe('MT26 — Máquina técnica Pokémon | Pokepedia.app'); // no move in the title: TMs change per game
+    expect(es).toContain('(Leyendas Pokémon: Z-A)'); // the move is shown with its game
     expect(meta(es, 'description')).toBe('MT26 es una máquina técnica que enseña Energibola en Leyendas Pokémon: Z-A.');
     // The item's own (other-generation) text is not shown next to the machine fact.
     expect(es).not.toContain('Texto de otra generación.');
     const en = await (await renderItem('en', 'tm26')).text();
     expect(en).toContain('href="/en/movimientos/energy-ball/"');
     expect(meta(en, 'description')).toBe('TM26 is a Technical Machine that teaches Energy Ball in Pokémon Legends: Z-A.');
+    expect(titleOf(en)).toBe('TM26 — Technical Machine Pokémon | Pokepedia.app');
   });
 
   it('costs one machine + one move request, as before (bounded)', async () => {
@@ -292,7 +323,7 @@ describe('items index (SSR)', () => {
       const html = await renderIndex(lang);
       const hrefs = [...html.matchAll(new RegExp(`<a[^>]*href="(/${lang}/objetos/[^"/]+/)"`, 'g'))].map((m) => m[1]);
       expect([...new Set(hrefs)].sort()).toEqual(
-        ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down'].sort().map((s) => `/${lang}/objetos/${s}/`)
+        ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down', 'battle-pocket', 'water-tera-shard'].sort().map((s) => `/${lang}/objetos/${s}/`)
       );
       hrefs.forEach((h) => expect(h).not.toMatch(/\/\d+\/$/));
       // No per-item request at SSR time: only the two catalog list calls.

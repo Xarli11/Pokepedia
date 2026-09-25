@@ -16,14 +16,22 @@ describe('item indexing manifest (snapshot of scripts/item-seo-manifest.ts)', ()
   it('noindexes the 300 dynamax crystals: one identical "[VAR (0000)]" text, "★" internal names, no sprite/relations', () => {
     const dynamax = slugs.filter((s) => s.startsWith('dynamax-crystal-'));
     expect(dynamax).toHaveLength(300);
-    expect(noindex['dynamax-crystal-and15']).toMatch(/placeholder text only/);
+    expect(noindex['dynamax-crystal-and15']).toMatch(/system data/);
   });
 
-  it('noindexes the name-only families: tm-materials, picnic, sandwich-ingredients, tera shards', () => {
-    expect(itemNoindexReason('psyduck-down')).toMatch(/tm-materials/);
-    expect(itemNoindexReason('academy-bottle')).toMatch(/picnic/);
-    expect(itemNoindexReason('baguette')).toMatch(/sandwich-ingredients/);
-    expect(itemNoindexReason('normal-tera-shard')).toMatch(/tera-shard/);
+  it('keeps the name-only families indexable: real entities with distinct specific names (data debt, not a reason to hide them)', () => {
+    for (const slug of ['psyduck-down', 'academy-bottle', 'baguette', 'normal-tera-shard', 'water-tera-shard', 'sweet-herba-mystica']) {
+      expect(isItemIndexable(slug), slug).toBe(true);
+    }
+    expect(slugs.filter((s) => /-tera-shard$/.test(s))).toEqual([]);
+  });
+
+  it('noindexes only the bag-UI pockets of the "unused" category; the documented unused key items stay', () => {
+    const internal = slugs.filter((s) => noindex[s].startsWith('game-internal category'));
+    expect(internal.sort()).toEqual(['battle-pocket', 'candy-jar', 'catching-pocket', 'medicine-pocket', 'pokemon-box', 'power-up-pocket']);
+    for (const slug of ['rule-book', 'seal-bag', 'yellow-petal', 'roto-boost', 'god-stone', 'z-power-ring']) {
+      expect(isItemIndexable(slug), slug).toBe(true);
+    }
   });
 
   it('keeps TMs, TRs, HMs and data cards indexable (historical hypothesis was wrong for them)', () => {
@@ -57,12 +65,13 @@ describe('item indexing manifest (snapshot of scripts/item-seo-manifest.ts)', ()
 
 describe('sitemap item selection', () => {
   it('contains indexable items and excludes noindex ones, in both languages', () => {
-    const xml = buildSitemapXml([], [], [], [{ name: 'leftovers' }, { name: 'dynamax-crystal-and15' }, { name: 'tm26' }, { name: 'psyduck-down' }]);
+    const xml = buildSitemapXml([], [], [], [{ name: 'leftovers' }, { name: 'dynamax-crystal-and15' }, { name: 'tm26' }, { name: 'battle-pocket' }, { name: 'psyduck-down' }]);
     for (const lang of ['es', 'en']) {
       expect(xml).toContain(`https://pokepedia.app/${lang}/objetos/leftovers/`);
       expect(xml).toContain(`https://pokepedia.app/${lang}/objetos/tm26/`);
       expect(xml).not.toContain(`/${lang}/objetos/dynamax-crystal-and15/`);
-      expect(xml).not.toContain(`/${lang}/objetos/psyduck-down/`);
+      expect(xml).not.toContain(`/${lang}/objetos/battle-pocket/`);
+      expect(xml).toContain(`https://pokepedia.app/${lang}/objetos/psyduck-down/`); // name-only, but a real entity
     }
   });
 

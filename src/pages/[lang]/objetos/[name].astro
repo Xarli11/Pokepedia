@@ -5,9 +5,9 @@ import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
-import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+import { uiTranslations, formatName, itemTranslations, getItemSuperCategory, typeTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
-import { buildItemTitle, resolveItemDescription, machineKind, pickLatestMachine, machineVersionLabel, type ItemFacts } from '../../../utils/itemMeta';
+import { buildItemTitle, resolveItemDescription, machineKind, pickLatestMachine, machineVersionLabel, teraShardType, type ItemFacts } from '../../../utils/itemMeta';
 import { itemRobots } from '../../../utils/itemIndexing';
 
 const { lang, name } = Astro.params;
@@ -53,7 +53,12 @@ if (latestMachine) {
 }
 const isMachine = machineKind(itemData.name) !== null;
 // A machine's own effect / flavor text can describe another generation's move.
-const showItemTexts = !(isMachine && moveDetail);
+// (only when the move can be stated together with its game, as the description does).
+const showItemTexts = !(isMachine && moveDetail?.versionLabel);
+
+// Tera Shard -> its type, from the "{type}-tera-shard" name (only for real Pokepedia types).
+const teraType = teraShardType(itemData.name);
+const teraTypeLabel = teraType ? typeTranslations[lang as string]?.[teraType] || null : null;
 
 const localizedAttributes = (itemData.attributes || []).map((a: any) => i18nItems[a.name]).filter(Boolean) as string[];
 const facts: ItemFacts = {
@@ -64,6 +69,7 @@ const facts: ItemFacts = {
     flingPower: itemData.fling_power,
     cost: itemData.cost,
     teaches: moveDetail ? { moveName: moveDetail.name, versionLabel: moveDetail.versionLabel } : null,
+    teraTypeLabel,
 };
 // Real text in the PAGE language (an English effect on a Spanish page is shown
 // in the body with its notice, but never becomes the Spanish meta description).
@@ -130,10 +136,16 @@ const breadcrumbItems = [
                         <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-2">{localizedName}</h1>
                         <div class="mb-4"><ReportDataIssue entityType="item" entitySlug={itemData.name} lang={lang as string} /></div>
 
+                        {teraType && teraTypeLabel && (
+                            <a href={pagePath(lang as string, 'tipo', teraType)} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
+                                {lang === 'es' ? 'Tipo Tera:' : 'Tera type:'} {teraTypeLabel}
+                            </a>
+                        )}
+
                         {moveDetail && (
                             <a href={moveDetail.url} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
                                 <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
-                                {lang === 'es' ? 'Enseña:' : 'Teaches:'} {moveDetail.name}
+                                {lang === 'es' ? 'Enseña:' : 'Teaches:'} {moveDetail.name}{moveDetail.versionLabel && <span class="opacity-70 font-medium"> ({moveDetail.versionLabel})</span>}
                             </a>
                         )}
                     </div>

@@ -8,17 +8,18 @@
 // Evidence behind the rules (PokeAPI, 2223 items, 2026-09-25; see
 // docs/audits/seo-phase4-item-indexation.md):
 //  - 300 dynamax-crystal-* items all carry the same "[VAR (0000)]" flavor text
-//    and a "★And15"-style internal name, no sprite/attributes/relations;
-//  - 222 tm-materials + 81 picnic + 59 sandwich-ingredients + 18 tera-shard
-//    items have a name and nothing else, 100% of every one of those families;
-//  - 128 items are game-specific variants (`--held`/`--bag`, `--letsgo`, `la*`)
+//    and a "★And15"-style internal name, no sprite/attributes/relations:
+//    system data, not entities;
+//  - 5 bag-UI pockets in PokeAPI's "unused" category (Battle Pocket, Candy
+//    Jar...) have blank / dash-only text and no sprite;
+//  - 69 items are game-specific variants (`--held`/`--bag`, `--letsgo`, `la*`)
 //    of another item with the exact same ES+EN name.
-// Data cards, TMs, TRs and HMs, which the historical audit suspected, have
-// distinct descriptions / a machine -> move relation and stay indexable.
-//
-// A single thin item in an otherwise documented family (Booster Energy,
-// Legends Z-A mega stones: a PokeAPI data gap) is NOT noindexed on its own:
-// noindex needs family-level evidence.
+// Deliberately NOT noindex, whatever PokeAPI holds for them: TMs, TRs, HMs, data
+// cards, and the name-only families tm-materials (222), picnic (81),
+// sandwich-ingredients (59) and tera-shard (18). Each is a real game entity
+// with a distinct, specific ES+EN name (222/222, 81/81, 59/59, 18/18 unique) and
+// game indices; "PokeAPI has few fields" is a data debt, not evidence that the
+// entity has no value. They are index + improve.
 
 export type ItemDecision = 'index' | 'index-improve' | 'noindex';
 
@@ -139,25 +140,19 @@ export interface ItemSeoPolicy {
   family: string;
   reason: string;
   signals: ItemQualitySignals;
-  /** No real description and too few supporting signals (before family evidence). */
+  /** No real description and too few supporting signals. */
   thin: boolean;
 }
 
 /** Supporting signals (besides a description) an entity needs to be more than a name. */
 export const MIN_SUPPORTING_SIGNALS = 2;
 
-/** A family is "entirely thin" from this size and share of thin members. */
-export const FAMILY_MIN_SIZE = 5;
-export const FAMILY_THIN_RATIO = 0.9;
-
-export interface FamilyEvidence {
-  size: number;
-  thin: number;
-}
-
-export function isEntirelyThinFamily(evidence: FamilyEvidence | undefined): boolean {
-  return !!evidence && evidence.size >= FAMILY_MIN_SIZE && evidence.thin / evidence.size >= FAMILY_THIN_RATIO;
-}
+/**
+ * PokeAPI item categories that only hold game-internal entries. A thin item
+ * there is data, not an entity; a documented one (real flavor text, sprite:
+ * Rule Book, Bike, Rotom Powers...) is a legitimate key item and stays.
+ */
+export const GAME_INTERNAL_CATEGORIES: readonly string[] = ['unused'];
 
 function isThin(signals: ItemQualitySignals): boolean {
   if (signals.descriptionEs || signals.descriptionEn) return false;
@@ -165,37 +160,25 @@ function isThin(signals: ItemQualitySignals): boolean {
   return supporting < MIN_SUPPORTING_SIGNALS;
 }
 
-/** Thin-member counts per family, from a catalog's worth of items. */
-export function summarizeFamilies(items: ItemSeoInput[]): Map<string, FamilyEvidence> {
-  const families = new Map<string, FamilyEvidence>();
-  for (const item of items) {
-    const family = classifyItemFamily(item.name, item.category?.name);
-    const evidence = families.get(family) ?? { size: 0, thin: 0 };
-    evidence.size++;
-    if (isThin(getItemQualitySignals(item))) evidence.thin++;
-    families.set(family, evidence);
-  }
-  return families;
-}
-
 /**
  * Entity-level decision (identical for the ES and EN URL of an item, so the
- * hreflang pair never disagrees).
+ * hreflang pair never disagrees). Placeholder text ("XXX new effect…",
+ * "Unknown.", "[VAR (0000)]") never counts as a description or a signal.
  *
- *  - index          real description in both languages;
- *  - index-improve  real description in only one language, or none but at
- *                   least two supporting signals (sprite / attributes /
- *                   machine or held-by relation), or a thin item inside a
- *                   family that is otherwise documented (a PokeAPI data
- *                   gap): the page adds a factual localized fallback;
- *  - noindex        thin item whose whole family is thin (>= 90% of >= 5
- *                   members: no description, no sprite, no relations for
- *                   the family). Stays a 200 page, `noindex,follow`, out of
- *                   the sitemap.
+ *  - index          real description in ES and EN;
+ *  - index-improve  a description in only one language, or none but enough
+ *                   supporting signals, or a thin but real entity (name only:
+ *                   a data debt): the page adds a factual localized sentence;
+ *  - noindex        only two cases, both item-level:
+ *                     1. system data: internal "★" name AND placeholder text
+ *                        AND nothing else (dynamax crystals);
+ *                     2. thin item in a game-internal category ("unused":
+ *                        bag-UI pockets).
+ *                   Stays a 200 page, `noindex,follow`, out of the sitemap.
  *
- * Without `family` evidence a thin item is never noindexed (conservative).
+ * Being poorly documented is never a reason to noindex an entity.
  */
-export function getItemSeoPolicy(item: ItemSeoInput, family?: FamilyEvidence): ItemSeoPolicy {
+export function getItemSeoPolicy(item: ItemSeoInput): ItemSeoPolicy {
   const signals = getItemQualitySignals(item);
   const familyName = classifyItemFamily(item.name, item.category?.name);
   const thin = isThin(signals);
@@ -214,11 +197,15 @@ export function getItemSeoPolicy(item: ItemSeoInput, family?: FamilyEvidence): I
   }
   if (!thin) return withDecision('index-improve', 'no description but sprite/attributes/relations: factual page');
 
-  const placeholder = signals.placeholderFields.length > 0 ? ' (placeholder text only)' : '';
-  if (isEntirelyThinFamily(family)) {
-    return withDecision('noindex', `family "${familyName}" has no descriptive data (${family!.thin}/${family!.size} thin)${placeholder}`);
+  const hasPlaceholderName = signals.placeholderFields.some((f) => f.startsWith('name:'));
+  const hasPlaceholderText = signals.placeholderFields.some((f) => !f.startsWith('name:'));
+  if (hasPlaceholderName && hasPlaceholderText) {
+    return withDecision('noindex', 'system data: internal name and placeholder text only');
   }
-  return withDecision('index-improve', `thin item in a documented family (data gap): kept indexable${placeholder}`);
+  if (GAME_INTERNAL_CATEGORIES.includes(item.category?.name ?? '')) {
+    return withDecision('noindex', `game-internal category "${item.category?.name}" with no descriptive data`);
+  }
+  return withDecision('index-improve', 'thin but real entity (name and category only): data debt, kept indexable');
 }
 
 // ---------------------------------------------------------------------------

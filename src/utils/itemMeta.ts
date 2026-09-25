@@ -9,6 +9,7 @@
 // PokeAPI fields; an effect is never inferred.
 
 import { versionGroupRank } from '../services/versionGroups';
+import { typeColors } from './pokemon';
 
 export type ItemLang = 'es' | 'en';
 
@@ -49,16 +50,27 @@ export interface ItemFacts {
   attributeLabels?: string[];
   flingPower?: number | null;
   cost?: number | null;
-  /** Move taught (machines), localized, from the latest machine. */
+  /**
+   * Move taught (machines), localized, from the machine of the most recent
+   * game. Only stated together with that game: the same TM teaches other moves
+   * in other games.
+   */
   teaches?: { moveName: string; versionLabel?: string | null } | null;
+  /** Localized type label of a Tera Shard (from its "{type}-tera-shard" name). */
+  teraTypeLabel?: string | null;
 }
 
-export function buildItemTitle(lang: string, facts: Pick<ItemFacts, 'name' | 'slug' | 'teaches'>): string {
+/**
+ * Machines are titled by number only. Most TMs teach a different move in
+ * different games (160 of 230: TM26 is Earthquake in most games, Scary Face in
+ * Sword/Shield, Energy Ball in Legends Z-A; up to 9 moves for one TM), so a
+ * title naming one move would present a single game's move as universal. The
+ * move, with its game, is in the description and on the page.
+ */
+export function buildItemTitle(lang: string, facts: Pick<ItemFacts, 'name' | 'slug'>): string {
   const l = safeLang(lang);
   const kind = machineKind(facts.slug);
-  if (kind && facts.teaches) {
-    return `${facts.name} (${facts.teaches.moveName}) — ${capitalize(MACHINE_LABEL[l][kind])} Pokémon`;
-  }
+  if (kind) return `${facts.name} — ${capitalize(MACHINE_LABEL[l][kind])} Pokémon`;
   return l === 'es' ? `${facts.name} — Objeto Pokémon` : `${facts.name} — Pokémon Item`;
 }
 
@@ -83,12 +95,12 @@ export function buildItemFactualDescription(lang: string, facts: ItemFacts): str
   if (kind) {
     const label = MACHINE_LABEL[l][kind];
     const article = kind === 'tr' ? 'un' : 'una'; // disco (m.) / máquina (f.)
-    if (facts.teaches) {
-      const where = facts.teaches.versionLabel ? (l === 'es' ? ` en ${facts.teaches.versionLabel}` : ` in ${facts.teaches.versionLabel}`) : '';
+    if (facts.teaches?.versionLabel) {
+      const { moveName, versionLabel } = facts.teaches;
       sentences.push(
         l === 'es'
-          ? `${facts.name} es ${article} ${label} que enseña ${facts.teaches.moveName}${where}.`
-          : `${facts.name} is a ${label} that teaches ${facts.teaches.moveName}${where}.`
+          ? `${facts.name} es ${article} ${label} que enseña ${moveName} en ${versionLabel}.`
+          : `${facts.name} is a ${label} that teaches ${moveName} in ${versionLabel}.`
       );
     } else {
       sentences.push(l === 'es' ? `${facts.name} es ${article} ${label}.` : `${facts.name} is a ${label}.`);
@@ -103,6 +115,9 @@ export function buildItemFactualDescription(lang: string, facts: ItemFacts): str
     sentences.push(l === 'es' ? `${facts.name} es un objeto Pokémon.` : `${facts.name} is a Pokémon item.`);
   }
 
+  if (facts.teraTypeLabel) {
+    sentences.push(l === 'es' ? `Tipo Tera: ${facts.teraTypeLabel}.` : `Tera type: ${facts.teraTypeLabel}.`);
+  }
   if (facts.attributeLabels && facts.attributeLabels.length > 0) {
     sentences.push(
       l === 'es' ? `Propiedades: ${join(facts.attributeLabels, l)}.` : `Properties: ${join(facts.attributeLabels, l)}.`
@@ -131,7 +146,7 @@ export function resolveItemDescription(
 ): { text: string; source: 'text' | 'facts' } {
   const kind = machineKind(facts.slug);
   const clean = (realText ?? '').replace(/[\f\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (clean && !(kind && facts.teaches)) {
+  if (clean && !(kind && facts.teaches?.versionLabel)) {
     // Families share their in-game text by design (80 species candies, 36 mails,
     // 14 baking berries...): lead with the item name so every description is
     // its own, unless the text already names the item.
@@ -165,4 +180,10 @@ const MACHINE_VERSION_LABELS: Record<ItemLang, Record<string, string>> = {
 /** Version-group label for the game a machine belongs to; null when unknown (never a raw slug). */
 export function machineVersionLabel(lang: string, versionGroup: string): string | null {
   return MACHINE_VERSION_LABELS[safeLang(lang)][versionGroup] ?? null;
+}
+
+/** Type slug of a Tera Shard from its "{type}-tera-shard" name, only if it is a Pokepedia type. */
+export function teraShardType(slug: string): string | null {
+  const m = /^([a-z]+)-tera-shard$/.exec(slug);
+  return m && m[1] in typeColors ? m[1] : null;
 }

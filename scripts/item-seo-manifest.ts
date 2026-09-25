@@ -17,7 +17,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { getAllItems } from '../src/services/pokeapi';
-import { classifyItemFamily, findDuplicateNameVariants, getItemSeoPolicy, itemQualityScore, summarizeFamilies, type ItemSeoInput } from '../src/utils/itemSeo';
+import { classifyItemFamily, findDuplicateNameVariants, getItemSeoPolicy, itemQualityScore, type ItemSeoInput } from '../src/utils/itemSeo';
 
 const OUT = new URL('../src/data/itemSeoManifest.json', import.meta.url);
 const CONCURRENCY = 12;
@@ -48,16 +48,15 @@ async function main() {
   );
 
   const variants = findDuplicateNameVariants(details.map((d) => ({ name: d.name, names: d.names, quality: itemQualityScore(d) })));
-  const families = summarizeFamilies(details);
   const noindex: Record<string, string> = {};
   const byFamily: Record<string, { total: number; noindex: number }> = {};
 
   for (const item of details) {
     const family = classifyItemFamily(item.name, item.category?.name);
-    const policy = getItemSeoPolicy(item, families.get(family));
+    const policy = getItemSeoPolicy(item);
     byFamily[family] ??= { total: 0, noindex: 0 };
     byFamily[family].total++;
-    let reason: string | null = policy.decision === 'noindex' ? `family-without-content: ${policy.reason}` : null;
+    let reason: string | null = policy.decision === 'noindex' ? `${policy.reason}` : null;
     if (!reason && variants.has(item.name)) reason = `duplicate-name-variant of ${variants.get(item.name)}`;
     if (reason) {
       noindex[item.name] = reason;

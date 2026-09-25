@@ -4,11 +4,9 @@ import {
   findDuplicateNameVariants,
   getItemQualitySignals,
   getItemSeoPolicy,
-  isEntirelyThinFamily,
   isPlaceholderName,
   isPlaceholderText,
   itemQualityScore,
-  summarizeFamilies,
   type ItemSeoInput,
 } from './itemSeo';
 import { selectItemEffect, selectItemFlavor } from './items';
@@ -137,6 +135,44 @@ describe('quality signals', () => {
   });
 });
 
+// Shapes from live PokeAPI data (2026-09-25) for the families the audit reviewed.
+const xxxOnly: ItemSeoInput = {
+  name: 'bike--yellow',
+  category: { name: 'unused' },
+  names: names('Bici', 'Bike'),
+  effect_entries: [effect('en', 'XXX new effect for bike--yellow')],
+  sprites: { default: null },
+};
+const unknownStone: ItemSeoInput = {
+  name: 'god-stone',
+  category: { name: 'unused' },
+  names: names('Piedra divina', 'god stone'),
+  effect_entries: [effect('en', 'Unknown.  Currently unused.')],
+  sprites: { default: 'stone.png' },
+};
+const petal: ItemSeoInput = {
+  // 87 "unused" key items: real flavor ES+EN + sprite, only the effect is an "XXX" stub.
+  name: 'yellow-petal',
+  category: { name: 'unused' },
+  names: names('Pétalo amarillo', 'Yellow Petal'),
+  flavor_text_entries: [flavor('es', 'Pétalo prensado.'), flavor('en', 'A pressed flower petal.')],
+  effect_entries: [effect('en', 'XXX new effect for yellow-petal')],
+  sprites: { default: 'petal.png' },
+};
+const pocket: ItemSeoInput = {
+  name: 'battle-pocket',
+  category: { name: 'unused' },
+  names: names('Bolsillo de combate', 'Battle Pocket'),
+  flavor_text_entries: [flavor('es', ''), flavor('en', '-\n-\n-')],
+  sprites: { default: null },
+};
+const pickedNamed = (name: string, category: string, es: string, en: string): ItemSeoInput => ({
+  name,
+  category: { name: category },
+  names: names(es, en),
+  sprites: { default: null },
+});
+
 describe('getItemSeoPolicy', () => {
   it('A: real description in ES and EN -> index', () => {
     const p = getItemSeoPolicy(leftovers);
@@ -159,41 +195,85 @@ describe('getItemSeoPolicy', () => {
     expect(p).toMatchObject({ decision: 'index-improve', family: 'tm', thin: false });
   });
 
-  it('C: placeholder-only family with no other data -> noindex, given family evidence', () => {
-    const family = { size: 300, thin: 300 };
-    const p = getItemSeoPolicy(dynamax, family);
+  it('C: dynamax crystals are system data (internal name + placeholder text + nothing else) -> noindex', () => {
+    const p = getItemSeoPolicy(dynamax);
     expect(p).toMatchObject({ decision: 'noindex', indexable: false, family: 'dynamax-crystal', thin: true });
-    expect(p.reason).toMatch(/300\/300 thin/);
-    expect(p.reason).toMatch(/placeholder text only/);
+    expect(p.reason).toMatch(/system data/);
   });
 
-  it('C: a name-and-category-only family (tera shards) -> noindex', () => {
-    expect(getItemSeoPolicy(teraShard, { size: 18, thin: 18 }).decision).toBe('noindex');
+  describe('"XXX new effect" and "Unknown." are placeholders, never content', () => {
+    it('an XXX stub is not a description and not a supporting signal', () => {
+      const s = getItemQualitySignals(xxxOnly);
+      expect(s.descriptionEs).toBe(false);
+      expect(s.descriptionEn).toBe(false);
+      expect(s.placeholderFields).toContain('effect:en');
+    });
+
+    it('"Unknown. Currently unused." is not a description either', () => {
+      const s = getItemQualitySignals(unknownStone);
+      expect(s.descriptionEn).toBe(false);
+      expect(s.placeholderFields).toContain('effect:en');
+    });
+
+    it('an XXX-only item is judged thin, not documented by its stub', () => {
+      expect(getItemSeoPolicy(xxxOnly).thin).toBe(true);
+    });
+
+    it('an item whose only "description" is an XXX stub is never given that text as description', () => {
+      expect(selectItemEffect(xxxOnly.effect_entries as any, 'en')).toBeNull();
+      expect(selectItemEffect(unknownStone.effect_entries as any, 'en')).toBeNull();
+    });
+
+    it('the 87 unused key items with real flavor text stay indexable: the description comes from the flavor, not the stub', () => {
+      const p = getItemSeoPolicy(petal);
+      expect(p).toMatchObject({ decision: 'index', thin: false });
+      expect(selectItemEffect(petal.effect_entries as any, 'en')).toBeNull();
+      expect(selectItemFlavor(petal.flavor_text_entries as any, 'en')?.text).toBe('A pressed flower petal.');
+    });
   });
 
-  it('a thin item WITHOUT family evidence is never noindexed (conservative)', () => {
-    expect(getItemSeoPolicy(dynamax).decision).toBe('index-improve');
+  describe('category "unused" (122 items): decided per item, not per family', () => {
+    it('bag-UI pockets (blank / dash-only text, no sprite) -> noindex,follow', () => {
+      const p = getItemSeoPolicy(pocket);
+      expect(p).toMatchObject({ decision: 'noindex', thin: true });
+      expect(p.reason).toMatch(/game-internal category "unused"/);
+    });
+
+    it('a documented unused item (Rule Book: real text + sprite) -> index', () => {
+      expect(getItemSeoPolicy(petal).indexable).toBe(true);
+    });
+
+    it('stub-only unused items (XXX / Unknown. and no flavor) are thin: noindex, because of their category', () => {
+      expect(getItemSeoPolicy(xxxOnly).decision).toBe('noindex');
+      expect(getItemSeoPolicy(unknownStone).decision).toBe('noindex'); // a sprite alone is 1 signal
+    });
+
+    it('the real god-stone has flavor text next to its "Unknown." stub: index + improve, from the flavor', () => {
+      const withFlavor = { ...unknownStone, flavor_text_entries: [flavor('en', 'A rare stone.')] };
+      expect(getItemSeoPolicy(withFlavor)).toMatchObject({ decision: 'index-improve', thin: false });
+    });
   });
 
-  it('one data gap inside a documented family (Booster Energy, 11 of 72) stays indexable', () => {
-    const p = getItemSeoPolicy(boosterEnergy, { size: 72, thin: 11 });
-    expect(p).toMatchObject({ decision: 'index-improve', indexable: true, thin: true });
-    expect(p.reason).toMatch(/data gap/);
-  });
+  describe('name-only families are real entities: index + improve, not noindex', () => {
+    it.each([
+      ['tera-shard', pickedNamed('water-tera-shard', 'tera-shard', 'Teralito Agua', 'Water Tera Shard')],
+      ['tm-materials', pickedNamed('psyduck-down', 'tm-materials', 'Plumón de Psyduck', 'Psyduck Down')],
+      ['picnic', pickedNamed('academy-bottle', 'picnic', 'Termo Academia', 'Academy Bottle')],
+      ['sandwich-ingredients', pickedNamed('baguette', 'sandwich-ingredients', 'Barra de Pan', 'Baguette')],
+    ])('%s: distinct real entity with a specific name -> index + improve', (family, item) => {
+      const p = getItemSeoPolicy(item);
+      expect(p).toMatchObject({ decision: 'index-improve', indexable: true, thin: true, family });
+      expect(p.reason).toMatch(/data debt/);
+    });
 
-  it('family threshold: >= 5 members and >= 90% thin', () => {
-    expect(isEntirelyThinFamily({ size: 5, thin: 5 })).toBe(true);
-    expect(isEntirelyThinFamily({ size: 10, thin: 9 })).toBe(true);
-    expect(isEntirelyThinFamily({ size: 10, thin: 8 })).toBe(false);
-    expect(isEntirelyThinFamily({ size: 4, thin: 4 })).toBe(false); // too few to call it a family
-    expect(isEntirelyThinFamily(undefined)).toBe(false);
-  });
+    it('Booster Energy (a held item with no PokeAPI text) stays indexable', () => {
+      expect(getItemSeoPolicy(boosterEnergy)).toMatchObject({ decision: 'index-improve', indexable: true, thin: true });
+    });
 
-  it('summarizeFamilies counts thin members per family', () => {
-    const map = summarizeFamilies([leftovers, boosterEnergy, dynamax, { ...dynamax, name: 'dynamax-crystal-and458' }, tmNoText]);
-    expect(map.get('held-items')).toEqual({ size: 2, thin: 1 });
-    expect(map.get('dynamax-crystal')).toEqual({ size: 2, thin: 2 });
-    expect(map.get('tm')).toEqual({ size: 1, thin: 0 });
+    it('an unnamed thin item outside game-internal categories is still not noindexed (Z-A mega stone)', () => {
+      const megaStone: ItemSeoInput = { name: 'meganiumite', category: { name: 'mega-stones' }, sprites: { default: null } };
+      expect(getItemSeoPolicy(megaStone).indexable).toBe(true);
+    });
   });
 });
 
