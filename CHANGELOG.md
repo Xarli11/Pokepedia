@@ -2,21 +2,33 @@
 
 All notable changes to Pokepedia are documented in this file.
 
-## [Unreleased]
+## [0.12.0] - 2026-09-25
 
 ### Added
 
-- The moves index and the Pokémon moves table now expose real `<a href>` links to every `/{lang}/movimientos/{slug}/` page in the initial HTML.
-- The Pokémon moves table server-renders the rows of the initially selected version (level, method, version, name, link) without JavaScript.
-- Move pages have their own title, meta description and visible description: real localized text when it exists, otherwise a factual sentence in the page language built only from explicit data.
-- The move type badge links to the Pokepedia type page.
-- Showdown ability names are resolved against PokeAPI's real ability slugs (`Mind's Eye` → `minds-eye`).
+- Real, canonical `<a href>` links in the initial HTML from each moves index (`/es/movimientos/`, `/en/movimientos/`) to all 937 move pages of that language.
+- Server-rendered move rows in the Pokémon moves table (initial version: level, method, version, name and link), so the Pokémon → move relation exists without JavaScript.
+- Own title, meta description and visible description for every move page.
+- Factual ES/EN fallback description, built only from explicit data (type, category, power, accuracy, PP, priority), for moves without real localized text.
+- Move → Type relation: the type badge on a move page links to the Pokepedia type page.
+- Resolution of Showdown ability names to real PokeAPI slugs (`Mind's Eye` → `minds-eye`).
+- Tests for move crawlability, move metadata, ability slug resolution and the ability catalog being unavailable (251 → 297 tests).
 
 ### Fixed
 
-- Move pages no longer share the Spanish default meta description (937 pages per language did); "Dummy data" and "This move can't be used" placeholders are no longer shown as descriptions.
+- The moves index no longer depends on `onclick` for discovery: the name of every move is a real link.
+- Move pages no longer share the generic Layout meta description (937 pages per language did).
+- A Spanish move page no longer falls back to English text when it has no Spanish description; it uses the Spanish factual sentence.
+- Placeholders such as "Dummy data" and "This move can't be used…" are no longer used as descriptions.
 - The learned-by counter on move pages shows the real total instead of the number of capped cards.
-- Ability links generated from Showdown names no longer 404 (`Mind's Eye`, `Dragon's Maw`, `As One (…)`, `Embody Aspect (…)`); names with no PokeAPI ability are shown unlinked.
+- `Mind's Eye` and other Showdown abilities (`Dragon's Maw`, `As One (…)`, `Embody Aspect (…)`) no longer generate internal links that 404 (11 → 0).
+- If the PokeAPI ability catalog is unavailable, an ability is shown without a link instead of an invented slug.
+
+### Known limits / not claimed
+
+- Link text in the server-rendered index and moves table is the formatted English slug until client hydration localizes it.
+- Pokémon page HTML is 39–94 KB larger because of the server-rendered move rows; not optimized here.
+- This release does not address item indexing, global "Crawled — currently not indexed" or "Discovered — currently not indexed", 5xx, performance, hidden JSON, favorite hearts, Gemini, or Search Console recovery. Search Console effects are unmeasured; see `docs/audits/seo-phase3-movement-crawlability.md`.
 
 ## [0.11.0] - 2026-09-25
 
