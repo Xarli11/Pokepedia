@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getAllPokemonBasic, getAllMoves, getAllAbilities, getAllItems, GENERATIONS } from '../services/pokeapi';
 import { buildSitemapEntries, renderSitemapXml, type SitemapUrlEntry } from '../utils/sitemap';
 import { typeColors } from '../utils/pokemon';
+import { indexableItems } from '../utils/itemIndexing';
 
 // Root cause fixed here: `moves`/`abilities`/`items` used to be declared and
 // never populated, so those entity families were silently absent from the
@@ -54,7 +55,9 @@ export function buildSitemapXml(
     ...pokemon.flatMap((p) => buildSitemapEntries(`/pokemon/${p.name}`, '0.8')),
     ...moves.flatMap((m) => buildSitemapEntries(`/movimientos/${m.name}`, '0.6')),
     ...abilities.flatMap((a) => buildSitemapEntries(`/habilidades/${a.name}`, '0.6')),
-    ...items.flatMap((i) => buildSitemapEntries(`/objetos/${i.name}`, '0.5')),
+    // Only indexable items: noindex ones (src/data/itemSeoManifest.json) stay
+    // reachable pages but never appear here.
+    ...indexableItems(items).flatMap((i) => buildSitemapEntries(`/objetos/${i.name}`, '0.5')),
     ...typeSlugs.flatMap((tp) => buildSitemapEntries(`/tipo/${tp}`, '0.7')),
     ...generationNums.flatMap((n) => buildSitemapEntries(`/generacion/${n}`, '0.7')),
   ];

@@ -10,7 +10,8 @@
     "check": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "data:audit": "tsx scripts/data-audit.ts"
+    "data:audit": "tsx scripts/data-audit.ts",
+    "data:items-seo": "tsx scripts/item-seo-manifest.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",

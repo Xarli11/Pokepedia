@@ -7,6 +7,8 @@ import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath
 interface Props {
 	title?: string;
     description?: string;
+    /** Value of <meta name="robots">; omitted (indexable by default) when unset. */
+    robots?: string;
     lang?: string;
     image?: string;
     imageAlt?: string;
@@ -18,6 +20,7 @@ interface Props {
 const {
     title,
     description = "Tu enciclopedia Pokémon técnica y definitiva.",
+    robots,
     lang = "es",
     image,
     imageAlt,
@@ -122,6 +125,7 @@ if (Astro.locals.cacheControl) {
         
 		<title>{pageTitle}</title>
         <meta name="description" content={description} />
+        {robots && <meta name="robots" content={robots} />}
         <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Type Calculator, Weakness Chart, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet, Type Coverage" />
         <meta name="author" content="Xarli11" />
         <link rel="canonical" href={canonical} />

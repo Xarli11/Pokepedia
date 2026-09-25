@@ -120,7 +120,8 @@ const FIXTURES: Record<string, unknown> = {
   // Listings.
   '/move?limit=1000': { results: [{ name: 'surf', url: `${API}/move/57/` }] },
   '/ability?limit=500': { results: [{ name: 'torrent', url: `${API}/ability/67/` }] },
-  '/item?limit=2000': { results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
+  // Complete-catalog fetch: head (?limit=1) reports count, then ?limit=count (1 here, same URL).
+  '/item?limit=1': { count: 1, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
   // Homepage (?gen=gen1 default -> generation/1).
   '/generation/1': {
     pokemon_species: [
