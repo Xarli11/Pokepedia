@@ -2,6 +2,24 @@
 
 All notable changes to Pokepedia are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Item quality and indexation policy (`src/utils/itemSeo.ts`) with placeholder detection; `npm run data:items-seo` regenerates the committed manifest of `noindex,follow` items shared by the item pages and the sitemap.
+- Own title, meta description and visible factual sentence for item pages: real text in the page language, else a factual ES/EN fallback built only from explicit fields.
+- TM / TR / HM pages name the move taught by the most recent game and link its move page.
+
+### Fixed
+
+- The item catalog is loaded completely (2223 items; it stopped at 2000 and dropped 223 items from the sitemap and the items index).
+- Placeholder texts (`[VAR (0000)]`, `XXX new effect for …`, `Unknown.`, dashes) are no longer shown as descriptions.
+- Spanish item pages no longer use English text as their meta description.
+
+### Changed
+
+- 749 low-value item pages (dynamax crystals, name-only material/picnic/sandwich/tera-shard items, game-variant duplicates) are `noindex,follow` and left out of the sitemap (8740 → 7686 URLs); they remain reachable pages.
+
 ## [0.12.0] - 2026-09-25
 
 ### Added
