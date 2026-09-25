@@ -5,8 +5,9 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
+import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 
@@ -42,14 +43,28 @@ try {
         // Habilidades desde Showdown (Fuente principal de verdad técnica)
         // La key "H" en el objeto de Showdown indica habilidad oculta
         if (showdownData.abilities) {
-            detail.abilities = Object.entries(showdownData.abilities).map(([key, abilityName]: [string, any]) => ({
-                ability: {
-                    name: abilityName.toLowerCase().replace(/\s+/g, '-'),
-                    url: `https://pokeapi.co/api/v2/ability/${abilityName.toLowerCase().replace(/\s+/g, '-')}`
-                },
-                is_hidden: key === 'H',
-                slot: key === 'H' ? 3 : parseInt(key) + 1
-            }));
+            // Showdown names ("Mind's Eye") are resolved against PokeAPI's real
+            // ability slugs ("minds-eye"); a name that resolves to no single
+            // entity is kept without a slug and rendered unlinked.
+            let abilityIndex: AbilityIndex | null = null;
+            try {
+                abilityIndex = buildAbilityIndex((await getAllAbilities()).map((a) => a.name));
+            } catch (e) {}
+            detail.abilities = Object.entries(showdownData.abilities)
+                .filter(([, abilityName]) => typeof abilityName === 'string' && abilityName.trim() !== '')
+                .map(([key, abilityName]: [string, any]) => {
+                    // Index unavailable (PokeAPI list failed): the previous naive slug.
+                    const slug = abilityIndex ? abilitySlugOrNull(abilityName, abilityIndex) : abilityName.toLowerCase().replace(/\s+/g, '-');
+                    return {
+                        ability: {
+                            name: slug ?? abilityName,
+                            url: slug ? `https://pokeapi.co/api/v2/ability/${slug}` : '',
+                            unresolved: !slug,
+                        },
+                        is_hidden: key === 'H',
+                        slot: key === 'H' ? 3 : parseInt(key) + 1
+                    };
+                });
         }
 
         // Tipos desde Showdown
@@ -106,6 +121,7 @@ try {
         species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
         Promise.all(detail.abilities.map(async (a: any) => {
             try {
+                if (!a.ability.url) throw new Error('unresolved ability');
                 const ad = await getAbilityDetail(a.ability.url);
                 return {
                     ...a,
@@ -318,8 +334,11 @@ const breadcrumbItems = [
                         <div class="col-span-2 border-t border-slate-50 dark:border-slate-800 pt-6 mt-2">
                             <p class="text-slate-400 text-xs font-bold uppercase mb-1">{t.abilities}</p>
                             <div class="space-y-3 mt-3">
-                                {abilitiesWithTranslation.map((a: any) => (
-                                    <a href={pagePath(lang, 'habilidades', a.ability.name)} class="block bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-white dark:hover:bg-slate-700/50 transition-all group/ability no-underline">
+                                {abilitiesWithTranslation.map((a: any) => {
+                                    // A Showdown name that matched no PokeAPI ability has no page to link to.
+                                    const Card = a.ability.unresolved ? 'div' : 'a';
+                                    return (
+                                    <Card href={a.ability.unresolved ? undefined : pagePath(lang, 'habilidades', a.ability.name)} class="block bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-white dark:hover:bg-slate-700/50 transition-all group/ability no-underline">
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400 group-hover/ability:underline">
                                                 {a.displayName}
@@ -327,8 +346,9 @@ const breadcrumbItems = [
                                             {a.is_hidden && <span class="text-[10px] font-bold uppercase tracking-widest bg-slate-200 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded-md">{t.hidden}</span>}
                                         </div>
                                         <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed italic">{a.description}</p>
-                                    </a>
-                                ))}
+                                    </Card>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
