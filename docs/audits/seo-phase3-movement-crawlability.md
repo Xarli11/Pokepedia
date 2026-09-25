@@ -31,6 +31,16 @@ data, and against the built Cloudflare Worker (`wrangler pages dev dist`).
 → `embody-aspect`); 3 unresolved, left unlinked (`''` for MissingNo, `Persistent`
 and `Rebound`, CAP fakemon abilities); 0 normalized-key collisions among the 374 PokeAPI abilities.
 
+## Tests
+
+Base (v0.11.0, `979d828`): 251. Now: 297 (+46, measured with `npm test`).
+New per file: `moveMeta.test.ts` 15, `abilitySlug.test.ts` 13,
+`movement-crawlability.ssr.test.ts` 16, `ability-catalog-unavailable.ssr.test.ts` 2.
+`internal-links.ssr.test.ts` keeps its 8 cases (one assertion updated).
+
+If PokeAPI's ability catalog is unavailable the Pokémon page still answers 200,
+shows the Showdown ability names and links none of them (no slug is guessed).
+
 ## Known limits
 
 - Anchor text in the SSR index and MovesTable is the formatted English slug
