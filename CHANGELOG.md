@@ -2,6 +2,22 @@
 
 All notable changes to Pokepedia are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- The moves index and the Pokémon moves table now expose real `<a href>` links to every `/{lang}/movimientos/{slug}/` page in the initial HTML.
+- The Pokémon moves table server-renders the rows of the initially selected version (level, method, version, name, link) without JavaScript.
+- Move pages have their own title, meta description and visible description: real localized text when it exists, otherwise a factual sentence in the page language built only from explicit data.
+- The move type badge links to the Pokepedia type page.
+- Showdown ability names are resolved against PokeAPI's real ability slugs (`Mind's Eye` → `minds-eye`).
+
+### Fixed
+
+- Move pages no longer share the Spanish default meta description (937 pages per language did); "Dummy data" and "This move can't be used" placeholders are no longer shown as descriptions.
+- The learned-by counter on move pages shows the real total instead of the number of capped cards.
+- Ability links generated from Showdown names no longer 404 (`Mind's Eye`, `Dragon's Maw`, `As One (…)`, `Embody Aspect (…)`); names with no PokeAPI ability are shown unlinked.
+
 ## [0.11.0] - 2026-09-25
 
 ### Added
