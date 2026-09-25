@@ -212,6 +212,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
     <script>
         import { trackEvent } from '../../utils/analytics';
         import { fetchPokemonBySlug } from '../../utils/pokeapiClient';
+        import { resolveFavorites } from '../../utils/favorites';
         import { canonicalPokemonSlug, pagePath } from '../../utils/seo';
 
         const typeColorsClient: Record<string, string> = {
@@ -362,29 +363,18 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 `<div class="h-[500px] bg-white dark:bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-100 dark:border-slate-800"></div>`
             ).join('');
 
-            // A8: use allSettled so a single failing fetch doesn't kill the whole list
-            // Favorites are canonical slugs: a species URL ("basculin") resolves
-            // to its default variety, exactly as the server does.
-            const results = await Promise.allSettled(
-                favorites.map((name: string) => fetchPokemonBySlug<any>(name, 6000))
-            );
+            // Resolve each favorite like the server does (a species slug such as
+            // "basculin" -> its default variety) and deduplicate by canonical
+            // slug, so a legacy "basculin-red-striped" next to "basculin" is one
+            // Pokémon: one card on this very first render, one stored key.
+            // A single failing fetch doesn't kill the list (allSettled inside).
+            const { keys, entities } = await resolveFavorites<any>(favorites, (name) => fetchPokemonBySlug<any>(name, 6000));
 
             grid.innerHTML = '';
-            results.forEach(result => {
-                if (result.status === 'fulfilled' && result.value) {
-                    grid.appendChild(createPokemonCard(result.value, lang));
-                }
-            });
+            entities.forEach((pokemon) => grid.appendChild(createPokemonCard(pokemon, lang)));
 
-            // Legacy favorites saved under a default-form slug
-            // ("basculin-red-striped") still load; re-key them to the canonical
-            // slug so the heart state and toggling stay consistent (no dupes).
-            const migrated = [...new Set(favorites.map((name: string, i: number) => {
-                const result = results[i];
-                return result.status === 'fulfilled' && result.value ? canonicalPokemonSlug(result.value) : name;
-            }))];
-            if (JSON.stringify(migrated) !== JSON.stringify(favorites)) {
-                localStorage.setItem('pokepedia_favorites', JSON.stringify(migrated));
+            if (JSON.stringify(keys) !== JSON.stringify(favorites)) {
+                localStorage.setItem('pokepedia_favorites', JSON.stringify(keys));
             }
 
             applyFilters();

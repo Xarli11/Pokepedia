@@ -18,6 +18,7 @@ All notable changes to Pokepedia are documented in this file.
 - Fixed a case where Astro could turn internal crashes into 404s, because its `/500/` error route matched `/[lang]/`.
 - Favorites now work with canonical species slugs such as `basculin`, `deoxys`, and `zygarde`.
 - Legacy favorites saved under a default-form slug now resolve and are migrated to the canonical slug.
+- Deduplicated legacy and canonical favorite entries during migration so the favorites view renders each Pokémon only once on the first load.
 
 ### Changed
 
