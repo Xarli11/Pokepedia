@@ -118,6 +118,7 @@ export interface MoveDetail {
     flavor_text_entries: {
         flavor_text: string;
         language: { name: string };
+        version_group?: { name: string };
     }[];
     learned_by_pokemon: { name: string; url: string }[];
 }

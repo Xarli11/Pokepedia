@@ -6,6 +6,7 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
+import { buildMoveTitle, resolveMoveDescription, type MoveFacts } from '../../../utils/moveMeta';
 
 const { lang, name } = Astro.params;
 
@@ -21,10 +22,31 @@ if (name !== moveData.name) {
 }
 
 const localizedName = getLocalizedName(moveData.names, lang as string) || formatName(moveData.name);
-const description = moveData.flavor_text_entries.find((f) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
-                  moveData.flavor_text_entries.find((f) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || "";
+const moveType = moveData.type.name;
+// Types without a Pokepedia page (PokeAPI's "shadow", used by 18 XD moves)
+// stay plain text: /tipo/shadow/ would 404.
+const typePageExists = moveType in typeColors;
+const typeLabel = typeTranslations[lang as string]?.[moveType] || formatName(moveType);
 
-const pokemonList = await getPokemonListByUrls(moveData.learned_by_pokemon.map((p) => p.url), 40);
+const facts: MoveFacts = {
+    name: localizedName,
+    typeLabel,
+    category: moveData.damage_class.name,
+    power: moveData.power,
+    accuracy: moveData.accuracy,
+    pp: moveData.pp,
+    priority: moveData.priority,
+};
+// Real localized flavor text when it exists; otherwise a factual sentence in
+// the page language (never English text on a Spanish page).
+const description = resolveMoveDescription(lang as string, facts, moveData.flavor_text_entries);
+const pageTitle = buildMoveTitle(lang as string, facts);
+
+// The list is capped for page weight; the counter reports the real total
+// (learned_by_pokemon), not the number of cards rendered.
+const POKEMON_LIST_LIMIT = 40;
+const totalLearnedBy = moveData.learned_by_pokemon.length;
+const pokemonList = await getPokemonListByUrls(moveData.learned_by_pokemon.map((p) => p.url), POKEMON_LIST_LIMIT);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 
@@ -47,7 +69,7 @@ const breadcrumbItems = [
 ];
 ---
 
-<Layout title={`${localizedName} | ${t.moves}`} lang={lang}>
+<Layout title={pageTitle} description={description.text} lang={lang}>
     <div class="max-w-5xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
         <a href={pagePath(lang as string, 'movimientos')} class="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 font-medium transition-colors mb-8 group">
@@ -60,9 +82,15 @@ const breadcrumbItems = [
             <div class="md:col-span-8">
                 <div class="bg-white dark:bg-slate-800 rounded-[3.5rem] p-10 md:p-14 border border-slate-100 dark:border-slate-700 shadow-2xl shadow-slate-200/50 dark:shadow-black/50 h-full transition-colors duration-300">
                     <div class="flex flex-wrap items-center gap-3 mb-8">
-                        <span class="px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg" style={`background-color: ${typeColors[moveData.type.name]}`}>
-                            {typeTranslations[lang as string][moveData.type.name]}
-                        </span>
+                        {typePageExists ? (
+                            <a href={pagePath(lang as string, 'tipo', moveType)} class="px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg no-underline hover:brightness-110 transition" style={`background-color: ${typeColors[moveType]}`}>
+                                {typeLabel}
+                            </a>
+                        ) : (
+                            <span class="px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg bg-slate-500">
+                                {typeLabel}
+                            </span>
+                        )}
                         <span class={`${categoryColors[moveData.damage_class.name]} text-white px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg`}>
                             {categoryLabels[moveData.damage_class.name]}
                         </span>
@@ -71,7 +99,7 @@ const breadcrumbItems = [
                     <div class="mb-6"><ReportDataIssue entityType="move" entitySlug={moveData.name} lang={lang as string} /></div>
                     <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-3xl p-8 border border-emerald-100/50 dark:border-emerald-900/20">
                         <p class="text-xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
-                            "{description}"
+                            {description.source === 'flavor' ? `"${description.text}"` : description.text}
                         </p>
                     </div>
                 </div>
@@ -127,7 +155,10 @@ const breadcrumbItems = [
         <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-10 px-4 flex items-center gap-4">
             <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
             {t.pokemon_with_move}
-            <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{pokemonList.length}</span>
+            <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{totalLearnedBy}</span>
+            {totalLearnedBy > pokemonList.length && (
+                <span class="text-xs font-bold text-slate-400 dark:text-slate-600">{lang === 'es' ? `Mostrando ${pokemonList.length}` : `Showing ${pokemonList.length}`}</span>
+            )}
         </h2>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">

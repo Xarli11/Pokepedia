@@ -1,5 +1,6 @@
 ---
 import { uiTranslations, methodTranslations, versionTranslations, formatName } from '../utils/pokemon';
+import { pagePath } from '../utils/seo';
 
 interface Props {
     moves: {
@@ -55,6 +56,16 @@ const movesByVersion = versionGroups.reduce((acc, version) => {
 const initialVersion = versionGroups.length > 0
     ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
     : '';
+
+// Rows for the initially selected version, server-rendered from data already in
+// hand (no per-move fetch) so the Pokémon -> Move relation and the canonical
+// /movimientos/{slug}/ links exist without JavaScript. Same order as the
+// client's renderMoves(); category / priority / effect need a per-move fetch
+// and are filled in by the client.
+const ssrRows = (movesByVersion[initialVersion] || [])
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => ((parseInt(a.m.level) || 0) - (parseInt(b.m.level) || 0)) || a.i - b.i)
+    .map(({ m }) => m);
 ---
 
 <div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300"
@@ -112,13 +123,31 @@ const initialVersion = versionGroups.length > 0
                     <th class="px-8 py-6">{t.moves_col_effect}</th>
                 </tr>
             </thead>
-            <tbody id="movesTableBody" class="divide-y divide-slate-50 dark:divide-slate-700/50"></tbody>
+            <tbody id="movesTableBody" class="divide-y divide-slate-50 dark:divide-slate-700/50">
+                {ssrRows.map((m) => (
+                    <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
+                        <td class="px-4 py-6 font-black text-emerald-600 dark:text-emerald-400">{m.level === 0 ? '-' : m.level}</td>
+                        <td class="px-6 py-6 font-bold text-slate-900 dark:text-white capitalize truncate">
+                            <a href={pagePath(lang, 'movimientos', m.slug)} class="no-underline hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" data-move-url={m.url}>{m.name}</a>
+                        </td>
+                        <td class="px-4 py-6"><span class="category-badge inline-block h-5 w-14 rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse" data-move-cat-url={m.url} aria-hidden="true"></span></td>
+                        <td class="px-4 py-6 font-mono text-xs text-slate-400" data-move-priority-url={m.url}></td>
+                        <td class="px-4 py-6">
+                            <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">{m.methodLabel}</span>
+                        </td>
+                        <td class="px-4 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">{m.versionLabel}</td>
+                        <td class="px-8 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc-url={m.url}></td>
+                    </tr>
+                ))}
+            </tbody>
         </table>
         <div id="noMoves" class="hidden p-20 text-center text-slate-400 dark:text-slate-600 font-bold tracking-tight">{t.no_moves}</div>
     </div>
 </div>
 
 <script>
+    import { pagePath } from '../utils/seo';
+
     const moveCache = new Map();
 
     async function fetchMoveInfo(url: string, lang: string) {
@@ -200,7 +229,9 @@ const initialVersion = versionGroups.length > 0
                 return `
                     <tr class="hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors">
                         <td class="px-4 py-6 font-black text-emerald-600 dark:text-emerald-400">${m.level === 0 ? '-' : m.level}</td>
-                        <td class="px-6 py-6 font-bold text-slate-900 dark:text-white capitalize truncate" data-move-url="${m.url}">${displayName}</td>
+                        <td class="px-6 py-6 font-bold text-slate-900 dark:text-white capitalize truncate">
+                            <a href="${pagePath(lang, 'movimientos', m.slug)}" class="no-underline hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" data-move-url="${m.url}">${displayName}</a>
+                        </td>
                         <td class="px-4 py-6">
                             <span class="category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white ${categoryColors[category] || 'bg-slate-400'} shadow-sm" data-move-cat-url="${m.url}">
                                 ${category}
