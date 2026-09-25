@@ -50,6 +50,7 @@ async function main() {
   const variants = findDuplicateNameVariants(details.map((d) => ({ name: d.name, names: d.names, quality: itemQualityScore(d) })));
   const noindex: Record<string, string> = {};
   const byFamily: Record<string, { total: number; noindex: number }> = {};
+  const decisions = { index: 0, 'index-improve': 0, noindex: 0, 'duplicate-variant (noindex)': 0 };
 
   for (const item of details) {
     const family = classifyItemFamily(item.name, item.category?.name);
@@ -58,6 +59,9 @@ async function main() {
     byFamily[family].total++;
     let reason: string | null = policy.decision === 'noindex' ? `${policy.reason}` : null;
     if (!reason && variants.has(item.name)) reason = `duplicate-name-variant of ${variants.get(item.name)}`;
+    if (policy.decision === 'noindex') decisions.noindex++;
+    else if (variants.has(item.name)) decisions['duplicate-variant (noindex)']++;
+    else decisions[policy.decision]++;
     if (reason) {
       noindex[item.name] = reason;
       byFamily[family].noindex++;
@@ -80,6 +84,7 @@ async function main() {
   }
   await writeFile(OUT, json);
   console.log(`items ${catalog.length}, noindex ${manifest.noindexCount}, indexable ${catalog.length - manifest.noindexCount}`);
+  console.log('decisions', JSON.stringify(decisions));
   console.table(byFamily);
 }
 
