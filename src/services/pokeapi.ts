@@ -356,10 +356,8 @@ export async function getPokemonByType(typeSlug: string): Promise<PokemonListEnt
  * instead of silently emitting links to redirecting default-form URLs.
  */
 export async function getSpeciesNamesById(): Promise<Map<number, string>> {
-    const data = await fetchWithCache<{ results: { name: string; url: string }[] }>(
-        'https://pokeapi.co/api/v2/pokemon-species?limit=2000'
-    );
-    return new Map(data.results.map((s) => [idFromResourceUrl(s.url), s.name]));
+    const species = await getCompleteResourceList('pokemon-species');
+    return new Map(species.map((s) => [idFromResourceUrl(s.url), s.name]));
 }
 
 /**
@@ -515,20 +513,35 @@ interface ResourceListPage {
 }
 
 /**
+ * Page size asked of PokeAPI list endpoints: "everything". Not a catalog
+ * size: PokeAPI honours any limit and answers `count`, and the result is
+ * checked against that `count` below, so a catalog outgrowing (or an API
+ * capping) this value is completed or rejected, never silently truncated.
+ */
+export const LIST_REQUEST_LIMIT = 100000;
+
+/**
  * Complete list of a PokeAPI resource, however many entries it has.
  *
- * `?limit=N` with a hard-coded N silently truncates once the catalog grows:
- * /item?limit=2000 returned 2000 of 2223 items, dropping 223 (TMs, mega
- * stones, picnic items...) from the sitemap and the items index. The list is
- * therefore requested with the API's own `count`, and if a page still comes
- * back short it is completed by following `next`, so the result is
- * `count` entries by construction (checked, not assumed).
+ * `?limit=N` with a hard-coded catalog-sized N silently truncates once the
+ * catalog grows: /item?limit=2000 returned 2000 of 2223 items, dropping 223
+ * (TMs, mega stones, picnic items...) from the sitemap and the items index;
+ * /move?limit=1000 and /ability?limit=500 were the same latent bug. One
+ * request asks for everything; the response's own `count` is the contract:
+ * if the page still comes back short it is completed by following `next`,
+ * and if that can't reach `count` the call throws (503 upstream) instead of
+ * serving a partial catalog. `count` entries by construction (checked, not
+ * assumed). Entries are deduplicated by name (PokeAPI lists e.g.
+ * roseli-berry twice), so callers never emit the same URL twice.
  */
 export async function getCompleteResourceList(resource: string): Promise<NamedResource[]> {
     const base = `https://pokeapi.co/api/v2/${resource}`;
-    const head = await fetchWithCache<ResourceListPage>(`${base}?limit=1`);
-    const count = head.count;
-    let page = await fetchWithCache<ResourceListPage>(`${base}?limit=${count}`);
+    let page = await fetchWithCache<ResourceListPage>(`${base}?limit=${LIST_REQUEST_LIMIT}`);
+    const count = page.count;
+    if (typeof count !== 'number' || !Array.isArray(page.results)) {
+        // Without `count` completeness can't be checked: not a catalog.
+        throw new UpstreamError(`PokeAPI ${resource} list malformed (no count/results)`, undefined);
+    }
     const results = [...page.results];
     // Defensive: follow `next` (bounded by count) if the server capped the page.
     let guard = 0;
@@ -536,22 +549,21 @@ export async function getCompleteResourceList(resource: string): Promise<NamedRe
         page = await fetchWithCache<ResourceListPage>(page.next);
         results.push(...page.results);
     }
-    if (results.length !== count) {
+    if (results.length < count) {
         throw new UpstreamError(`PokeAPI ${resource} list incomplete: ${results.length} of ${count}`);
     }
-    return results;
+    const seen = new Set<string>();
+    return results.filter((entry) => {
+        if (seen.has(entry.name)) return false;
+        seen.add(entry.name);
+        return true;
+    });
 }
 
 export async function getAllItems(): Promise<NamedResource[]> {
     const { isRealItem } = await import('../utils/pokemon');
-    const seen = new Set<string>();
-    // PokeAPI lists at least one slug twice (roseli-berry: ids 723 and 2279),
-    // which would emit the same URL twice.
-    return (await getCompleteResourceList('item')).filter((item) => {
-        if (!isRealItem(item.name) || seen.has(item.name)) return false;
-        seen.add(item.name);
-        return true;
-    });
+    // getCompleteResourceList already dedupes (roseli-berry: ids 723 and 2279).
+    return (await getCompleteResourceList('item')).filter((item) => isRealItem(item.name));
 }
 
 /**
@@ -561,9 +573,8 @@ export async function getAllItems(): Promise<NamedResource[]> {
  * whereas the `pokemon` list names 37 species by their default variety
  * ("basculin-red-striped"), which now 301s to the species URL.
  */
-export async function getAllPokemonBasic(limit: number = 1025): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon-species?limit=${limit}`);
-    return data.results || [];
+export async function getAllPokemonBasic(): Promise<NamedResource[]> {
+    return getCompleteResourceList('pokemon-species');
 }
 
 export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
@@ -643,14 +654,12 @@ export async function getPokemonListByUrls(urls: string[], limit: number): Promi
         .map(r => r.value);
 }
 
-export async function getAllAbilities(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/ability?limit=500');
-    return data.results;
+export async function getAllAbilities(): Promise<NamedResource[]> {
+    return getCompleteResourceList('ability');
 }
 
-export async function getAllMoves(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/move?limit=1000');
-    return data.results;
+export async function getAllMoves(): Promise<NamedResource[]> {
+    return getCompleteResourceList('move');
 }
 
 export function getLocalizedName(names: PokemonName[] | undefined, lang: string): string {
@@ -695,8 +704,8 @@ export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
             return cached.data;
         }
 
-        const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon-species?limit=2000');
-        const baseSpecies = data.results.map((p: any) => {
+        const species = await getCompleteResourceList('pokemon-species');
+        const baseSpecies = species.map((p: any) => {
             const id = parseInt(p.url.split('/').filter(Boolean).pop());
             return { 
                 name: p.name, 
@@ -705,8 +714,9 @@ export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
             };
         });
 
-        const varData = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon?limit=1000&offset=1025');
-        const varieties = varData.results
+        // Varieties/forms are the `pokemon` entries with id >= 10000.
+        const varData = await getCompleteResourceList('pokemon');
+        const varieties = varData
             .map((p: any) => {
                 const id = parseInt(p.url.split('/').filter(Boolean).pop());
                 if (id < 10000) return null;

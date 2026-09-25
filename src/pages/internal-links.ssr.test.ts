@@ -118,10 +118,10 @@ const FIXTURES: Record<string, unknown> = {
   },
   '/machine/1': { move: { name: 'surf', url: `${API}/move/surf/` } },
   // Listings.
-  '/move?limit=1000': { results: [{ name: 'surf', url: `${API}/move/57/` }] },
-  '/ability?limit=500': { results: [{ name: 'torrent', url: `${API}/ability/67/` }] },
-  // Complete-catalog fetch: head (?limit=1) reports count, then ?limit=count (1 here, same URL).
-  '/item?limit=1': { count: 1, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
+  '/move?limit=100000': { count: 1, next: null, results: [{ name: 'surf', url: `${API}/move/57/` }] },
+  '/ability?limit=100000': { count: 1, next: null, results: [{ name: 'torrent', url: `${API}/ability/67/` }] },
+  // Complete-catalog fetch: one request, verified against the response's own `count`.
+  '/item?limit=100000': { count: 1, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
   // Homepage (?gen=gen1 default -> generation/1).
   '/generation/1': {
     pokemon_species: [

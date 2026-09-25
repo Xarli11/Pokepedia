@@ -70,7 +70,7 @@ const ROUTES: Record<string, unknown> = {
   '/item/leftovers': ITEM_LEFTOVERS,
   '/item/211': ITEM_LEFTOVERS,
   '/type/water': { pokemon: [] },
-  '/pokemon-species?limit=2000': { results: [] },
+  '/pokemon-species?limit=100000': { count: 0, next: null, results: [] },
   // The type landing also builds its generation breakdown from generations 1-9.
   ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`/generation/${i + 1}`, { pokemon_species: [] }])),
   // Upstream failures

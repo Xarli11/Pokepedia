@@ -67,7 +67,7 @@ export function buildSitemapXml(
 
 export const GET: APIRoute = async () => {
   const [pokemon, moves, abilities, items] = await Promise.all([
-    safeList(getAllPokemonBasic(1025), 'pokemon'),
+    safeList(getAllPokemonBasic(), 'pokemon'),
     safeList(getAllMoves(), 'moves'),
     safeList(getAllAbilities(), 'abilities'),
     safeList(getAllItems(), 'items'),

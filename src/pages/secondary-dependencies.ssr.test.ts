@@ -60,7 +60,7 @@ const ROUTES: Record<string, unknown> = {
   },
   // Type landing: type list + species names present, generations 3-9 missing.
   '/type/water': { pokemon: [{ pokemon: { name: 'feraligatr', url: `${API}/pokemon/160/` } }] },
-  '/pokemon-species?limit=2000': { results: [{ name: 'feraligatr', url: `${API}/pokemon-species/160/` }] },
+  '/pokemon-species?limit=100000': { count: 1, next: null, results: [{ name: 'feraligatr', url: `${API}/pokemon-species/160/` }] },
   '/generation/1': { pokemon_species: [] },
   '/generation/2': { pokemon_species: [{ name: 'feraligatr', url: `${API}/pokemon-species/160/` }] },
 };
