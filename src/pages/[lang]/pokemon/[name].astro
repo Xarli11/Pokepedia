@@ -44,8 +44,9 @@ try {
         // La key "H" en el objeto de Showdown indica habilidad oculta
         if (showdownData.abilities) {
             // Showdown names ("Mind's Eye") are resolved against PokeAPI's real
-            // ability slugs ("minds-eye"); a name that resolves to no single
-            // entity is kept without a slug and rendered unlinked.
+            // ability slugs ("minds-eye"). Optional dependency: if the catalog is
+            // unavailable, or a name matches no single entity, no slug is guessed
+            // and the ability is shown by its Showdown name without a link.
             let abilityIndex: AbilityIndex | null = null;
             try {
                 abilityIndex = buildAbilityIndex((await getAllAbilities()).map((a) => a.name));
@@ -53,8 +54,7 @@ try {
             detail.abilities = Object.entries(showdownData.abilities)
                 .filter(([, abilityName]) => typeof abilityName === 'string' && abilityName.trim() !== '')
                 .map(([key, abilityName]: [string, any]) => {
-                    // Index unavailable (PokeAPI list failed): the previous naive slug.
-                    const slug = abilityIndex ? abilitySlugOrNull(abilityName, abilityIndex) : abilityName.toLowerCase().replace(/\s+/g, '-');
+                    const slug = abilityIndex ? abilitySlugOrNull(abilityName, abilityIndex) : null;
                     return {
                         ability: {
                             name: slug ?? abilityName,
