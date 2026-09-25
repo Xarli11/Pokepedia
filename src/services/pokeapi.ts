@@ -1,6 +1,7 @@
 // src/services/pokeapi.ts
 
 import { EntityNotFoundError, NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
+import { UPSTREAM_TIMEOUT_MS, SLOW_UPSTREAM_MS, fetchWithTimeout, logUpstream } from './upstream';
 import { defaultVariety } from '../utils/seo';
 
 export interface PokemonType {
@@ -96,9 +97,10 @@ export interface PokemonSpecies {
  * Obtiene la cadena evolutiva completa por su URL.
  */
 export async function getEvolutionChain(url: string) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al obtener cadena evolutiva');
-    return response.json();
+    // Optional enrichment: the caller degrades if this rejects. Cached and
+    // timed like every other PokeAPI resource (it used a bare, uncached,
+    // untimed fetch, so every Pokémon page re-downloaded it).
+    return fetchWithCache<any>(url);
 }
 
 export interface MoveDetail {
@@ -144,46 +146,172 @@ export interface AbilityDetail {
 }
 
 /**
- * Simple In-Memory Cache for Node.js SSR
+ * PokeAPI fetch layer: one place for timeout, bounded retry, in-flight
+ * de-duplication, the per-isolate cache and stale-on-error.
+ *
+ * Cache policy (in-memory, one Cloudflare Workers isolate; nothing is
+ * shared across isolates or persisted):
+ *  - what: successful (2xx, valid JSON) PokeAPI GET responses, keyed by the
+ *    exact URL (plus an optional `variant` when a reduced projection of the
+ *    same URL is stored). Language is never part of a key: PokeAPI resources
+ *    carry every language and pages pick theirs at render time.
+ *  - TTL: 24 h (the data changes with game releases, not with traffic).
+ *  - never cached: any failure (404, 429, 5xx, timeout, network error,
+ *    non-JSON). A failure is not stored and does not poison later requests.
+ *  - stale-on-error: if an entry is past its TTL and PokeAPI is failing
+ *    (UpstreamError only: timeout / network / 5xx / 429 / bad JSON) the
+ *    previous *valid* copy of that same URL is served for up to
+ *    STALE_MAX_AGE_MS and retried after STALE_RETRY_MS. A 404 is never
+ *    answered from stale (the entity is gone), and with no previous copy
+ *    the error propagates untouched (503 by src/middleware.ts).
+ *  - bounded: LRU capped at CACHE_MAX_ENTRIES so a long-lived isolate
+ *    cannot grow without limit (full pokemon/{id} objects are ~300 KB).
+ *  - in-flight de-duplication: concurrent identical requests share one
+ *    fetch (e.g. two evolution requirements naming the same item).
  */
-const cache = new Map<string, { data: any, timestamp: number }>();
+// timestamp: freshness clock (pushed forward when a stale copy is re-served);
+// storedAt: when the data was really fetched, which bounds how stale it may get.
+const cache = new Map<string, { data: any, timestamp: number, storedAt?: number }>();
+const inflight = new Map<string, Promise<any>>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
+const STALE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+const STALE_RETRY_MS = 1000 * 60;
+const CACHE_MAX_ENTRIES = 400;
+
+// Retry policy for GET requests: at most ONE retry, only for a transient
+// fault that answered fast (network error, HTTP 5xx), never for a timeout
+// (it already spent its budget), a 4xx (404 entity, 429 rate limit: retrying
+// would multiply the problem) or invalid JSON; and always inside the same
+// overall deadline as a single attempt.
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 250;
 
 interface FetchOptions {
     ttl?: number;
     /** See UpstreamStatusOptions: only primary entity lookups by slug set it. */
     invalidIdIsNotFound?: boolean;
+    /**
+     * Stores `transform(data)` under `${url}#${variant}` instead of the full
+     * response: for callers that need a few fields of a large resource.
+     */
+    variant?: string;
+    transform?: (data: any) => any;
 }
 
-async function fetchWithCache<T>(url: string, { ttl = CACHE_TTL, invalidIdIsNotFound = false }: FetchOptions = {}): Promise<T> {
-    const cached = cache.get(url);
+function cacheGet(key: string) {
+    const hit = cache.get(key);
+    if (hit) {
+        // LRU touch.
+        cache.delete(key);
+        cache.set(key, hit);
+    }
+    return hit;
+}
+
+function cacheSet(key: string, data: unknown, timestamp: number, storedAt: number = timestamp) {
+    cache.delete(key);
+    cache.set(key, { data, timestamp, storedAt });
+    while (cache.size > CACHE_MAX_ENTRIES) {
+        cache.delete(cache.keys().next().value as string);
+    }
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function requestJson<T>(url: string, invalidIdIsNotFound: boolean): Promise<T> {
+    const deadline = Date.now() + UPSTREAM_TIMEOUT_MS.pokeapi;
+    for (let attempt = 1; ; attempt++) {
+        const started = Date.now();
+        const canRetry = () => attempt < MAX_ATTEMPTS && Date.now() + RETRY_DELAY_MS < deadline;
+        let response: Response;
+        try {
+            response = await fetch(url, { signal: AbortSignal.timeout(Math.max(1, deadline - started)) });
+        } catch (error) {
+            // fetch only rejects when no HTTP answer arrived: the timeout
+            // (TimeoutError) or a network/DNS/TLS failure (TypeError).
+            const name = (error as Error)?.name ?? 'Error';
+            const timedOut = name === 'TimeoutError' || name === 'AbortError';
+            logUpstream({ event: 'upstream_error', url, ms: Date.now() - started, error: name, attempt });
+            if (!timedOut && canRetry()) {
+                logUpstream({ event: 'upstream_retry', url, error: name, attempt });
+                await sleep(RETRY_DELAY_MS);
+                continue;
+            }
+            throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
+        }
+        const ms = Date.now() - started;
+        if (!response.ok) {
+            const failure = errorForUpstreamStatus(response.status, url, { invalidIdIsNotFound });
+            if (failure instanceof UpstreamError) {
+                logUpstream({ event: 'upstream_error', url, status: response.status, ms, error: failure.name, attempt });
+                if (response.status >= 500 && canRetry()) {
+                    logUpstream({ event: 'upstream_retry', url, status: response.status, attempt });
+                    await sleep(RETRY_DELAY_MS);
+                    continue;
+                }
+            }
+            throw failure;
+        }
+        try {
+            const data = (await response.json()) as T;
+            if (ms > SLOW_UPSTREAM_MS) logUpstream({ event: 'upstream_slow', url, status: response.status, ms });
+            return data;
+        } catch (error) {
+            // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
+            // truncated body), not a missing entity.
+            logUpstream({ event: 'upstream_error', url, status: response.status, ms, error: 'InvalidJson', attempt });
+            throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
+        }
+    }
+}
+
+async function fetchWithCache<T>(url: string, { ttl = CACHE_TTL, invalidIdIsNotFound = false, variant, transform }: FetchOptions = {}): Promise<T> {
+    const key = variant ? `${url}#${variant}` : url;
+    const cached = cacheGet(key);
     const now = Date.now();
 
     if (cached && (now - cached.timestamp < ttl)) {
         return cached.data;
     }
 
-    let response: Response;
-    try {
-        response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    } catch (error) {
-        // fetch only rejects when no HTTP answer arrived: the 8s timeout
-        // (TimeoutError) or a network/DNS/TLS failure (TypeError).
-        throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
-    }
-    if (!response.ok) throw errorForUpstreamStatus(response.status, url, { invalidIdIsNotFound });
+    // The 400-is-NotFound flag changes how a failure is classified, so it is
+    // part of the in-flight key: a primary lookup never shares a promise
+    // with (and inherits the errors of) a secondary one.
+    const flightKey = invalidIdIsNotFound ? `${key}|entity` : key;
+    const pending = inflight.get(flightKey);
+    if (pending) return pending as Promise<T>;
 
-    let data: T;
-    try {
-        data = await response.json();
-    } catch (error) {
-        // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
-        // truncated body), not a missing entity.
-        throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
-    }
+    const load = (async () => {
+        try {
+            const raw = await requestJson<T>(url, invalidIdIsNotFound);
+            const data = transform ? transform(raw) : raw;
+            cacheSet(key, data, Date.now());
+            return data as T;
+        } catch (error) {
+            if (error instanceof UpstreamError && cached && now - (cached.storedAt ?? cached.timestamp) < STALE_MAX_AGE_MS) {
+                logUpstream({ event: 'upstream_stale', url, status: error.status, error: error.name });
+                // Serve the last valid copy and don't hammer a failing upstream:
+                // it counts as fresh for STALE_RETRY_MS.
+                cacheSet(key, cached.data, Date.now() - ttl + STALE_RETRY_MS, cached.storedAt ?? cached.timestamp);
+                return cached.data as T;
+            }
+            throw error;
+        } finally {
+            inflight.delete(flightKey);
+        }
+    })();
+    inflight.set(flightKey, load);
+    return load;
+}
 
-    cache.set(url, { data, timestamp: now });
-    return data;
+/**
+ * Cached, timed, classified GET of any PokeAPI resource URL, for callers
+ * outside this module that used a bare fetch(): same failure semantics as
+ * every other secondary lookup (UpstreamError / NotFoundError, never
+ * EntityNotFoundError).
+ */
+export function fetchPokeApiCached<T = any>(url: string): Promise<T> {
+    return fetchWithCache<T>(url);
 }
 
 /**
@@ -390,7 +518,7 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
         const cleanName = name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
         const url = `https://www.wikidex.net/api.php?action=query&prop=extracts&titles=${cleanName}&format=json&exintro=1&explaintext=1&origin=*`;
         
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, 'wikidex');
         if (!response.ok) return null;
         
         const data = await response.json();

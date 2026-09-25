@@ -1,6 +1,7 @@
 import type { APIContext, MiddlewareNext } from 'astro';
 import { isSupportedLang, pagePath } from './utils/seo';
 import { errorResponse, notFoundResponse } from './utils/httpResponses';
+import { EntityNotFoundError, NotFoundError, UpstreamError } from './services/errors';
 
 function parsePreferredLang(acceptLang: string): string {
     // Parse "es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7" → highest-q wins
@@ -41,6 +42,19 @@ export async function onRequest(context: APIContext, next: MiddlewareNext) {
     try {
         return await next();
     } catch (error) {
+        // One line per failed page: which class of failure (=> which HTTP
+        // status), on which path, caused by which endpoint (the error message
+        // names the upstream URL). A 404 for an unknown slug is routine
+        // (crawlers probe), so only 503 / 500 are logged.
+        if (!(error instanceof EntityNotFoundError)) {
+            console.error(JSON.stringify({
+                evt: 'page_error',
+                path: url.pathname,
+                error: (error as Error)?.name,
+                status: error instanceof NotFoundError || error instanceof UpstreamError ? 503 : 500,
+                message: (error as Error)?.message,
+            }));
+        }
         return errorResponse(error);
     }
 }
