@@ -503,10 +503,55 @@ export async function getItemDetail(name: string) {
     return lookupEntity<any>(`https://pokeapi.co/api/v2/item/${name}`);
 }
 
-export async function getAllItems(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/item?limit=2000');
+export interface NamedResource {
+    name: string;
+    url: string;
+}
+
+interface ResourceListPage {
+    count: number;
+    next: string | null;
+    results: NamedResource[];
+}
+
+/**
+ * Complete list of a PokeAPI resource, however many entries it has.
+ *
+ * `?limit=N` with a hard-coded N silently truncates once the catalog grows:
+ * /item?limit=2000 returned 2000 of 2223 items, dropping 223 (TMs, mega
+ * stones, picnic items...) from the sitemap and the items index. The list is
+ * therefore requested with the API's own `count`, and if a page still comes
+ * back short it is completed by following `next`, so the result is
+ * `count` entries by construction (checked, not assumed).
+ */
+export async function getCompleteResourceList(resource: string): Promise<NamedResource[]> {
+    const base = `https://pokeapi.co/api/v2/${resource}`;
+    const head = await fetchWithCache<ResourceListPage>(`${base}?limit=1`);
+    const count = head.count;
+    let page = await fetchWithCache<ResourceListPage>(`${base}?limit=${count}`);
+    const results = [...page.results];
+    // Defensive: follow `next` (bounded by count) if the server capped the page.
+    let guard = 0;
+    while (page.next && results.length < count && guard++ < 50) {
+        page = await fetchWithCache<ResourceListPage>(page.next);
+        results.push(...page.results);
+    }
+    if (results.length !== count) {
+        throw new UpstreamError(`PokeAPI ${resource} list incomplete: ${results.length} of ${count}`);
+    }
+    return results;
+}
+
+export async function getAllItems(): Promise<NamedResource[]> {
     const { isRealItem } = await import('../utils/pokemon');
-    return data.results.filter((item: any) => isRealItem(item.name));
+    const seen = new Set<string>();
+    // PokeAPI lists at least one slug twice (roseli-berry: ids 723 and 2279),
+    // which would emit the same URL twice.
+    return (await getCompleteResourceList('item')).filter((item) => {
+        if (!isRealItem(item.name) || seen.has(item.name)) return false;
+        seen.add(item.name);
+        return true;
+    });
 }
 
 /**
