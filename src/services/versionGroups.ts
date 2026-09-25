@@ -31,6 +31,10 @@ export const VERSION_GROUP_ORDER: readonly string[] = [
   'brilliant-diamond-shining-pearl',
   'legends-arceus',
   'scarlet-violet',
+  'the-teal-mask',
+  'the-indigo-disk',
+  'legends-za',
+  'mega-dimension',
 ];
 
 const RANK_BY_NAME: Record<string, number> = Object.fromEntries(

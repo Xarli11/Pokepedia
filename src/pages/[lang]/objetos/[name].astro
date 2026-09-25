@@ -5,8 +5,10 @@ import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
-import { uiTranslations, formatName, itemTranslations, getItemSuperCategory } from '../../../utils/pokemon';
+import { uiTranslations, formatName, itemTranslations, getItemSuperCategory, typeTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
+import { buildItemTitle, resolveItemDescription, machineKind, pickLatestMachine, machineVersionLabel, teraShardType, type ItemFacts } from '../../../utils/itemMeta';
+import { itemRobots } from '../../../utils/itemIndexing';
 
 const { lang, name } = Astro.params;
 
@@ -27,29 +29,60 @@ const i18nItems = itemTranslations[lang as string] || itemTranslations.es;
 // P0 #9: effect_entries (mechanics) is the primary, canonical description.
 // flavor_text_entries (in-game flavor) is secondary and must never be
 // presented as the exact mechanical effect — see src/utils/items.ts for why.
+// Placeholder text ("[VAR (0000)]", "Unknown.", "XXX new effect…") never gets here.
 const effect = selectItemEffect(itemData.effect_entries, lang as string);
 const flavor = selectItemFlavor(itemData.flavor_text_entries, lang as string);
-const description = effect?.text || flavor?.text || (uiTranslations[lang as string] || uiTranslations.es).item_no_effect_available;
 const categoryKey = itemData.category?.name;
 const superCategoryKey = getItemSuperCategory(categoryKey || '');
 const categoryName = i18nItems[superCategoryKey] || i18nItems[categoryKey] || formatName(categoryKey || '---');
 
-// Lógica especial para MTs
-let moveDetail = null;
-if (categoryKey === 'all-machines' && itemData.machines && itemData.machines.length > 0) {
-    const moveData = await getMachineMove(itemData.machines[0].machine.url);
+// TM / TR / HM: the move it teaches comes from the machine of the most recent
+// version group (machines[0] is the oldest one and named a different move for
+// most TMs). Two requests at most (machine + move), same as before.
+let moveDetail: { name: string; url: string; versionLabel: string | null } | null = null;
+const latestMachine = pickLatestMachine(itemData.machines as { machine: { url: string }; version_group: { name: string } }[] | undefined);
+if (latestMachine) {
+    const moveData = await getMachineMove(latestMachine.machine.url);
     if (moveData) {
         moveDetail = {
             name: getLocalizedName(moveData.names, lang as string) || formatName(moveData.name),
-            url: pagePath(lang as string, 'movimientos', moveData.name)
+            url: pagePath(lang as string, 'movimientos', moveData.name),
+            versionLabel: machineVersionLabel(lang as string, latestMachine.version_group.name)
         };
     }
 }
+const isMachine = machineKind(itemData.name) !== null;
+// A machine's own effect / flavor text can describe another generation's move.
+// (only when the move can be stated together with its game, as the description does).
+const showItemTexts = !(isMachine && moveDetail?.versionLabel);
+
+// Tera Shard -> its type, from the "{type}-tera-shard" name (only for real Pokepedia types).
+const teraType = teraShardType(itemData.name);
+const teraTypeLabel = teraType ? typeTranslations[lang as string]?.[teraType] || null : null;
+
+const localizedAttributes = (itemData.attributes || []).map((a: any) => i18nItems[a.name]).filter(Boolean) as string[];
+const facts: ItemFacts = {
+    name: localizedName,
+    slug: itemData.name,
+    categoryLabel: i18nItems[superCategoryKey] || i18nItems[categoryKey] || null,
+    attributeLabels: localizedAttributes,
+    flingPower: itemData.fling_power,
+    cost: itemData.cost,
+    teaches: moveDetail ? { moveName: moveDetail.name, versionLabel: moveDetail.versionLabel } : null,
+    teraTypeLabel,
+};
+// Real text in the PAGE language (an English effect on a Spanish page is shown
+// in the body with its notice, but never becomes the Spanish meta description).
+const realText = (effect?.language === lang ? effect?.text : null) || (flavor?.language === lang ? flavor?.text : null);
+const description = resolveItemDescription(lang as string, facts, showItemTexts ? realText : null);
+const pageTitle = buildItemTitle(lang as string, facts);
+const robots = itemRobots(itemData.name);
 
 // Obtener detalles de Pokémon que pueden llevar este objeto
+const HELD_BY_LIMIT = 15;
 const heldByPokemon = await getPokemonListByUrls(
     (itemData.held_by_pokemon || []).map((h: any) => h.pokemon.url),
-    15
+    HELD_BY_LIMIT
 );
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
@@ -62,8 +95,9 @@ const breadcrumbItems = [
 ---
 
 <Layout
-    title={`${localizedName} | ${t.items}`}
-    description={description}
+    title={pageTitle}
+    description={description.text}
+    robots={robots}
     lang={lang}
 >
     <div class="max-w-5xl mx-auto">
@@ -79,11 +113,13 @@ const breadcrumbItems = [
             <div class="relative z-10">
                 <div class="flex flex-col md:flex-row items-center gap-12 mb-12">
                     <div class="w-48 h-48 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center p-8 border border-slate-100 dark:border-slate-800 shadow-inner">
-                        <img 
-                            src={itemData.sprites.default} 
-                            alt={localizedName} 
-                            class="w-32 h-32 pixelated transform hover:scale-110 transition-transform duration-500"
-                        />
+                        {itemData.sprites?.default && (
+                            <img 
+                                src={itemData.sprites.default} 
+                                alt={localizedName} 
+                                class="w-32 h-32 pixelated transform hover:scale-110 transition-transform duration-500"
+                            />
+                        )}
                     </div>
                     
                     <div class="text-center md:text-left flex-grow">
@@ -100,27 +136,39 @@ const breadcrumbItems = [
                         <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-2">{localizedName}</h1>
                         <div class="mb-4"><ReportDataIssue entityType="item" entitySlug={itemData.name} lang={lang as string} /></div>
 
+                        {teraType && teraTypeLabel && (
+                            <a href={pagePath(lang as string, 'tipo', teraType)} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
+                                {lang === 'es' ? 'Tipo Tera:' : 'Tera type:'} {teraTypeLabel}
+                            </a>
+                        )}
+
                         {moveDetail && (
                             <a href={moveDetail.url} class="inline-flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:scale-105 transition-transform">
                                 <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
-                                {lang === 'es' ? 'Enseña:' : 'Teaches:'} {moveDetail.name}
+                                {lang === 'es' ? 'Enseña:' : 'Teaches:'} {moveDetail.name}{moveDetail.versionLabel && <span class="opacity-70 font-medium"> ({moveDetail.versionLabel})</span>}
                             </a>
                         )}
                     </div>
                 </div>
 
+                {description.source === 'facts' && (
+                    <p class="text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-medium mb-8" data-item-summary>{description.text}</p>
+                )}
+
+                {showItemTexts && effect && (
                 <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-[2rem] p-8 md:p-10 border border-emerald-100/50 dark:border-emerald-900/20 mb-8">
                     <h3 class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">{t.item_effect_label}</h3>
                     <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                        {effect?.text || t.item_no_effect_available}
+                        {effect.text}
                     </p>
                     {effect?.fallbackUsed && (
                         <p class="text-xs text-slate-400 dark:text-slate-500 italic mt-3">{t.item_effect_en_fallback}</p>
                     )}
                     <p class="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mt-4">{t.source_pokeapi}</p>
                 </div>
+                )}
 
-                {flavor && (
+                {showItemTexts && flavor && (
                     <div class="bg-slate-50 dark:bg-slate-900/40 rounded-[2rem] p-8 md:p-10 border border-slate-100 dark:border-slate-800 mb-12">
                         <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">{t.item_flavor_label}</h3>
                         <p class="text-lg text-slate-600 dark:text-slate-400 leading-relaxed italic">
@@ -170,6 +218,9 @@ const breadcrumbItems = [
                     <span class="w-2 h-8 bg-emerald-500/50 rounded-full"></span>
                     {lang === 'es' ? 'Pokémon que pueden llevarlo' : 'Pokémon that can hold it'}
                     <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700">{itemData.held_by_pokemon.length}</span>
+                    {itemData.held_by_pokemon.length > heldByPokemon.length && (
+                        <span class="text-xs font-bold text-slate-400 dark:text-slate-600">{lang === 'es' ? `Mostrando ${heldByPokemon.length}` : `Showing ${heldByPokemon.length}`}</span>
+                    )}
                 </h2>
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">

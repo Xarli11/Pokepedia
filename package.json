@@ -1,7 +1,7 @@
 {
   "name": "pokepedia",
   "type": "module",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -10,7 +10,8 @@
     "check": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "data:audit": "tsx scripts/data-audit.ts"
+    "data:audit": "tsx scripts/data-audit.ts",
+    "data:items-seo": "tsx scripts/item-seo-manifest.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
