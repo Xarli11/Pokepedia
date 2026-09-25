@@ -283,7 +283,7 @@ describe('internal links use the trailing-slash canonical form (SSR)', () => {
   it('listing pages (moves, abilities, items)', async () => {
     const moves = await render(MovesIndexPage, { lang: 'es' }, '/es/movimientos/');
     expectAllCanonicalForm(moves);
-    expect(moves).toContain("window.location.href='/es/movimientos/surf/'");
+    expect(moves).toContain('href="/es/movimientos/surf/"');
 
     const abilities = await render(AbilitiesIndexPage, { lang: 'en' }, '/en/habilidades/');
     expectAllCanonicalForm(abilities);

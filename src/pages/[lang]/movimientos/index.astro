@@ -9,7 +9,7 @@ const moves = await getAllMoves();
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
-<Layout title={t.moves_title_seo} lang={lang}>
+<Layout title={t.moves_title_seo} description={t.moves_desc_seo} lang={lang}>
     <div class="max-w-6xl mx-auto">
         <div class="text-center mb-12">
             <h1 class="text-5xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">
@@ -64,12 +64,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     <tbody id="move-table-body" class="divide-y divide-slate-50 dark:divide-slate-700/50">
                         {moves.map((move) => (
                             <tr class="move-row hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-colors cursor-pointer group" data-name={move.name} data-url={move.url}>
-                                <td class="px-10 py-5" onclick={`window.location.href='${pagePath(lang, 'movimientos', move.name)}'`}>
-                                    <span class="font-bold text-slate-900 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-move-name-url={move.url}>
-                                        {formatName(move.name)}
-                                    </span>
+                                <td class="px-10 py-5">
+                                    <a href={pagePath(lang as string, 'movimientos', move.name)} class="font-bold text-slate-900 dark:text-white capitalize no-underline group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                                        <span data-move-name-url={move.url}>{formatName(move.name)}</span>
+                                    </a>
                                 </td>
-                                <td class="px-10 py-5 text-center" onclick={`window.location.href='${pagePath(lang, 'movimientos', move.name)}'`}>
+                                <td class="px-10 py-5 text-center">
                                     <div class="inline-block" data-move-type-url={move.url}>
                                         <div class="h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full"></div>
                                     </div>
@@ -316,6 +316,15 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             }, { rootMargin: '100px' });
 
             rows.forEach(row => observer.observe(row));
+
+            // Whole-row click is a convenience on top of the real <a> in the
+            // name cell (which crawlers and keyboard users follow); clicks on
+            // the anchor itself keep their native behavior.
+            document.getElementById('move-table-body')?.addEventListener('click', (e) => {
+                if (!(e.target instanceof Element) || e.target.closest('a')) return;
+                const href = e.target.closest('.move-row')?.querySelector('a')?.getAttribute('href');
+                if (href) window.location.href = href;
+            });
 
             document.addEventListener('click', (e) => {
                 if (!(e.target instanceof Node)) return;
