@@ -9,6 +9,7 @@ import MovesIndexPage from './[lang]/movimientos/index.astro';
 import AbilitiesIndexPage from './[lang]/habilidades/index.astro';
 import ItemsIndexPage from './[lang]/objetos/index.astro';
 import { SITE_URL } from '../utils/seo';
+import { renderRoute } from '../testing/renderRoute';
 
 // Anti-regression for the trailing-slash URL convention: every internal page
 // link rendered server-side must be the canonical form (`/es/pokemon/x/`),
@@ -86,6 +87,7 @@ const FIXTURES: Record<string, unknown> = {
   },
   '/ability/torrent': 'alias:/ability/67',
   '/pokemon/160': 'alias:/pokemon/feraligatr',
+  '/pokemon/550': { ...pokemonDetail(550, 'basculin-red-striped'), is_default: true, species: { name: 'basculin', url: `${API}/pokemon-species/550/` } },
   '/move/surf': {
     id: 57,
     name: 'surf',
@@ -97,7 +99,11 @@ const FIXTURES: Record<string, unknown> = {
     pp: 15,
     priority: 0,
     flavor_text_entries: [{ flavor_text: 'Una gran ola.', language: { name: 'es' } }],
-    learned_by_pokemon: [{ name: 'feraligatr', url: `${API}/pokemon/160/` }],
+    learned_by_pokemon: [
+      { name: 'feraligatr', url: `${API}/pokemon/160/` },
+      // A species' default form: its card must link the species URL.
+      { name: 'basculin-red-striped', url: `${API}/pokemon/550/` },
+    ],
   },
   '/item/tm03': {
     name: 'tm03',
@@ -169,9 +175,31 @@ function expectAllCanonicalForm(html: string) {
   for (const url of urls) {
     expect(url).not.toMatch(/\/\//);
     expect(url).not.toContain('${');
+    expect(url).not.toContain('www.');
     expect(url).toMatch(/^\/(es|en)\//);
+    const path = pathWithoutQuery(url);
+    // Entity links use the canonical slug: never a numeric id, a case
+    // variant or a species' default form (each would 301).
+    expect(path).not.toMatch(/^\/(es|en)\/(pokemon|movimientos|habilidades|objetos)\/\d+\//);
+    expect(path).toBe(path.toLowerCase());
+    expect(path).not.toMatch(DEFAULT_FORM_SLUGS);
   }
 }
+
+// The 37 species whose default variety has its own PokeAPI name (verified
+// against all 1025 species); none of these slugs may be linked internally.
+const DEFAULT_FORM_SLUGS = new RegExp(
+  '/pokemon/(' +
+    ['deoxys-normal', 'wormadam-plant', 'giratina-altered', 'shaymin-land', 'basculin-red-striped',
+     'darmanitan-standard', 'frillish-male', 'jellicent-male', 'tornadus-incarnate', 'thundurus-incarnate',
+     'landorus-incarnate', 'keldeo-ordinary', 'meloetta-aria', 'pyroar-male', 'meowstic-male',
+     'aegislash-shield', 'pumpkaboo-average', 'gourgeist-average', 'zygarde-50', 'oricorio-baile',
+     'lycanroc-midday', 'wishiwashi-solo', 'minior-red-meteor', 'mimikyu-disguised', 'toxtricity-amped',
+     'eiscue-ice', 'indeedee-male', 'morpeko-full-belly', 'urshifu-single-strike', 'basculegion-male',
+     'enamorus-incarnate', 'oinkologne-male', 'maushold-family-of-four', 'squawkabilly-green-plumage',
+     'palafin-zero', 'tatsugiri-curly', 'dudunsparce-two-segment'].join('|') +
+    ')/'
+);
 
 async function render(component: any, params: Record<string, string>, path: string) {
   const container = await AstroContainer.create();
@@ -231,6 +259,9 @@ describe('internal links use the trailing-slash canonical form (SSR)', () => {
     const html = await render(MovePage, { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
     expectAllCanonicalForm(html);
     expect(html).toContain('href="/es/pokemon/feraligatr/"');
+    // Default form listed by PokeAPI -> links the species URL, not the form.
+    expect(html).toContain('href="/es/pokemon/basculin/"');
+    expect(html).not.toContain('/es/pokemon/basculin-red-striped/');
     expect(html).toContain('href="/es/movimientos/"');
   });
 
@@ -263,12 +294,13 @@ describe('internal links use the trailing-slash canonical form (SSR)', () => {
     expect(items).toContain('href="/es/objetos/leftovers/"');
   });
 
-  it('entity-not-found redirects target the trailing-slash listing', async () => {
-    const container = await AstroContainer.create();
-    const response = await container.renderToResponse(MovePage, {
+  it('a missing entity is a real 404, not a redirect to the listing', async () => {
+    const response = await renderRoute(MovePage, {
+      routePattern: '/[lang]/movimientos/[name]',
       params: { lang: 'es', name: 'does-not-exist' },
-      request: new Request(`${SITE_URL}/es/movimientos/does-not-exist/`),
+      path: '/es/movimientos/does-not-exist/',
     });
-    expect(response.headers.get('location')).toBe('/es/movimientos/');
+    expect(response.status).toBe(404);
+    expect(response.headers.get('location')).toBeNull();
   });
 });

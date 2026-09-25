@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import GeneracionPage from './[lang]/generacion/[gen].astro';
 import { SITE_URL } from '../utils/seo';
+import { renderRoute } from '../testing/renderRoute';
 
 // SSR regression coverage for the generation landing pages (Sprint 3, Fase
 // 5): this is the first real crawlable route for "Pokémon de primera
@@ -84,14 +85,15 @@ describe('/[lang]/generacion/[gen]/ SSR', () => {
     expect(html).toContain('"@type":"ItemList"');
   });
 
-  it('redirects out-of-range generation numbers instead of rendering garbage', async () => {
-    const container = await AstroContainer.create();
-    const response = await container.renderToResponse(GeneracionPage, {
+  it('answers 404 (not a redirect) for an out-of-range generation number', async () => {
+    const response = await renderRoute(GeneracionPage, {
+      routePattern: '/[lang]/generacion/[gen]',
       params: { lang: 'es', gen: '99' },
-      request: new Request(`${SITE_URL}/es/generacion/99/`),
+      path: '/es/generacion/99/',
     });
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(404);
+    expect(response.headers.get('location')).toBeNull();
   });
 });
 

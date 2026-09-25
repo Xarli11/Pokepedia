@@ -49,8 +49,11 @@ function pokemonPayload(name: string, speciesName = name) {
   };
 }
 
+// A failed lookup is modelled as PokeAPI's real "no such resource" answer
+// (HTTP 404): transient failures (5xx/timeout) are classified differently
+// and must not trigger the species fallback — see errors.test.ts.
 function jsonResponse(body: unknown, ok = true) {
-  return { ok, json: async () => body } as Response;
+  return { ok, status: ok ? 200 : 404, json: async () => body } as Response;
 }
 
 describe('getPokemonByName resolution order', () => {

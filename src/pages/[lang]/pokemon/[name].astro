@@ -8,23 +8,24 @@ import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
-import { pagePath } from '../../../utils/seo';
+import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
 
-let detail: any = null;
-let species: any = null;
-let pokemonData: any = null;
+// Only this primary lookup can 404 the page (EntityNotFoundError). An
+// UpstreamError or a missing related resource is answered 503 by
+// src/middleware.ts; any other error surfaces as a real 500.
+const pokemonData = await getPokemonByName(name);
+const detail: any = pokemonData.detail;
+const species: any = pokemonData.species;
 
-try {
-    pokemonData = await getPokemonByName(name);
-    if (!pokemonData) throw new Error("No data");
-    detail = pokemonData.detail;
-    species = pokemonData.species;
-} catch (e) {
-    console.error("Critical error loading pokemon base data:", e);
-    return Astro.redirect(pagePath(lang));
+// One URL per Pokémon: a numeric id (/160/), a case variant (/Feraligatr/)
+// or a species' default form (/basculin-red-striped/) all 301 to the
+// canonical slug. Only the canonical request renders.
+const canonicalSlug = canonicalPokemonSlug(detail);
+if (rawName !== canonicalSlug) {
+    return Astro.redirect(pagePath(lang, 'pokemon', canonicalSlug), 301);
 }
 
 // Inicializar arrays para evitar errores de undefined
@@ -280,7 +281,7 @@ const breadcrumbItems = [
             <div class="flex items-center gap-3">
                 {hasNavigation ? (
                     <>
-                        <a href={pagePath(lang, 'pokemon', prevPokemon.name)} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
+                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(prevPokemon))} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
                             <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
@@ -288,7 +289,7 @@ const breadcrumbItems = [
                             </div>
                         </a>
                         <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
-                        <a href={pagePath(lang, 'pokemon', nextPokemon.name)} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
+                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(nextPokemon))} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>
@@ -430,7 +431,7 @@ const breadcrumbItems = [
         document.addEventListener('astro:after-swap', initShiny);
     </script>
 
-    <script is:inline define:vars={{ _pokemonName: detail.name, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+    <script is:inline define:vars={{ _pokemonName: canonicalSlug, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
         (function() {
             try {
                 const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');

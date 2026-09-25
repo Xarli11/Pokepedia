@@ -1,0 +1,9 @@
+---
+// Rendered by Astro when a page throws an unexpected error. Without a static
+// /500 route, Astro's error lookup for "/500/" matched /[lang]/ (lang =
+// "500"), so real bugs were answered as 404 (or, before v0.10.1, as a 200
+// homepage). No error details are shown to visitors.
+import ErrorPage from '../components/ErrorPage.astro';
+---
+
+<ErrorPage status={500} />

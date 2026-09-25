@@ -6,12 +6,19 @@ import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
+import { EntityNotFoundError } from '../../../services/errors';
 
 const { lang = 'es', gen: genParam } = Astro.params;
-const genNum = parseInt(genParam as string, 10);
+// Digits only: parseInt() used to accept "2abc" or "2.5" as generation 2,
+// each a second 200 page. A padded number ("02") is the same generation and
+// 301s to its canonical form; anything else is a 404.
+const genNum = /^\d+$/.test(genParam as string) ? Number(genParam) : NaN;
 
 if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) {
-    return Astro.redirect(pagePath(lang));
+    throw new EntityNotFoundError(`Unknown generation ${Astro.url.pathname}`);
+}
+if (genParam !== String(genNum)) {
+    return Astro.redirect(pagePath(lang, 'generacion', genNum), 301);
 }
 
 const genKey = `gen${genNum}`;
@@ -19,12 +26,10 @@ const genInfo = GENERATIONS[genKey];
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const roman = GENERATION_ROMAN[genKey];
 
-let pokemonList: Awaited<ReturnType<typeof getPokemonByGeneration>> = [];
-try {
-    pokemonList = await getPokemonByGeneration(genKey);
-} catch (e) {
-    return Astro.redirect(pagePath(lang));
-}
+// The generation itself is validated above (the only possible 404). Its
+// species list is a required dependency: if PokeAPI can't provide it, the
+// failure is answered 503 by src/middleware.ts, never 404.
+const pokemonList = await getPokemonByGeneration(genKey);
 
 // Derived from the list PokeAPI's generation/{n} just gave us — no second
 // fetch, no static range table.

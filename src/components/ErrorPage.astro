@@ -1,0 +1,58 @@
+---
+// src/components/ErrorPage.astro
+//
+// Shared body for src/pages/404.astro and 500.astro. Deliberately NOT
+// Layout.astro: an error page must not emit canonical/hreflang/og:url for
+// the URL that failed. noindex, no data fetching (it must render even when
+// PokeAPI is down), language taken from the failed URL's first segment.
+import '../styles/global.css';
+import { pagePath } from '../utils/seo';
+
+interface Props {
+    status: 404 | 500;
+}
+
+const { status } = Astro.props;
+const lang = Astro.url.pathname.split('/')[1] === 'en' ? 'en' : 'es';
+
+const copy = {
+    404: {
+        es: { title: 'Página no encontrada', text: 'Esta página no existe o ha cambiado de dirección.' },
+        en: { title: 'Page not found', text: "This page doesn't exist or has moved." },
+    },
+    500: {
+        es: { title: 'Error interno', text: 'Algo ha fallado en Pokepedia. Vuelve a intentarlo en unos minutos.' },
+        en: { title: 'Internal error', text: 'Something went wrong on Pokepedia. Please try again in a few minutes.' },
+    },
+}[status][lang];
+const homeLabel = lang === 'es' ? 'Volver a la Pokédex' : 'Back to the Pokédex';
+---
+
+<!doctype html>
+<html lang={lang}>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="robots" content="noindex" />
+        <title>{`${status} · ${copy.title} | Pokepedia.app`}</title>
+        <link rel="icon" type="image/png" href="/pokeball.png?v=1" />
+        <script is:inline>
+            if ((localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        </script>
+    </head>
+    <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen font-sans antialiased flex items-center justify-center px-4">
+        <main class="max-w-md text-center">
+            <p class="text-7xl font-black tracking-tighter text-emerald-500">{status}</p>
+            <h1 class="mt-4 text-3xl font-black tracking-tight">{copy.title}</h1>
+            <p class="mt-3 text-slate-500 dark:text-slate-400">{copy.text}</p>
+            <a
+                href={pagePath(lang)}
+                class="mt-8 inline-block rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-black uppercase tracking-widest text-white hover:bg-emerald-600 transition-colors no-underline"
+            >
+                {homeLabel}
+            </a>
+        </main>
+    </body>
+</html>

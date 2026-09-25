@@ -6,6 +6,7 @@ import {
   localeAlternates,
   localizedPath,
   pagePath,
+  canonicalPokemonSlug,
   buildTypeLandingTitle,
   buildTypeLandingDescription,
   buildGenerationLandingTitle,
@@ -108,6 +109,25 @@ describe('pagePath', () => {
   it('is deterministic and percent-encodes unsafe characters in a segment', () => {
     expect(pagePath('es', 'pokemon', 'mr-mime')).toBe(pagePath('es', 'pokemon', 'mr-mime'));
     expect(pagePath('es', 'comparar', 'a b', 'c?d')).toBe('/es/comparar/a%20b/c%3Fd/');
+  });
+});
+
+describe('canonicalPokemonSlug', () => {
+  it('a species default variety lives at the species URL', () => {
+    expect(canonicalPokemonSlug({ name: 'basculin-red-striped', is_default: true, species: { name: 'basculin' } })).toBe('basculin');
+    expect(canonicalPokemonSlug({ name: 'deoxys-normal', is_default: true, species: { name: 'deoxys' } })).toBe('deoxys');
+    expect(canonicalPokemonSlug({ name: 'feraligatr', is_default: true, species: { name: 'feraligatr' } })).toBe('feraligatr');
+  });
+
+  it('non-default forms keep their own URL', () => {
+    expect(canonicalPokemonSlug({ name: 'feraligatr-mega', is_default: false, species: { name: 'feraligatr' } })).toBe('feraligatr-mega');
+    expect(canonicalPokemonSlug({ name: 'exeggutor-alola', is_default: false, species: { name: 'exeggutor' } })).toBe('exeggutor-alola');
+    expect(canonicalPokemonSlug({ name: 'basculin-blue-striped', is_default: false, species: { name: 'basculin' } })).toBe('basculin-blue-striped');
+  });
+
+  it('falls back to the resource name when is_default/species are unknown', () => {
+    expect(canonicalPokemonSlug({ name: 'pikachu' })).toBe('pikachu');
+    expect(canonicalPokemonSlug({ name: 'pikachu', is_default: true })).toBe('pikachu');
   });
 });
 
