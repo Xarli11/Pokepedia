@@ -19,9 +19,9 @@ data, and against the built Cloudflare Worker (`wrangler pages dev dist`).
 | Move pages with the Layout default meta description | 937 ES + 937 EN | 0 |
 | Unique titles per language | 919 (36 pages shared a title) | 937 |
 | Unique meta descriptions per language | 1 | 919 (ES) / 919 (EN); max 3 pages share a text |
-| ES pages with no real Spanish text | 108 (85 showed English, 23 empty) | 108 → factual Spanish sentence |
-| EN pages with no real English text | 23 (empty) | 23 → factual English sentence |
-| Empty visible descriptions | 108 ES-incl-English-fallback, 23 EN | 0 / 0 |
+| ES pages with no adequate Spanish description | 108 (85 showed English, 23 empty), plus 18 showing "Dummy data" | 126 use the factual Spanish sentence (108 + 18 placeholder-only) |
+| EN pages with no adequate English description | 23 (empty), plus 18 showing "Dummy Data" | 41 use the factual English sentence (23 + 18 placeholder-only) |
+| Empty visible descriptions (ES / EN) | 23 / 23 | 0 / 0 |
 | Showdown ability names linking to a 404 | 11 of 321 | 0 (4 resolved by normalization, 4 by variant rule, 3 unlinked: no PokeAPI entity) |
 
 ## Ability inventory (Showdown `pokedex.json` vs PokeAPI `/ability`)
