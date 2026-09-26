@@ -9,10 +9,13 @@
 **Cambios realizados:**
 
 ### fix(moves): versión más reciente por defecto (`MovesTable.astro`, `services/versionGroups.ts`)
-- `versionGroups` se ordenaba alfabéticamente y se abría en `red-blue`. Ahora se ordena con la tabla cronológica explícita y se abre en la más reciente (Garchomp → Champions). Selector con la más nueva primero, etiquetas ES/EN. Decisiones de orden en `docs/DATA_SOURCES.md`.
+- `versionGroups` se ordenaba alfabéticamente y se abría en `x-y`. Ahora `VERSION_GROUPS` (orden, etiquetas ES/EN, `defaultEligible`) decide: se abre en el grupo principal más reciente (Garchomp → Escarlata/Púrpura); Champions, XD, Colosseum y DLC siguen en el selector pero no son defecto. "Último disponible" ≠ "contexto por defecto" (ver `docs/DATA_SOURCES.md`).
 
 ### refactor(product): copy alineado (`Layout`, `pokemon.ts`, `[name].astro`, `SmogonTier.astro`, `ecosystem.ts`)
 - Fuera "análisis estratégico / calculadora / debilidades" de home, metadatos, JSON-LD, OG y página de Pokémon. `CompetitiveSets` → `SmogonTier` (solo tier atribuido, SSR, sin script). Se elimina la petición de sets de Smogon. `meta keywords` eliminado. CTA a PokeStudio detrás de `ecosystem.ts` (sin URL pública → no se renderiza).
+
+### fix(home): grid y buscador coherentes (`utils/homeSearch.ts`)
+- El texto solo filtra el grid si alguna tarjeta lo cumple; si no (movimiento, habilidad, tipo, Pokémon de otra generación) el desplegable multi-entidad lo gestiona y el grid no muestra "No se encontraron Pokémon".
 
 ### feat(data) + feat(search) + perf(catalogs)
 - `npm run data:catalogs` genera catálogos ES/EN (movimientos, habilidades, objetos, Pokémon) y el índice de búsqueda; `--check` compara con PokeAPI. Búsqueda global multi-entidad con ranking determinista e historial multi-tipo. Índices `/movimientos/`, `/habilidades/`, `/objetos/` con los campos principales en SSR y 0 peticiones cliente.

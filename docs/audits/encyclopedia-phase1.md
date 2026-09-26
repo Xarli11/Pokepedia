@@ -28,8 +28,9 @@ Baseline tests: 46 files / 564 passed, 2 skipped (vitest 9 s).
 
 - **Version default** — `services/versionGroups.ts`: added colosseum, xd, the-isle-of-armor,
   the-crown-tundra, champions, red-green-japan, blue-japan to the chronology;
-  `sortVersionGroups`, `latestVersionGroup`, `versionGroupLabel(name, lang)` (ES/EN, all 32
-  PokeAPI groups). `MovesTable.astro` uses them: newest selected, all listed newest first.
+  `VERSION_GROUPS` metadata (order, ES/EN label, `defaultEligible`; all 32 PokeAPI groups) with
+  `sortVersionGroups`, `latestVersionGroup`, `defaultVersionGroup`, `versionGroupLabel`.
+  `MovesTable.astro` opens on the newest eligible group and lists all newest first.
   Tests: `versionGroups.test.ts`, `MovesTable.ssr.test.ts`.
 - **Product alignment** — `Layout.astro` (default description per language, no keywords,
   JSON-LD), `utils/seo.ts` (`DEFAULT_TITLE`, `DEFAULT_DESCRIPTION`), `utils/pokemon.ts`
@@ -73,11 +74,14 @@ Baseline tests: 46 files / 564 passed, 2 skipped (vitest 9 s).
   `formatPokemonName` suffix rules; the default variety is the species row.
 - **History records opened entities**, not typed text; the Pokémon page keeps recording visits
   (same key, new shape, legacy read).
-- **Champions is the newest group** and therefore the default for Pokémon that have it (Garchomp).
-  It is a battle game, not core series: documented in `DATA_SOURCES.md` with the one-line way to
-  demote it. Rejected: silently excluding it (contradicts "most recent available").
+- **Default context ≠ latest available.** Version groups carry `defaultEligible` metadata; the
+  initial group is the newest eligible one, falling back to the newest available. Champions, XD,
+  Colosseum and DLC stay selectable but are not defaults, so Garchomp opens on Scarlet/Violet.
+  Rejected: deleting Champions from the table (hides real data) and a hard-coded exclusion.
 - **Home search converted, comparator selector not.** The comparator needs Pokémon only and keeps
-  `/api/suggestions`, which is unchanged.
+  `/api/suggestions`, which is unchanged. On the home, the text narrows the Pokédex grid only when
+  some card of that grid matches (`utils/homeSearch.ts`); otherwise the dropdown owns it and the
+  grid is left alone, so there is no contradictory empty state.
 - **Not done on purpose:** PokeStudio link (no public URL), Game Context, entity graph, per-move
   descriptions, extra pages, dependencies (none added).
 
@@ -85,7 +89,7 @@ Baseline tests: 46 files / 564 passed, 2 skipped (vitest 9 s).
 
 | | Before | After |
 |---|---|---|
-| Tests | 46 files / 564 | 55 files / 656 (+92), 2 skipped as before |
+| Tests | 46 files / 564 | 56 files / 670 (+106), 2 skipped as before |
 | `astro check` | 0 errors | 0 errors |
 | `npm run build` | OK | OK, 2.7 s |
 | Catalog generation | n/a | 40 s cold, ~4.5k requests, deterministic (second run: identical bytes) |
@@ -104,8 +108,8 @@ HTML sizes are from the same Container render with the same 937/374/2222 slugs (
 stripped), before = `d197c1d` pages, after = this branch.
 
 Live check (dev server against real PokeAPI): `/es/`, the three indexes, `/search-index/es.json/`
-and `/es/pokemon/garchomp/` answer 200; Garchomp: `data-initial-version="champions"`, 14 groups
-listed newest first, tier card `UUBL`. The browser scripts were exercised in jsdom against the real
+and `/es/pokemon/garchomp/` answer 200; Garchomp: `data-initial-version="scarlet-violet"`, 14 groups
+listed newest first with Champions still available, tier card `UUBL`. The browser scripts were exercised in jsdom against the real
 server HTML and real index (filters, suggestions, category filter: 46 berries; search rows and
 history for garchomp / terremoto / piel tosca / choice scarf / dragón / sinnoh / 445). No real
 browser was available in this session.
@@ -131,9 +135,8 @@ in the sitemap, not linked, `application/json`).
   versioning (pre-existing risk).
 - Tests under `src/pages/` are bundled by Astro as routes (pre-existing; a 654 KB `test.*.mjs` chunk).
   New tests were placed elsewhere; moving the old ones is left as a separate change.
-- Home grid still filters by text while the dropdown now shows other entity kinds: typing a move name
-  leaves the Pokédex grid empty (its own "no results" state) beside a correct dropdown.
-- Champions default: see decisions.
+- `data:catalogs:check` is not run in CI (needs network): deferred.
+- Catalog optimizations beyond this phase (e.g. smaller index, per-row markup) deferred.
 
 ## 7. Next phase (recommended, not started)
 

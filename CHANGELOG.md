@@ -6,17 +6,17 @@ All notable changes to Pokepedia are documented in this file.
 
 ### Added
 
-- Global search over every entity kind: Pokémon (name, Pokédex number, forms), moves, abilities, items, types and generations, in ES and EN, from one compact per-language index (`/search-index/{lang}.json/`, versioned by content hash, fetched once and lazily) instead of a server request per keystroke. Deterministic ranking (`src/utils/search.ts`), accent/case/hyphen-insensitive, each result labelled with its entity kind. The home search uses the same engine.
+- Global search over every entity kind: Pokémon (name, Pokédex number, forms), moves, abilities, items, types and generations, in ES and EN, from one compact per-language index (`/search-index/{lang}.json/`, versioned by content hash, fetched once and lazily) instead of a server request per keystroke. Deterministic ranking (`src/utils/search.ts`), accent/case/hyphen-insensitive, each result labelled with its entity kind. The home search uses the same engine; its text narrows the Pokédex grid only when a card of that grid matches, so a move/ability/type query no longer shows "No se encontraron Pokémon" beside a correct result.
 - Search history now stores any entity kind (`{type, slug, name, id}`); legacy Pokémon-only entries are still read. Analytics still records only `results` / `no_results`.
 - Generated, versioned ES/EN catalogs of moves, abilities, items and Pokémon (`src/data/generated/`), built from PokeAPI by `npm run data:catalogs` (validated against the API's `count`, deduplicated, deterministic, fail on truncation) and checked against the live lists with `npm run data:catalogs:check`. Manual corrections go in `src/data/catalogOverrides.json`.
-- `versionGroupLabel`, `sortVersionGroups` and `latestVersionGroup` in `src/services/versionGroups.ts`; missing groups added to the chronology (Colosseum, XD, Isle of Armor, Crown Tundra, Champions, Japanese originals).
+- `VERSION_GROUPS` metadata (chronology, ES/EN label, `defaultEligible`) and `sortVersionGroups`, `latestVersionGroup`, `defaultVersionGroup`, `versionGroupLabel` in `src/services/versionGroups.ts`; missing groups added (Colosseum, XD, Isle of Armor, Crown Tundra, Champions, Japanese originals). "Latest available" and "default context" are separate policies.
 - `src/utils/ecosystem.ts`: single switch for a future PokeStudio link (none is rendered while it has no public URL).
-- Tests 564 → 656.
+- Tests 564 → 670.
 - `docs/audits/encyclopedia-phase1.md`; `docs/DATA_SOURCES.md` sections on product boundaries, version groups, generated catalogs and the search index.
 
 ### Changed
 
-- The Pokémon `MovesTable` opens on the most recent version group the Pokémon has (Garchomp: Champions) instead of red-blue / the alphabetically last group, lists groups newest first, and labels them in the page language (they were Spanish-only).
+- The Pokémon `MovesTable` opens on the most recent main-series version group the Pokémon has (Garchomp: Scarlet/Violet) instead of the alphabetically last one (`x-y`). Spin-offs and DLC such as Champions stay in the selector but are never the default (unless nothing else exists). Groups are listed newest first and labelled in the page language (they were Spanish-only).
 - Pokepedia is presented as the encyclopedia, not a strategy tool: home tagline and default title/description, Pokémon page title and description (`X: Stats, Movimientos y Habilidades`), JSON-LD, default and type OG cards, sources page. `<meta name="keywords">` removed (no dependency).
 - `CompetitiveSets` (sets, ability blurbs, Smogon strategy link, client `pokedex.json` fallback) became `SmogonTier`: the attributed Smogon tier only, rendered on the server with no client script. The Smogon *sets* request is gone from the Pokémon page.
 - `/movimientos/`, `/habilidades/` and `/objetos/` server-render their primary fields (moves: name, type, category, priority, power, accuracy, PP; abilities: name, description; items: name, category, description, sprite presence). No browser request to PokeAPI, no skeletons, no IntersectionObserver; filters and suggestions read the rendered rows and ignore accents; the item category filter works instantly. Initial HTML: moves 0.30 → 0.39 MB, abilities 0.52 → 0.20 MB, items 0.96 → 0.94 MB (gzip 24 → 33, 20 → 23, 64 → 84 KB).

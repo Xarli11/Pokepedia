@@ -11,7 +11,10 @@ _ninguna_
 - [ ] Completar datos factuales del Pokémon (entrenamiento, cría, grupos huevo, género, ratio de captura, EVs, Pokédex regional).
 - [ ] Enriquecer movimientos (contacto, objetivo, generación, historial de MT, retroceso/drenaje, cambios de stats, multigolpe) y habilidades (efecto exacto, cambios históricos, normal vs oculta).
 - [ ] Relaciones completas y filtrables entre entidades (Pokémon ↔ movimientos ↔ habilidades ↔ objetos ↔ tipos ↔ generaciones), con la versión cuando dependan de ella.
-- [ ] Mover los tests que siguen en `src/pages/` fuera de esa carpeta (Astro los empaqueta como rutas).
+- [ ] Mover los tests que siguen en `src/pages/` fuera de esa carpeta: Astro los empaqueta como rutas y crean un chunk `test.*.mjs` (~654 KB) en el worker.
+- [ ] Ejecutar `npm run data:catalogs:check` en CI (necesita red; hoy solo manual).
+- [ ] Optimizaciones adicionales de catálogos (tamaño del índice de búsqueda, marcado por fila en `/movimientos/`).
+- [ ] 914 de 2222 objetos no tienen descripción en PokeAPI en ningún idioma: sus tarjetas no muestran descripción (revisar al regenerar los catálogos).
 
 ### Features (Sección C — reclasificada el 2026-09-26)
 Decisión de producto: Pokepedia es la enciclopedia; tipos → PokeTypes, construcción/estrategia → PokeStudio.

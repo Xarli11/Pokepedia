@@ -114,31 +114,42 @@ reference fact: the Smogon tier (from Showdown's `pokedex.json`) with its
 legend. Sets, ability blurbs for competitive use and "strategy" links were
 removed.
 
-## Version groups: default game for the learnset
+## Version groups: chronology, labels and default context
 
-`src/services/versionGroups.ts` is the single chronological table. The
-Pokémon `MovesTable` opens on the **most recent version group that Pokémon has
-moves in** (`latestVersionGroup`) and lists every group, newest first
-(`sortVersionGroups`); it used to sort alphabetically and open on red-blue.
-The choice is one value (`initialVersion`) so a future Game Context can
-override it with a remembered selection. Non-obvious placements:
+`src/services/versionGroups.ts` (`VERSION_GROUPS`) is the single table: one
+entry per group with its chronological position, ES and EN label and a
+`defaultEligible` flag. The Pokémon `MovesTable` lists **every** group the
+Pokémon has moves in, newest first (it used to sort alphabetically and open on
+`x-y`), labelled in the page language (the old table was Spanish-only).
+
+**"Latest available" and "default context" are different questions.**
+
+- *Latest available* (`latestVersionGroup`) is a fact about the data: the
+  chronologically newest group with data. Text selection uses it.
+- *Default context* (`defaultVersionGroup`) is a product policy: the newest
+  group flagged `defaultEligible`, i.e. a main-series game a player calls "the
+  current game". Spin-offs (Colosseum, XD, **Champions**) and DLC (Isle of
+  Armor, Crown Tundra, Teal Mask, Indigo Disk, Mega Dimension, which share
+  their base game's learnsets) stay selectable and visible but never displace
+  the latest main game. If a Pokémon has no eligible group, the newest
+  available one is used, so something is always selected.
+
+Garchomp has data for Champions (the newest group) and opens on
+Scarlet/Violet. To change what counts as a default, flip `defaultEligible`;
+do not delete groups from the table (unknown groups rank below every known
+one). The initial choice is one value (`initialVersion`) so a future Game
+Context can override it with a remembered selection and reuse
+`VERSION_GROUPS` as its list of contexts (not built).
+
+Non-obvious chronology:
 
 - `red-green-japan`, `blue-japan`: the Japanese originals, older than red-blue.
-- `colosseum`, `xd`: GameCube spin-offs, placed after firered-leafgreen and
-  before diamond-pearl (existing relative order of the older groups untouched).
-- `the-isle-of-armor`, `the-crown-tundra`: Sword/Shield DLC (2020), before
-  brilliant-diamond-shining-pearl (2021).
+- `colosseum`, `xd`: GameCube spin-offs, after firered-leafgreen, before diamond-pearl.
+- `the-isle-of-armor`, `the-crown-tundra`: Sword/Shield DLC (2020), before brilliant-diamond-shining-pearl (2021).
 - `mega-dimension`: Legends Z-A DLC, after legends-za.
-- `champions`: Pokémon Champions (2026), the newest group PokeAPI lists, so
-  it is the default for Pokémon that have Champions data (e.g. Garchomp).
-  It is a battle game, not a core-series entry; if that default is judged
-  wrong, delete it from `VERSION_GROUP_ORDER` (unknown groups rank below every
-  known one) and the default falls back to scarlet-violet.
-- An unknown group ranks below every known one but is still selectable when
-  it is the only one.
-
-Version labels are per language (`versionGroupLabel(name, lang)`); the old
-`versionTranslations` table was Spanish-only and was shown in English too.
+- `champions`: Pokémon Champions (2026), the newest group PokeAPI lists.
+- An unknown group ranks below every known one; it is selectable and is the
+  default only when it is the only group.
 
 ## Generated catalogs
 
