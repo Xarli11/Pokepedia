@@ -1,5 +1,6 @@
 ---
-import { uiTranslations, methodTranslations, versionTranslations } from '../utils/pokemon';
+import { uiTranslations, methodTranslations } from '../utils/pokemon';
+import { sortVersionGroups, latestVersionGroup, versionGroupLabel } from '../services/versionGroups';
 import { pagePath } from '../utils/seo';
 import { compactMoves, expandMoves, jsonForScript, resourceRef, type RawMoveEntry } from '../utils/movesPayload';
 
@@ -27,7 +28,8 @@ const t = uiTranslations[lang] || uiTranslations.es;
 const mt = methodTranslations[lang] || methodTranslations.es;
 
 const safeMoves = moves || [];
-const versionGroups = [...new Set(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)))].sort();
+// Oldest → newest by the explicit chronology table (never alphabetical).
+const versionGroups = sortVersionGroups(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)));
 
 // (move, level, method) per version group, deduplicated. Only this — not the
 // processed rows — travels to the browser (see utils/movesPayload.ts).
@@ -49,12 +51,12 @@ for (const m of safeMoves) {
 
 const payload = compactMoves(rawByVersion, {
     method: (m) => mt[m] || m,
-    version: (v) => versionTranslations[v] || v.replace(/-/g, ' '),
+    version: (v) => versionGroupLabel(v, lang),
 });
 
-const initialVersion = versionGroups.length > 0
-    ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
-    : '';
+// Default to the most recent version group this Pokémon has. Kept as a single
+// value so a future Game Context can override it (e.g. a remembered choice).
+const initialVersion = latestVersionGroup(versionGroups);
 
 // Rows for the initially selected version, server-rendered from data already in
 // hand (no per-move fetch) so the Pokémon -> Move relation and the canonical
@@ -99,8 +101,8 @@ const ssrRows = expandMoves(payload, initialVersion)
 
                 <div class="relative">
                     <select id="versionFilter" class="w-full pl-6 pr-10 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300 appearance-none">
-                        {versionGroups.map(v => (
-                            <option value={v} selected={v === initialVersion}>{versionTranslations[v] || v.replace(/-/g, ' ')}</option>
+                        {[...versionGroups].reverse().map(v => (
+                            <option value={v} selected={v === initialVersion}>{versionGroupLabel(v, lang)}</option>
                         ))}
                     </select>
                     <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
