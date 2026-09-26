@@ -17,7 +17,7 @@ Confirmed problems:
 
 | # | Problem | Evidence |
 |---|---|---|
-| 1 | Moves opened on an old game | `MovesTable`: `[...].sort()` (alphabetical) and `red-blue` if present else the alphabetically last. Garchomp (14 groups) opened on red-blue-era logic instead of its newest group. Version labels were Spanish-only, also shown in English |
+| 1 | Moves opened on an old game | `MovesTable`: `[...].sort()` (alphabetical) and `red-blue` if present else the alphabetically last. Garchomp (14 groups, none of them red-blue) opened on `x-y`, the alphabetically last, instead of its newest group. Version labels were Spanish-only, also shown in English |
 | 2 | Strategy positioning | home subtitle "Análisis estratégico, calculadora de tipos, tabla de debilidades"; Pokémon title "Stats, Weaknesses & Strategy"; JSON-LD "competitive integration, meta analysis"; `meta keywords` "Type Calculator, Weakness Chart"; OG "Estrategia"/"COMPETITIVE"; full Smogon sets + strategy link on every Pokémon page |
 | 3 | Search only knew Pokémon | header modal and home search called `/api/suggestions?q=` on every keystroke: Pokémon names only, English slugs, no moves/abilities/items/types/generations |
 | 4 | Index pages filled by the browser | `/movimientos/`, `/habilidades/`, `/objetos/`: links in SSR, but type/category/power/PP/priority, names and descriptions empty (skeletons) until one PokeAPI request **per row** arrived (IntersectionObserver; typing in the item filter forced-loaded cards; the item category filter had to fetch every card first) |
@@ -90,7 +90,7 @@ Baseline tests: 46 files / 564 passed, 2 skipped (vitest 9 s).
 | `npm run build` | OK | OK, 2.7 s |
 | Catalog generation | n/a | 40 s cold, ~4.5k requests, deterministic (second run: identical bytes) |
 | Generated data | n/a | moves 58 KB, abilities 37 KB, items 260 KB, Pokémon 47 KB, search index 273 KB (gzip 73 KB) per language |
-| Worker chunks | — | +5 lazy chunks (≈1.5 MB raw JS-wrapped JSON); worker gzip 2.27 MB total |
+| Worker chunks | — | +10 lazy chunks, one per catalog and language (≈1.5 MB raw); worker gzip 2.27 MB total |
 | `/movimientos/` HTML (es) | 296.7 KB (gzip 24.5) | 392.8 KB (gzip 33.4): the data is now in it |
 | `/habilidades/` HTML | 516.4 KB (gzip 20.0) | 202.6 KB (gzip 23.4) |
 | `/objetos/` HTML | 959.7 KB (gzip 63.6) | 942.5 KB (gzip 83.6) |
