@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GET } from './[lang].json';
-import { validateSearchIndex } from '../../data/catalogs/searchIndex';
+import { GET } from '../pages/search-index/[lang].json';
+import { validateSearchIndex } from '../data/catalogs/searchIndex';
 
 const call = (lang: string, query = '') => (GET as any)({ params: { lang }, url: new URL(`https://pokepedia.app/search-index/${lang}.json/${query}`) }) as Promise<Response>;
 

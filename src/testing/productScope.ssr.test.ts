@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import PokemonPage from './[lang]/pokemon/[name].astro';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
 import SmogonTier from '../components/SmogonTier.astro';
 import Layout from '../layouts/Layout.astro';
 import { uiTranslations } from '../utils/pokemon';
