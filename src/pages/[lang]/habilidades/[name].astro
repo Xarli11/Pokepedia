@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getAbilityDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
+import { getLocalizedName, getAbilityDetailByName, getPokemonCards } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 
@@ -29,7 +29,7 @@ const description = abilityData.flavor_text_entries.find((f: any) => f.language.
                   abilityData.effect_entries.find((e: any) => e.language.name === 'en')?.effect.replace(/\f/g, ' ') ||
                   "Sin descripción detallada disponible / No detailed description available";
 
-const pokemonList = await getPokemonListByUrls(abilityData.pokemon.map(p => p.pokemon.url), 40);
+const pokemonList = await getPokemonCards(abilityData.pokemon.map(p => p.pokemon), 40);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 

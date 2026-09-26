@@ -75,6 +75,28 @@ describe('middleware: unsupported locales are 404', () => {
     await expect(withNext(async () => { throw bug; })).rejects.toBe(bug);
   });
 
+  it('logs one structured line per 503/500 (endpoint in the message), and nothing for a routine 404', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const withNext = (next: () => Promise<Response>) =>
+      onRequest(
+        {
+          request: new Request(`${SITE_URL}/es/pokemon/feraligatr/`),
+          routePattern: '/[lang]/pokemon/[name]',
+          params: { lang: 'es', name: 'feraligatr' },
+        } as unknown as APIContext,
+        next as unknown as MiddlewareNext
+      );
+    await withNext(async () => { throw new EntityNotFoundError('x'); });
+    expect(error).not.toHaveBeenCalled();
+    await withNext(async () => { throw new UpstreamError('PokeAPI responded HTTP 503 for https://pokeapi.co/api/v2/pokemon/160', 503); });
+    const line = JSON.parse(error.mock.calls[0][0] as string);
+    expect(line).toMatchObject({ evt: 'page_error', path: '/es/pokemon/feraligatr/', error: 'UpstreamError', status: 503 });
+    expect(line.message).toContain('https://pokeapi.co/api/v2/pokemon/160');
+    await withNext(async () => { throw new TypeError('bug'); }).catch(() => {});
+    expect(JSON.parse(error.mock.calls[1][0] as string).status).toBe(500);
+    error.mockRestore();
+  });
+
   it('keeps the root language negotiation redirect', async () => {
     const context = {
       request: new Request(`${SITE_URL}/`, { headers: { 'accept-language': 'en-US,en;q=0.9' } }),

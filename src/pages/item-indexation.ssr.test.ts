@@ -63,8 +63,7 @@ const item = (over: Record<string, unknown>) => ({
 });
 
 const FIXTURES: Record<string, unknown> = {
-  '/item?limit=1': { count: 7, next: null, results: [{ name: 'leftovers', url: `${API}/item/211/` }] },
-  '/item?limit=7': {
+  '/item?limit=100000': {
     count: 7,
     next: null,
     results: ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down', 'battle-pocket', 'water-tera-shard'].map((name, i) => ({ name, url: `${API}/item/${i + 1}/` })),
@@ -319,16 +318,16 @@ describe('items index (SSR)', () => {
   }
 
   for (const lang of ['es', 'en']) {
-    it(`(${lang}) links the COMPLETE catalog with real anchors — noindex items included (SEO policy != product visibility) — using one list fetch`, async () => {
+    it(`(${lang}) links the COMPLETE catalog with real anchors — noindex items included (SEO policy != product visibility) — with one list fetch`, async () => {
       const html = await renderIndex(lang);
       const hrefs = [...html.matchAll(new RegExp(`<a[^>]*href="(/${lang}/objetos/[^"/]+/)"`, 'g'))].map((m) => m[1]);
       expect([...new Set(hrefs)].sort()).toEqual(
         ['leftovers', 'dynamax-crystal-and15', 'tm26', 'oran-en-only', 'psyduck-down', 'battle-pocket', 'water-tera-shard'].sort().map((s) => `/${lang}/objetos/${s}/`)
       );
       hrefs.forEach((h) => expect(h).not.toMatch(/\/\d+\/$/));
-      // No per-item request at SSR time: only the two catalog list calls.
+      // No per-item request at SSR time: one catalog list call (was head + full list).
       expect(fetchCalls.filter((u) => u.includes('/item/'))).toEqual([]);
-      expect(fetchCalls.filter((u) => u.includes('/item?'))).toHaveLength(2);
+      expect(fetchCalls.filter((u) => u.includes('/item?'))).toHaveLength(1);
       expect(meta(html, 'description')).toBeTruthy();
       expect(meta(html, 'description')).not.toContain('Tu enciclopedia');
       expect(meta(html, 'robots')).toBeUndefined();

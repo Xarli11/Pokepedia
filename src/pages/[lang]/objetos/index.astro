@@ -57,46 +57,52 @@ const mainCategories = [
 
         <div id="item-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {items.map((item) => (
-                <a 
-                    href={pagePath(lang, 'objetos', item.name)}
-                    class="item-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
-                    data-name={item.name}
-                    data-super-category="unknown"
-                    data-loaded="false"
-                    style="content-visibility: auto; contain-intrinsic-size: 400px 200px;"
-                >
-                    <div class="flex items-center gap-6 mb-6">
-                        <div class="w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-2 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30 transition-colors border border-slate-100 dark:border-slate-800 relative">
-                            <img 
-                                src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${item.name}.png`} 
-                                alt={item.name} 
-                                class="w-10 h-10 pixelated transition-opacity duration-300"
-                                loading="lazy"
-                                onerror="this.style.opacity='0'; this.nextElementSibling?.classList.remove('hidden')"
-                            />
-                            <div class="hidden absolute inset-0 flex items-center justify-center text-slate-300">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                            </div>
-                        </div>
-                        <div class="flex-grow">
-                            <h3 class="text-2xl font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-item-url={item.url}>
-                                {formatName(item.name)}
-                            </h3>
-                            <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1" data-item-category-url={item.url}>---</span>
+                <a href={pagePath(lang, 'objetos', item.name)} class="item-card group" data-name={item.name}>
+                    <div class="oi-head">
+                        <div class="oi-ico"><img src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${item.name}.png`} alt={item.name} class="oi-img" loading="lazy" /></div>
+                        <div class="oi-body">
+                            <h3 class="oi-title">{formatName(item.name)}</h3>
+                            <span class="oi-cat">---</span>
                         </div>
                     </div>
-                    <div class="space-y-2">
-                        <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium" data-item-desc-url={item.url}>
-                            <span class="inline-block h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded"></span>
-                            <span class="inline-block h-4 w-2/3 bg-slate-100 dark:bg-slate-700 animate-pulse rounded mt-2"></span>
-                        </p>
-                    </div>
+                    <p class="oi-desc"></p>
                 </a>
             ))}
         </div>
     </div>
 
-    <style>
+    <!--
+      Card styling lives in one stylesheet, not in ~35 utility classes repeated
+      on each of the 2222 cards (that repetition was half of this page's HTML:
+      see docs/audits/seo-phase5-crawl-performance.md). Same utilities, same look.
+    -->
+    <style is:global>
+        @reference "../../../styles/global.css";
+        .item-card {
+            @apply bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all;
+            content-visibility: auto;
+            contain-intrinsic-size: 400px 200px;
+        }
+        .oi-head { @apply flex items-center gap-6 mb-6; }
+        .oi-ico { @apply w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-2 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/30 transition-colors border border-slate-100 dark:border-slate-800 relative; }
+        .oi-img { @apply w-10 h-10 transition-opacity duration-300; image-rendering: pixelated; }
+        .oi-body { @apply flex-grow; }
+        .oi-title { @apply text-2xl font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors; }
+        .oi-cat { @apply text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1; }
+        .oi-desc { @apply text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium; }
+        /* Loading skeleton: two bars until the card's item data arrives. */
+        .item-card:not([data-loaded="true"]) .oi-desc::before,
+        .item-card:not([data-loaded="true"]) .oi-desc::after { @apply block h-4 bg-slate-100 dark:bg-slate-700 animate-pulse rounded; content: ""; }
+        .item-card:not([data-loaded="true"]) .oi-desc::before { @apply w-full; }
+        .item-card:not([data-loaded="true"]) .oi-desc::after { @apply w-2/3 mt-2; }
+        /* Missing sprite (PokeAPI has none for e.g. TMs): generic box icon. */
+        .oi-noimg .oi-img { opacity: 0; }
+        .oi-noimg::after {
+            content: ""; position: absolute; inset: 0; margin: auto; width: 1.5rem; height: 1.5rem;
+            @apply bg-slate-300;
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' viewBox='0 0 24 24'%3E%3Cpath d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' viewBox='0 0 24 24'%3E%3Cpath d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
         .pixelated { image-rendering: pixelated; }
     </style>
 
@@ -137,9 +143,10 @@ const mainCategories = [
 
         const cache = new Map<string, ItemInfo>();
 
-        function getItemUrlEl(card: HTMLElement): HTMLElement | null {
-            return card.querySelector<HTMLElement>('[data-item-url]');
-        }
+        // The card carries only the item's slug; its PokeAPI URL and the
+        // elements to fill are derived from it (no per-card URL attributes).
+        const ITEM_API = 'https://pokeapi.co/api/v2/item/';
+        const itemUrl = (card: HTMLElement) => `${ITEM_API}${card.dataset.name ?? ''}/`;
 
         async function fetchItemInfo(url: string, lang: string, i18nItems: Record<string, string>): Promise<ItemInfo | null> {
             const cached = cache.get(url);
@@ -191,9 +198,7 @@ const mainCategories = [
             suggestionsContainer.classList.remove('hidden');
 
             for (const card of matches) {
-                const url = getItemUrlEl(card)?.dataset.itemUrl;
-                if (!url) continue;
-                const info = await fetchItemInfo(url, lang, i18nItems);
+                const info = await fetchItemInfo(itemUrl(card), lang, i18nItems);
                 if (!info) continue;
 
                 const div = document.createElement('div');
@@ -218,14 +223,13 @@ const mainCategories = [
 
         async function loadCard(card: HTMLElement, lang: string, i18nItems: Record<string, string>) {
             if (card.dataset.loaded === 'true') return;
-            const urlEl = getItemUrlEl(card);
-            const url = urlEl?.dataset.itemUrl;
-            if (!urlEl || !url) return;
-            const info = await fetchItemInfo(url, lang, i18nItems);
+            const urlEl = card.querySelector<HTMLElement>('.oi-title');
+            if (!urlEl || !card.dataset.name) return;
+            const info = await fetchItemInfo(itemUrl(card), lang, i18nItems);
             if (info) {
                 urlEl.textContent = info.name;
-                const descEl = card.querySelector<HTMLElement>('[data-item-desc-url]');
-                const categoryEl = card.querySelector<HTMLElement>('[data-item-category-url]');
+                const descEl = card.querySelector<HTMLElement>('.oi-desc');
+                const categoryEl = card.querySelector<HTMLElement>('.oi-cat');
                 if (descEl) descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
                 if (categoryEl) categoryEl.textContent = info.category;
                 card.dataset.superCategory = info.superCategory;
@@ -241,7 +245,8 @@ const mainCategories = [
             for (const card of cards) {
                 const name = (card.dataset.name ?? '').toLowerCase();
                 const translated = (card.dataset.translatedName || '').toLowerCase();
-                const superCat = card.dataset.superCategory;
+                // Cards start with no super-category (SSR carries none): "unknown".
+                const superCat = card.dataset.superCategory ?? 'unknown';
                 const matchesSearch = name.includes(query) || translated.includes(query);
                 const matchesCategory = selectedSuperCat === 'all' || superCat === selectedSuperCat;
                 if (selectedSuperCat !== 'all' && superCat === 'unknown' && matchesSearch && forceLoad) {
@@ -268,6 +273,17 @@ const mainCategories = [
             suggestionsContainer = suggestionsContainerEl;
             categoryFilter = categoryFilterEl;
             cards = document.querySelectorAll<HTMLElement>('.item-card');
+
+            // Sprite fallback without a per-image onerror attribute: error
+            // events don't bubble, so listen in the capture phase — and mark
+            // images that already failed before this script ran.
+            const markMissing = (img: HTMLImageElement) => img.parentElement?.classList.add('oi-noimg');
+            document.getElementById('item-grid')?.addEventListener('error', (e) => {
+                if (e.target instanceof HTMLImageElement) markMissing(e.target);
+            }, true);
+            document.querySelectorAll<HTMLImageElement>('#item-grid .oi-img').forEach((img) => {
+                if (img.complete && img.naturalWidth === 0 && img.currentSrc) markMissing(img);
+            });
 
             searchInput.addEventListener('input', () => {
                 applyFilters(true, lang, i18nItems);

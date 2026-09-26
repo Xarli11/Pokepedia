@@ -1,16 +1,24 @@
 ---
 // src/components/PokemonCard.astro
 import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
-import type { PokemonDetail } from '../services/pokeapi';
+import type { PokemonSummary } from '../services/pokeapi';
 import { canonicalPokemonSlug, pagePath } from '../utils/seo';
 
 interface Props {
-    pokemon: PokemonDetail;
+    pokemon: PokemonSummary;
     lang: string;
 }
 
 const { pokemon, lang = 'es' } = Astro.props;
 const typesString = pokemon.types.map(t => t.type.name).join(',');
+// Tier known server-side (card built from the pokedex): rendered here, so the
+// browser needn't download the 524 KB dataset just to paint a badge.
+const ssrTier = pokemon.tier;
+const tierColors: Record<string, string> = {
+    'Uber': 'bg-red-500', 'OU': 'bg-emerald-500', 'UU': 'bg-blue-500',
+    'RU': 'bg-amber-500', 'NU': 'bg-violet-500', 'PU': 'bg-slate-500',
+    'LC': 'bg-pink-500', 'AG': 'bg-slate-900'
+};
 ---
 
 <a 
@@ -27,9 +35,15 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
             <span class="text-slate-300 dark:text-slate-600 font-black text-xs tracking-[0.2em] transition-colors group-hover:text-emerald-500/50">
                 {formatPokemonNumber(pokemon.id)}
             </span>
-            <div class="tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-0]/g, '')}>
-                <div class="h-5 w-10 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
-            </div>
+            {ssrTier !== undefined ? (
+                <div class="tier-badge">
+                    {ssrTier !== 'N/A' && <span class={`${tierColors[ssrTier] || 'bg-slate-400'} text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm`}>{ssrTier}</span>}
+                </div>
+            ) : (
+                <div class="tier-badge" data-tier-for={pokemon.name.toLowerCase().replace(/[^a-z0-9]/g, '')}>
+                    <div class="h-5 w-10 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg animate-pulse"></div>
+                </div>
+            )}
         </div>
 
         <button 
@@ -84,6 +98,8 @@ const typesString = pokemon.types.map(t => t.type.name).join(',');
         window.tierScriptInjected = true;
         
         async function loadTiers() {
+            // Only badges the server couldn't fill need the dataset.
+            if (!document.querySelector('.tier-badge[data-tier-for]')) return;
             if (!window.psPokedex) {
                 try {
                     const res = await fetch('https://play.pokemonshowdown.com/data/pokedex.json', { signal: AbortSignal.timeout(8000) });

@@ -8,7 +8,6 @@ import {
   getPokemonByName,
   getPokemonByType,
   getSpeciesNamesById,
-  getAllPokemonBasic,
   PokemonNotFoundError,
 } from './pokeapi';
 import { errorResponse } from '../utils/httpResponses';
@@ -162,9 +161,11 @@ describe('getPokemonByName: transient failures are not "not found"', () => {
 describe('canonical species names in entity lists', () => {
   it('getSpeciesNamesById maps National Dex ids to species names (canonical slugs)', async () => {
     stubFetch({
-      '/pokemon-species?limit=2000': {
+      '/pokemon-species?limit=100000': {
         status: 200,
         body: {
+          count: 2,
+          next: null,
           results: [
             { name: 'feraligatr', url: 'https://pokeapi.co/api/v2/pokemon-species/160/' },
             { name: 'basculin', url: 'https://pokeapi.co/api/v2/pokemon-species/550/' },
@@ -178,10 +179,13 @@ describe('canonical species names in entity lists', () => {
   });
 
   it('the sitemap Pokémon source reads pokemon-species (canonical names), not pokemon', async () => {
+    // Fresh module: the species list is cached by URL for the life of the module.
+    vi.resetModules();
+    const { getAllPokemonBasic } = await import('./pokeapi');
     const calls = stubFetch({
-      '/pokemon-species?limit=1025': { status: 200, body: { results: [{ name: 'basculin', url: 'https://pokeapi.co/api/v2/pokemon-species/550/' }] } },
+      '/pokemon-species?limit=100000': { status: 200, body: { count: 1, next: null, results: [{ name: 'basculin', url: 'https://pokeapi.co/api/v2/pokemon-species/550/' }] } },
     });
-    const list = await getAllPokemonBasic(1025);
+    const list = await getAllPokemonBasic();
     expect(list.map((p) => p.name)).toEqual(['basculin']);
     expect(calls.every((url) => !url.includes('/pokemon?'))).toBe(true);
   });

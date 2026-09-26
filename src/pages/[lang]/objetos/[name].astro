@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getItemDetail, getMachineMove, getPokemonListByUrls } from '../../../services/pokeapi';
+import { getLocalizedName, getItemDetail, getMachineMove, getPokemonCards } from '../../../services/pokeapi';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory, typeTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
@@ -80,8 +80,8 @@ const robots = itemRobots(itemData.name);
 
 // Obtener detalles de Pokémon que pueden llevar este objeto
 const HELD_BY_LIMIT = 15;
-const heldByPokemon = await getPokemonListByUrls(
-    (itemData.held_by_pokemon || []).map((h: any) => h.pokemon.url),
+const heldByPokemon = await getPokemonCards(
+    (itemData.held_by_pokemon || []).map((h: any) => h.pokemon),
     HELD_BY_LIMIT
 );
 
