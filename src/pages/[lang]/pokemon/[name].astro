@@ -5,7 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
@@ -13,6 +13,16 @@ import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
+
+// Optional enrichment that doesn't depend on the primary lookup starts now,
+// so its latency (Showdown's pokedex is the slowest call on this page,
+// ~0.7 s cold) overlaps pokemon/{name} -> species instead of following them.
+// Both are failure-tolerant by construction (they resolve to null), so a
+// request that ends in a 404/redirect/503 leaves nothing unhandled.
+const showdownPromise = getShowdownPokemon(name).catch(() => null);
+const abilityIndexPromise: Promise<AbilityIndex | null> = getAllAbilities()
+    .then((abilities) => buildAbilityIndex(abilities.map((a) => a.name)))
+    .catch(() => null);
 
 // Only this primary lookup can 404 the page (EntityNotFoundError). An
 // UpstreamError or a missing related resource is answered 503 by
@@ -35,10 +45,26 @@ detail.moves = detail.moves || [];
 detail.stats = detail.stats || [];
 detail.types = detail.types || [];
 
+// Species-dependent enrichment, started before Showdown/Smogon resolve (each
+// is independent of them and optional: a failure leaves it null / empty).
+const evolutionPromise = species?.evolution_chain?.url
+    ? getEvolutionChain(species.evolution_chain.url).catch(() => null)
+    : Promise.resolve(null);
+const varietiesPromise: Promise<any[]> = species?.varieties
+    ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => getPokemonSummaryByUrl(v.pokemon.url)))
+        .then((list) => list.filter(Boolean))
+        .catch(() => [])
+    : Promise.resolve([]);
+// Previous / next in the National Dex: from the species list (name + id, one
+// cached request shared by the whole site) instead of two full pokemon/{id}
+// objects (~280 KB each) fetched for a name and a sprite.
+const currentDexIdEarly = detail.id > 10000 ? Number(detail.species?.url?.match(/\/pokemon-species\/(\d+)\//)?.[1] ?? detail.id) : detail.id;
+const speciesNamesPromise: Promise<Map<number, string> | null> = getSpeciesNamesById().catch(() => null);
+
 // 1. Enriquecer con Showdown
 let showdownData: any = null;
 try {
-    showdownData = await getShowdownPokemon(name);
+    showdownData = await showdownPromise;
     if (showdownData) {
         // Habilidades desde Showdown (Fuente principal de verdad técnica)
         // La key "H" en el objeto de Showdown indica habilidad oculta
@@ -47,10 +73,7 @@ try {
             // ability slugs ("minds-eye"). Optional dependency: if the catalog is
             // unavailable, or a name matches no single entity, no slug is guessed
             // and the ability is shown by its Showdown name without a link.
-            let abilityIndex: AbilityIndex | null = null;
-            try {
-                abilityIndex = buildAbilityIndex((await getAllAbilities()).map((a) => a.name));
-            } catch (e) {}
+            const abilityIndex = await abilityIndexPromise;
             detail.abilities = Object.entries(showdownData.abilities)
                 .filter(([, abilityName]) => typeof abilityName === 'string' && abilityName.trim() !== '')
                 .map(([key, abilityName]: [string, any]) => {
@@ -89,13 +112,12 @@ try {
     }
 } catch (e) {}
 
-// 1b. Sets competitivos de Smogon
-let smogonSets = null;
-try {
-    if (showdownData) {
-        smogonSets = await getSmogonSets(detail.name, showdownData.tier || 'Untiered');
-    }
-} catch (e) {}
+// 1b. Sets competitivos de Smogon (optional). Needs the tier, so it starts as
+// soon as Showdown resolves and overlaps the ability lookups below.
+let smogonSets: any = null;
+const smogonPromise: Promise<any> = showdownData
+    ? getSmogonSets(detail.name, showdownData.tier || 'Untiered').catch(() => null)
+    : Promise.resolve(null);
 
 // 2. Fallback de especie (para Movimientos que Showdown no detalla para Megas)
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
@@ -112,34 +134,27 @@ if (detail.moves.length === 0 || detail.abilities.length === 0) {
 }
 
 // 3. Datos Técnicos
-let evolutionChain = null;
-let abilitiesWithTranslation = [];
-let varieties = [];
+let evolutionChain: any = null;
+let abilitiesWithTranslation: any[] = [];
+let varieties: any[] = [];
 
 try {
-    const results = await Promise.allSettled([
-        species?.evolution_chain?.url ? getEvolutionChain(species.evolution_chain.url) : Promise.resolve(null),
-        Promise.all(detail.abilities.map(async (a: any) => {
-            try {
-                if (!a.ability.url) throw new Error('unresolved ability');
-                const ad = await getAbilityDetail(a.ability.url);
-                return {
-                    ...a,
-                    displayName: ad.names?.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
-                    description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
-                                 ad.flavor_text_entries?.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
-                };
-            } catch (e) {
-                return { ...a, displayName: formatName(a.ability.name), description: "" };
-            }
-        })),
-        species?.varieties ? Promise.all(species.varieties.filter((v: any) => !v.is_default).map((v: any) => getPokemonDetailByUrl(v.pokemon.url))) : Promise.resolve([])
-    ]);
-
-    evolutionChain = results[0].status === 'fulfilled' ? results[0].value : null;
-    abilitiesWithTranslation = results[1].status === 'fulfilled' ? results[1].value : [];
-    varieties = (results[2].status === 'fulfilled' ? (results[2].value as any[]) : []).filter(Boolean);
+    abilitiesWithTranslation = await Promise.all(detail.abilities.map(async (a: any) => {
+        try {
+            if (!a.ability.url) throw new Error('unresolved ability');
+            const ad = await getAbilityDetail(a.ability.url);
+            return {
+                ...a,
+                displayName: ad.names?.find((n: any) => n.language.name === lang)?.name || formatName(a.ability.name),
+                description: ad.flavor_text_entries?.find((f: any) => f.language.name === lang)?.flavor_text.replace(/\f/g, ' ') ||
+                             ad.flavor_text_entries?.find((f: any) => f.language.name === 'en')?.flavor_text.replace(/\f/g, ' ') || ""
+            };
+        } catch (e) {
+            return { ...a, displayName: formatName(a.ability.name), description: "" };
+        }
+    }));
 } catch (e) {}
+[evolutionChain, varieties, smogonSets] = await Promise.all([evolutionPromise, varietiesPromise, smogonPromise]);
 
 // 4. Traducir smogonSets al idioma actual
 if (smogonSets && smogonSets.length > 0 && lang === 'es') {
@@ -191,24 +206,24 @@ const height = detail.height / 10;
 const weight = detail.weight / 10;
 const totalStats = detail.stats.reduce((acc: number, s: any) => acc + s.base_stat, 0);
 
-// Lógica para Navegación Anterior/Siguiente (Dex Nacional 1-1025)
-// Obtenemos el ID de la especie desde la URL vinculada en el detalle
-const speciesUrl = detail.species?.url || '';
-const speciesIdMatch = speciesUrl.match(/\/pokemon-species\/(\d+)\//);
-const currentDexId = pokemonId > 10000 ? (speciesIdMatch ? speciesIdMatch[1] : pokemonId) : pokemonId;
-const prevId = Number(currentDexId) === 1 ? 1025 : Number(currentDexId) - 1;
-const nextId = Number(currentDexId) === 1025 ? 1 : Number(currentDexId) + 1;
+// Lógica para Navegación Anterior/Siguiente (Dex Nacional). The species id
+// comes from the species link already on the detail; the wrap-around bound is
+// the species list's own size, not a hardcoded 1025.
+const currentDexId = currentDexIdEarly;
+const speciesNamesById = await speciesNamesPromise;
+const maxDexId = speciesNamesById ? Math.max(...speciesNamesById.keys()) : 0;
+const prevId = currentDexId === 1 ? maxDexId : currentDexId - 1;
+const nextId = currentDexId === maxDexId ? 1 : currentDexId + 1;
 
-let prevPokemon: any = null;
-let nextPokemon: any = null;
-try {
-    const navResults = await Promise.allSettled([
-        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${prevId}`),
-        getPokemonDetailByUrl(`https://pokeapi.co/api/v2/pokemon/${nextId}`)
-    ]);
-    prevPokemon = navResults[0].status === 'fulfilled' ? navResults[0].value : null;
-    nextPokemon = navResults[1].status === 'fulfilled' ? navResults[1].value : null;
-} catch (e) {}
+const navEntry = (id: number) => {
+    const speciesName = speciesNamesById?.get(id);
+    return speciesName
+        ? { name: speciesName, sprites: { front_default: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png` } }
+        : null;
+};
+// Optional enrichment: without the species list there is no navigation block.
+const prevPokemon: any = speciesNamesById ? navEntry(prevId) : null;
+const nextPokemon: any = speciesNamesById ? navEntry(nextId) : null;
 
 const hasNavigation = prevPokemon && nextPokemon;
 
@@ -297,7 +312,7 @@ const breadcrumbItems = [
             <div class="flex items-center gap-3">
                 {hasNavigation ? (
                     <>
-                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(prevPokemon))} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
+                        <a href={pagePath(lang, 'pokemon', prevPokemon.name)} class="flex items-center gap-3 pl-2 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline">
                             <img src={prevPokemon.sprites?.front_default} alt="" width="40" height="40" class="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{prevId.toString().padStart(4, '0')}</span>
@@ -305,7 +320,7 @@ const breadcrumbItems = [
                             </div>
                         </a>
                         <div class="w-px h-8 bg-slate-100 dark:bg-slate-800 hidden sm:block"></div>
-                        <a href={pagePath(lang, 'pokemon', canonicalPokemonSlug(nextPokemon))} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
+                        <a href={pagePath(lang, 'pokemon', nextPokemon.name)} class="flex items-center gap-3 pl-4 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl group no-underline text-right">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">#{nextId.toString().padStart(4, '0')}</span>
                                 <span class="text-xs font-bold text-slate-700 dark:text-slate-200 capitalize leading-none">{nextPokemon.name.replace(/-/g, ' ')}</span>

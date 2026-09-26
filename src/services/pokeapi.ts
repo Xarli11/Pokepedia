@@ -1,6 +1,7 @@
 // src/services/pokeapi.ts
 
 import { EntityNotFoundError, NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
+import { getSmogonDataBatch } from './smogon';
 import { UPSTREAM_TIMEOUT_MS, SLOW_UPSTREAM_MS, fetchWithTimeout, logUpstream } from './upstream';
 import { defaultVariety } from '../utils/seo';
 
@@ -757,7 +758,7 @@ export async function getMachineMove(machineUrl: string): Promise<MoveDetail | n
 
 /**
  * Un único Pokémon por URL/id, o null si no se puede resolver — para
- * navegación previo/siguiente y otros lookups puntuales por URL.
+ * lookups puntuales que necesitan el objeto completo (moves, abilities).
  */
 export async function getPokemonDetailByUrl(url: string): Promise<PokemonDetail | null> {
     try {
@@ -768,18 +769,100 @@ export async function getPokemonDetailByUrl(url: string): Promise<PokemonDetail 
 }
 
 /**
- * Resuelve una lista de Pokémon a partir de sus URLs de PokeAPI, con límite
- * y tolerancia a fallos individuales (Promise.allSettled): una entrada que
- * falla se omite en vez de romper toda la página. Pensado para listados
- * "aprendido/llevado por" de movimientos, objetos y habilidades, que pueden
- * referenciar decenas o cientos de Pokémon.
+ * What a Pokémon card / link needs from `pokemon/{id}` — a few hundred
+ * bytes of a ~300 KB resource (its moves alone are ~250 KB).
  */
-export async function getPokemonListByUrls(urls: string[], limit: number): Promise<PokemonDetail[]> {
-    const capped = urls.slice(0, limit);
-    const results = await Promise.allSettled(capped.map(url => fetchWithCache<PokemonDetail>(url)));
-    return results
-        .filter((r): r is PromiseFulfilledResult<PokemonDetail> => r.status === 'fulfilled')
-        .map(r => r.value);
+export interface PokemonSummary {
+    id: number;
+    name: string;
+    is_default?: boolean;
+    species?: { name: string; url?: string };
+    types: PokemonType[];
+    sprites: {
+        front_default: string;
+        other: { 'official-artwork': { front_default: string } };
+    };
+}
+
+function summarizePokemon(d: PokemonDetail): PokemonSummary {
+    return {
+        id: d.id,
+        name: d.name,
+        is_default: d.is_default,
+        species: d.species,
+        types: d.types,
+        sprites: {
+            front_default: d.sprites?.front_default,
+            other: { 'official-artwork': { front_default: d.sprites?.other?.['official-artwork']?.front_default } },
+        },
+    };
+}
+
+/**
+ * Summary of one Pokémon by URL, or null. Cached (under its own key) as the
+ * summary only, not the full object: forms, prev/next and card fallbacks
+ * used to keep ~300 KB of moves each in the isolate for a name and a sprite.
+ */
+export async function getPokemonSummaryByUrl(url: string): Promise<PokemonSummary | null> {
+    try {
+        return await fetchWithCache<PokemonSummary>(url, { variant: 'summary', transform: summarizePokemon });
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Cards for a list of Pokémon references (learned-by / held-by / has-ability
+ * lists). Types and identity come from data the page already depends on for
+ * the same purpose elsewhere — Showdown's pokedex (the source the Pokémon and
+ * type pages use for types) plus PokeAPI's species list (canonical slugs) —
+ * so N Pokémon cost 0 extra requests instead of N x ~300 KB `pokemon/{id}`
+ * fetches (measured: 41 requests / 12 MB for /movimientos/surf/).
+ * An entry Showdown doesn't know (or when either source is down) falls back
+ * to that Pokémon's PokeAPI summary, exactly as before; an entry that can't
+ * be resolved either way is omitted rather than failing the page.
+ */
+export async function getPokemonCards(refs: NamedResource[], limit: number): Promise<PokemonSummary[]> {
+    const capped = refs.slice(0, limit);
+    if (capped.length === 0) return [];
+
+    const dex = await getSmogonDataBatch(capped.map((r) => r.name));
+    let speciesNames: Map<number, string> | null = null;
+    if (Object.keys(dex).length > 0) {
+        try {
+            speciesNames = await getSpeciesNamesById();
+        } catch {
+            speciesNames = null;
+        }
+    }
+
+    const cards = await Promise.all(
+        capped.map(async (ref): Promise<PokemonSummary | null> => {
+            const id = idFromResourceUrl(ref.url);
+            const sd = dex[ref.name];
+            if (sd && speciesNames && Number.isFinite(id) && sd.types.length > 0) {
+                const isDefault = id < 10000;
+                const speciesName = isDefault ? speciesNames.get(id) : undefined;
+                // A default form needs its species name for its canonical URL;
+                // without it the card would link a redirecting URL.
+                if (!isDefault || speciesName) {
+                    return {
+                        id,
+                        name: ref.name,
+                        is_default: isDefault,
+                        species: speciesName ? { name: speciesName } : undefined,
+                        types: sd.types.map((name, i) => ({ slot: i + 1, type: { name, url: '' } })),
+                        sprites: {
+                            front_default: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+                            other: { 'official-artwork': { front_default: buildSpriteUrl(id) } },
+                        },
+                    };
+                }
+            }
+            return getPokemonSummaryByUrl(ref.url);
+        })
+    );
+    return cards.filter((c): c is PokemonSummary => c !== null);
 }
 
 export async function getAllAbilities(): Promise<NamedResource[]> {

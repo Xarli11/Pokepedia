@@ -43,8 +43,16 @@ function pokemonDetail(id: number, name: string, speciesId = id) {
 const FIXTURES: Record<string, unknown> = {
   // Pokémon page: feraligatr + its species, evolution chain, prev/next, form.
   '/pokemon/feraligatr': pokemonDetail(160, 'feraligatr'),
-  '/pokemon/159': pokemonDetail(159, 'croconaw'),
-  '/pokemon/161': pokemonDetail(161, 'sentret'),
+  // prev/next come from the species list (name + id), not from pokemon/{id}.
+  '/pokemon-species?limit=100000': {
+    count: 3,
+    next: null,
+    results: [
+      { name: 'croconaw', url: `${API}/pokemon-species/159/` },
+      { name: 'feraligatr', url: `${API}/pokemon-species/160/` },
+      { name: 'sentret', url: `${API}/pokemon-species/161/` },
+    ],
+  },
   '/pokemon/10300': pokemonDetail(10300, 'feraligatr-mega', 160),
   '/pokemon-species/160': {
     name: 'feraligatr',

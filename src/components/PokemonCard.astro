@@ -1,11 +1,11 @@
 ---
 // src/components/PokemonCard.astro
 import { typeTranslations, typeColors, formatPokemonNumber } from '../utils/pokemon';
-import type { PokemonDetail } from '../services/pokeapi';
+import type { PokemonSummary } from '../services/pokeapi';
 import { canonicalPokemonSlug, pagePath } from '../utils/seo';
 
 interface Props {
-    pokemon: PokemonDetail;
+    pokemon: PokemonSummary;
     lang: string;
 }
 
