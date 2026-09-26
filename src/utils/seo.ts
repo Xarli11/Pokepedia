@@ -16,8 +16,13 @@ export function isSupportedLang(value: string): value is SupportedLang {
 }
 
 const DEFAULT_TITLE: Record<SupportedLang, string> = {
-  es: 'La Enciclopedia Pokémon Técnica Definitiva',
-  en: 'The Ultimate Technical Pokémon Encyclopedia',
+  es: 'La Enciclopedia Pokémon',
+  en: 'The Pokémon Encyclopedia',
+};
+
+export const DEFAULT_DESCRIPTION: Record<SupportedLang, string> = {
+  es: 'Pokémon, movimientos, habilidades, objetos, evoluciones, formas, generaciones y datos de juego, conectados y fáciles de consultar.',
+  en: 'Pokémon, moves, abilities, items, evolutions, forms, generations and game data, connected and easy to look up.',
 };
 
 // Matches a trailing "| Pokepedia" or "| Pokepedia.app" brand suffix

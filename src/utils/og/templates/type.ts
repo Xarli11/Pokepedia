@@ -6,12 +6,12 @@ import type { SupportedLang } from '../../seo';
 const COPY: Record<SupportedLang, { typeWord: string; subtitle: (label: string) => string; countSuffix: string }> = {
 	es: {
 		typeWord: 'TIPO',
-		subtitle: () => 'Debilidades · Resistencias · Pokémon',
+		subtitle: () => 'Pokémon · Estadísticas · Generaciones',
 		countSuffix: 'Pokémon',
 	},
 	en: {
 		typeWord: '',
-		subtitle: () => 'Weaknesses · Resistances · Pokémon',
+		subtitle: () => 'Pokémon · Stats · Generations',
 		countSuffix: 'Pokémon',
 	},
 };

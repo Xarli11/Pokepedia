@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import { uiTranslations } from '../utils/pokemon';
-import { SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath, pagePath } from '../utils/seo';
+import { DEFAULT_DESCRIPTION, SITE_URL, buildPageTitle, canonicalUrl, localeAlternates, localizedPath, pagePath } from '../utils/seo';
 
 interface Props {
 	title?: string;
@@ -19,7 +19,7 @@ interface Props {
 
 const {
     title,
-    description = "Tu enciclopedia Pokémon técnica y definitiva.",
+    description: descriptionProp,
     robots,
     lang = "es",
     image,
@@ -48,6 +48,7 @@ const otherLang = lang === 'es' ? 'en' : 'es';
 const otherLangPath = `${localizedPath(currentPath, otherLang as 'es' | 'en')}${currentSearch}`;
 
 const pageTitle = buildPageTitle(title, lang);
+const description = descriptionProp || (lang === 'en' ? DEFAULT_DESCRIPTION.en : DEFAULT_DESCRIPTION.es);
 const canonical = canonicalUrl(currentPath);
 const alternates = localeAlternates(currentPath);
 
@@ -126,7 +127,6 @@ if (Astro.locals.cacheControl) {
 		<title>{pageTitle}</title>
         <meta name="description" content={description} />
         {robots && <meta name="robots" content={robots} />}
-        <meta name="keywords" content="Pokemon, Pokedex, Pokepedia, Type Calculator, Weakness Chart, Smogon, Showdown, competitive Pokemon, Pokemon stats, Gen 9, Pokemon Scarlet Violet, Type Coverage" />
         <meta name="author" content="Xarli11" />
         <link rel="canonical" href={canonical} />
 
@@ -165,7 +165,7 @@ if (Astro.locals.cacheControl) {
           "@type": "WebApplication",
           "name": "Pokepedia",
           "url": "https://pokepedia.app",
-          "description": "The Ultimate Technical Pokémon Encyclopedia with competitive integration, technical stats, and meta analysis.",
+          "description": "The Pokémon encyclopedia: Pokémon, moves, abilities, items, evolutions, forms, generations and game data, connected and easy to look up.",
           "applicationCategory": "GameApplication",
           "operatingSystem": "Any",
           "offers": {
@@ -173,7 +173,7 @@ if (Astro.locals.cacheControl) {
             "price": "0",
             "priceCurrency": "USD"
           },
-          "featureList": "Competitive integration, Smogon Tiers, Technical Stats, Evolutionary Chains, Move & Ability Dex"
+          "featureList": "Pokédex, Move Dex, Ability Dex, Item Dex, Evolution Chains, Forms, Generations"
         }
         </script>
         
