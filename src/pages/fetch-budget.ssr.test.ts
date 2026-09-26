@@ -65,8 +65,11 @@ function stub(opts: { dex: boolean } = { dex: true }) {
 
 const cardFetches = () => calls.filter((u) => /\/pokemon\/\d+\/?$/.test(u));
 
-async function page(file: string, pattern: string, params: Record<string, string>, path: string) {
+// `warm`: Showdown's pokedex already cached in the isolate (after any Pokémon /
+// type / generation page), which is when the card list can skip PokeAPI.
+async function page(file: string, pattern: string, params: Record<string, string>, path: string, warm = false) {
   vi.resetModules();
+  if (warm) await (await import('../services/smogon')).getSmogonDataBatch([]);
   const Page = (await import(/* @vite-ignore */ file)).default;
   const { renderRoute: r } = await import('../testing/renderRoute');
   return r(Page, { routePattern: pattern, params, path });
@@ -79,15 +82,24 @@ afterEach(() => {
 });
 
 describe('fetch budgets (SSR)', () => {
-  it('move page: 30 learned-by cards cost 0 pokemon/{id} requests, and all 30 are linked', async () => {
+  it('move page, warm isolate: 30 learned-by cards cost 0 pokemon/{id} requests, and all 30 are linked', async () => {
     stub();
-    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
+    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true);
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     const html = await res.text();
     const links = new Set([...html.matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1]));
     expect(links.size).toBe(30);
-    expect(calls).toHaveLength(3); // move, species list, pokedex
+    expect(calls.filter((u) => !u.includes('/pokemon/'))).toHaveLength(3); // pokedex (warm-up), move, species list
+  });
+
+  it('move page, COLD isolate: does not wait on Showdown — same PokeAPI cards as before', async () => {
+    stub();
+    for (const h of HOLDERS) ROUTES[`/pokemon/${h.url.split('/').slice(-2)[0]}`] ??= pokemon(Number(h.url.split('/').slice(-2)[0]), h.name);
+    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
+    expect(res.status).toBe(200);
+    expect(calls).not.toContain(DEX_URL);
+    expect(cardFetches()).toHaveLength(30);
   });
 
   it('move page with Showdown DOWN still renders the cards (per-Pokémon fallback, as before)', async () => {
@@ -99,9 +111,9 @@ describe('fetch budgets (SSR)', () => {
     expect(new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1])).size).toBe(30);
   });
 
-  it('item page: held-by (limit 15) costs 0 pokemon/{id} requests', async () => {
+  it('item page, warm isolate: held-by (limit 15) costs 0 pokemon/{id} requests', async () => {
     stub();
-    const res = await page('./[lang]/objetos/[name].astro', '/[lang]/objetos/[name]', { lang: 'es', name: 'mystic-water' }, '/es/objetos/mystic-water/');
+    const res = await page('./[lang]/objetos/[name].astro', '/[lang]/objetos/[name]', { lang: 'es', name: 'mystic-water' }, '/es/objetos/mystic-water/', true);
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     const links = new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1]));

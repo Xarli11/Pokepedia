@@ -52,9 +52,12 @@ function stub(opts: { dex?: object | 'down'; species?: object | 'down'; details?
   return calls;
 }
 
-async function fresh() {
+/** Fresh modules; `warm` = Showdown's pokedex already cached in this isolate (as after any Pokémon/type page). */
+async function fresh(warm = true) {
   vi.resetModules();
-  return import('./pokeapi');
+  const mod = await import('./pokeapi');
+  if (warm) await (await import('./smogon')).getSmogonDataBatch([]);
+  return mod;
 }
 
 const refs = (...pairs: [string, number][]) => pairs.map(([name, id]) => ({ name, url: `${API}/pokemon/${id}/` }));
@@ -109,9 +112,29 @@ describe('getPokemonCards', () => {
     expect(calls.filter((u) => /\/pokemon\/\d+/.test(u))).toEqual([`${API}/pokemon/10999/`]);
   });
 
+  it('COLD isolate (pokedex not cached anywhere): never starts the Showdown download, builds cards from PokeAPI as before', async () => {
+    const calls = stub({ dex: DEX, species: SPECIES, details: { '/pokemon/25': detail(25, 'pikachu', 'electric') } });
+    const { getPokemonCards } = await fresh(false);
+    const cards = await getPokemonCards(refs(['pikachu', 25]), 40);
+    expect(cards.map((c) => c.name)).toEqual(['pikachu']);
+    expect(calls).not.toContain(DEX_URL);
+    expect(calls.some((u) => u.endsWith('/pokemon/25/'))).toBe(true);
+  });
+
+  it('a pokedex found in the edge cache (no memory copy, no network) is used', async () => {
+    const store = new Map<string, string>([[DEX_URL, JSON.stringify(DEX)]]);
+    vi.stubGlobal('caches', { default: { match: async (r: Request) => (store.has(r.url) ? new Response(store.get(r.url), { headers: { 'x-pokepedia-cached-at': String(Date.now()) } }) : undefined), put: async () => {} } });
+    const calls = stub({ species: SPECIES });
+    const { getPokemonCards } = await fresh(false);
+    const cards = await getPokemonCards(refs(['pikachu', 25]), 40);
+    expect(cards[0].types[0].type.name).toBe('electric');
+    expect(calls.filter((u) => /\/pokemon\/\d+/.test(u))).toEqual([]);
+    expect(calls).not.toContain(DEX_URL);
+  });
+
   it('Showdown down: every card falls back to its PokeAPI summary (previous behaviour)', async () => {
     const calls = stub({ dex: 'down', species: SPECIES, details: { '/pokemon/25': detail(25, 'pikachu', 'electric') } });
-    const { getPokemonCards } = await fresh();
+    const { getPokemonCards } = await fresh(false);
     const cards = await getPokemonCards(refs(['pikachu', 25]), 40);
     expect(cards).toHaveLength(1);
     expect(cards[0].types[0].type.name).toBe('electric');
@@ -142,7 +165,7 @@ describe('getPokemonCards', () => {
 
   it('empty list -> no requests at all', async () => {
     const calls = stub({ dex: DEX, species: SPECIES });
-    const { getPokemonCards } = await fresh();
+    const { getPokemonCards } = await fresh(false);
     expect(await getPokemonCards([], 40)).toEqual([]);
     expect(calls).toEqual([]);
   });

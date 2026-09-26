@@ -147,9 +147,7 @@ export async function getPokemonTier(name: string): Promise<string> {
     return pokemon?.tier || 'Untiered';
 }
 
-export async function getSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
-    const pokedex = await fetchDataset<any>(POKEDEX_URL, 'showdown', isPokedex);
-    if (!pokedex) return {};
+function batchFrom(pokedex: any, names: string[]): Record<string, { types: string[], baseStats: Record<string, number> }> {
     const result: Record<string, { types: string[], baseStats: Record<string, number> }> = {};
     for (const name of names) {
         const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -162,6 +160,29 @@ export async function getSmogonDataBatch(names: string[]): Promise<Record<string
         }
     }
     return result;
+}
+
+export async function getSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
+    const pokedex = await fetchDataset<any>(POKEDEX_URL, 'showdown', isPokedex);
+    if (!pokedex) return {};
+    return batchFrom(pokedex, names);
+}
+
+/**
+ * Same lookup, but ONLY from what is already cached (memory, then the edge
+ * cache) — it never starts a Showdown download. For callers whose own
+ * fallback is cheap (a Pokémon card can be built from PokeAPI): measured
+ * cold, waiting on the 524 KB dataset (~0.7 s) was slower than the
+ * requests it saves, so they use it when it is free and not otherwise.
+ * Stale copies are fine here: base types don't change with the TTL.
+ */
+export async function getCachedSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
+    const memory = cache.get(POKEDEX_URL);
+    if (memory) return batchFrom(memory.data, names);
+    const edge = await edgeRead(POKEDEX_URL, isPokedex);
+    if (!edge) return {};
+    cache.set(POKEDEX_URL, { data: edge.data, timestamp: Date.now() });
+    return batchFrom(edge.data, names);
 }
 
 const TIER_TO_FORMAT: Record<string, string> = {

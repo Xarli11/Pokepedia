@@ -1,7 +1,7 @@
 // src/services/pokeapi.ts
 
 import { EntityNotFoundError, NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
-import { getSmogonDataBatch } from './smogon';
+import { getCachedSmogonDataBatch } from './smogon';
 import { UPSTREAM_TIMEOUT_MS, SLOW_UPSTREAM_MS, fetchWithTimeout, logUpstream } from './upstream';
 import { defaultVariety } from '../utils/seo';
 
@@ -813,20 +813,22 @@ export async function getPokemonSummaryByUrl(url: string): Promise<PokemonSummar
 
 /**
  * Cards for a list of Pokémon references (learned-by / held-by / has-ability
- * lists). Types and identity come from data the page already depends on for
- * the same purpose elsewhere — Showdown's pokedex (the source the Pokémon and
- * type pages use for types) plus PokeAPI's species list (canonical slugs) —
- * so N Pokémon cost 0 extra requests instead of N x ~300 KB `pokemon/{id}`
- * fetches (measured: 41 requests / 12 MB for /movimientos/surf/).
- * An entry Showdown doesn't know (or when either source is down) falls back
- * to that Pokémon's PokeAPI summary, exactly as before; an entry that can't
- * be resolved either way is omitted rather than failing the page.
+ * lists). When Showdown's pokedex is ALREADY cached (memory or edge cache —
+ * the source the Pokémon and type pages use for types) and PokeAPI's species
+ * list is available (canonical slugs), N Pokémon cost 0 extra requests
+ * instead of N x ~300 KB `pokemon/{id}` fetches (measured: 41 requests /
+ * 12 MB for /movimientos/surf/). It never *starts* the Showdown download for
+ * this: cold, that 0.7 s wait was slower than the PokeAPI fan-out it saves
+ * (0.2 s), so a cold isolate does exactly what it did before.
+ * An entry Showdown doesn't know (or when either source is unavailable)
+ * falls back to that Pokémon's PokeAPI summary; an entry that can't be
+ * resolved either way is omitted rather than failing the page.
  */
 export async function getPokemonCards(refs: NamedResource[], limit: number): Promise<PokemonSummary[]> {
     const capped = refs.slice(0, limit);
     if (capped.length === 0) return [];
 
-    const dex = await getSmogonDataBatch(capped.map((r) => r.name));
+    const dex = await getCachedSmogonDataBatch(capped.map((r) => r.name));
     let speciesNames: Map<number, string> | null = null;
     if (Object.keys(dex).length > 0) {
         try {
