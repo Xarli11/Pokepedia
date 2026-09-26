@@ -473,7 +473,7 @@ failing endpoint). Successful requests are not logged; routine 404s are not logg
 | PokeAPI, memory (per isolate) | any successful 2xx JSON GET, or a *projection* (`#summary`) of a large one | exact URL (+ `#variant`); no language, no entity mixing | 24 h | TTL/LRU (400 entries) / isolate recycle | previous **valid** copy for the same URL up to 7 days, refreshed after 60 s; **only** for `UpstreamError` (never 404); none stored → error propagates → 503 | 404, 429, 5xx, timeouts, invalid JSON, partial catalogs |
 | In-flight | concurrent identical requests | URL (+ entity-lookup flag, so a primary lookup never inherits a secondary one's error class) | request lifetime | — | shared failure, not remembered | |
 | Showdown pokedex, Smogon sets: memory | parsed, validated dataset | dataset URL | 24 h | | last valid copy | |
-| same: Cloudflare Cache API (`caches.default`, where present) | validated dataset body | dataset URL | fresh 6 h, kept 7 d as stale fallback | overwritten on refresh | stale edge copy served if Showdown/Smogon fail | unparseable/empty/`{"error":…}` bodies, non-200 |
+| same: Cloudflare Cache API (`caches.default`, where present) | validated dataset body + `x-pokepedia-cached-at` | dataset URL | fresh 6 h, kept as stale fallback up to the absolute 7 d | overwritten on refresh | stale edge copy served if Showdown/Smogon fail, only while its real age ≤ 7 d | unparseable/empty/`{"error":…}` bodies, non-200 |
 | HTML | **nothing cached** | — | — | — | — | (see §6) |
 
 Languages: nothing is keyed by language. Redirects/404/503/500 are never stored.
@@ -489,12 +489,40 @@ verify the edge-cache path: 1.06 s → 0.22 s for a cold isolate on `/es/movimie
 when the pokedex was in the cache), but **production hit rates and behavior on the
 `pages.dev` hostname are unverified**; the layer is designed to be a no-op when absent.
 
+### Dataset age policy (Showdown / Smogon), exact
+
+* `cachedAt` = time of the **real origin fetch**. It is written at the edge as
+  `x-pokepedia-cached-at` and carried unchanged origin → edge → memory. Reading,
+  promoting (`getCachedSmogonDataBatch`, `fetchDataset`) or re-serving a copy never renews it.
+* **Fresh** = age < 6 h at the edge (no origin request). **Memory** avoids repeated reads
+  while age < 24 h; it can never extend the absolute age.
+* **Stale fallback** (origin failing) = only while `now − cachedAt ≤ 7 days`, from either layer
+  (the freshest valid one). Edge entries without a valid header, or older than 7 days, are
+  ignored even if the edge still stores them (the application does not rely on Cloudflare's own expiry).
+* Beyond 7 days with the origin down: dataset unavailable (`null`); the page stays a **200
+  degraded** — never a 503 for Showdown/Smogon. Effective maximum age of a served copy: **7 days**
+  (tests: edge copy promoted at 6 d 23 h is refused 2 h later; 8-day copy refused; recovery stores a new real `cachedAt`).
+* Bug found while testing this: after an edge-fresh early return the in-flight entry stayed
+  registered, pinning the first result for the isolate's lifetime; fixed.
+
+### Cloudflare plan
+
+Production is on **Workers Paid** (confirmed by the owner), so the Free 50-subrequest limit is
+not a constraint; the card fan-out, retry policy and cold/warm pokedex strategy are unchanged.
+(Still worth knowing: move/ability pages make ≈41 upstream requests in a cold isolate.)
+
+### Test counts (measured, not recalled)
+
+`npm test` on exactly `8d6cea2` (v0.13.0): **38 files, 396 tests**. On this branch's head:
+**46 files, 564 tests** (+8 files, **+168 tests**). An earlier draft of this report said "397 → 555"; the 397
+came from an intermediate run while fixtures were being edited, not from the base commit.
+
 ---
 
 ## 10. Risks
 
 1. **Edge cache is unverified in production.** Contained: datasets only, validated before write, silent no-op if unavailable.
-2. **Stale-on-error can serve data up to 7 days old** when PokeAPI is down. Acceptable for near-static game data; logged as `upstream_stale`.
+2. **Stale-on-error can serve data up to 7 days old** when the origin is down (PokeAPI copies; Showdown/Smogon datasets with the absolute-age rule below). Acceptable for near-static game data; logged as `upstream_stale`.
 3. **Cold isolates gained no latency on card pages** (by design after the correction); the win exists only when the pokedex is already cached (memory or edge).
 4. **Global stylesheet classes** (`.item-card`, `.move-row`, `.oi-*`, `.mi-*`) are unlayered CSS and beat utility classes on those elements; priority colouring therefore uses a `data-p` attribute. Anyone toggling utilities on those elements from JS will hit it.
 5. Local wrangler ≠ Cloudflare edge; latency numbers are relative only, and PokeAPI latency drifted ~2× between runs.
