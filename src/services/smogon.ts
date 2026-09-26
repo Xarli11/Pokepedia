@@ -147,22 +147,25 @@ export async function getPokemonTier(name: string): Promise<string> {
     return pokemon?.tier || 'Untiered';
 }
 
-function batchFrom(pokedex: any, names: string[]): Record<string, { types: string[], baseStats: Record<string, number> }> {
-    const result: Record<string, { types: string[], baseStats: Record<string, number> }> = {};
+export interface SmogonBatchEntry { types: string[], baseStats: Record<string, number>, tier?: string }
+
+function batchFrom(pokedex: any, names: string[]): Record<string, SmogonBatchEntry> {
+    const result: Record<string, SmogonBatchEntry> = {};
     for (const name of names) {
         const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
         const data = pokedex[key];
         if (data) {
             result[name] = {
                 types: (data.types || []).map((t: string) => t.toLowerCase()),
-                baseStats: data.baseStats || {}
+                baseStats: data.baseStats || {},
+                tier: typeof data.tier === 'string' ? data.tier : undefined
             };
         }
     }
     return result;
 }
 
-export async function getSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
+export async function getSmogonDataBatch(names: string[]): Promise<Record<string, SmogonBatchEntry>> {
     const pokedex = await fetchDataset<any>(POKEDEX_URL, 'showdown', isPokedex);
     if (!pokedex) return {};
     return batchFrom(pokedex, names);
@@ -176,7 +179,7 @@ export async function getSmogonDataBatch(names: string[]): Promise<Record<string
  * requests it saves, so they use it when it is free and not otherwise.
  * Stale copies are fine here: base types don't change with the TTL.
  */
-export async function getCachedSmogonDataBatch(names: string[]): Promise<Record<string, { types: string[], baseStats: Record<string, number> }>> {
+export async function getCachedSmogonDataBatch(names: string[]): Promise<Record<string, SmogonBatchEntry>> {
     const memory = cache.get(POKEDEX_URL);
     if (memory) return batchFrom(memory.data, names);
     const edge = await edgeRead(POKEDEX_URL, isPokedex);

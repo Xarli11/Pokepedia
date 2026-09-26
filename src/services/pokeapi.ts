@@ -782,6 +782,12 @@ export interface PokemonSummary {
         front_default: string;
         other: { 'official-artwork': { front_default: string } };
     };
+    /**
+     * Showdown tier, present only when the card was built from the pokedex
+     * (which then also spares the browser its own 524 KB download for the
+     * tier badge). Absent = unknown: the client fills the badge in.
+     */
+    tier?: string;
 }
 
 function summarizePokemon(d: PokemonDetail): PokemonSummary {
@@ -852,6 +858,7 @@ export async function getPokemonCards(refs: NamedResource[], limit: number): Pro
                         id,
                         name: ref.name,
                         is_default: isDefault,
+                        tier: sd.tier ?? 'N/A',
                         species: speciesName ? { name: speciesName } : undefined,
                         types: sd.types.map((name, i) => ({ slot: i + 1, type: { name, url: '' } })),
                         sprites: {
