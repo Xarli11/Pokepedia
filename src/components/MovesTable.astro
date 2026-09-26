@@ -1,6 +1,7 @@
 ---
-import { uiTranslations, methodTranslations, versionTranslations, formatName } from '../utils/pokemon';
+import { uiTranslations, methodTranslations, versionTranslations } from '../utils/pokemon';
 import { pagePath } from '../utils/seo';
+import { compactMoves, expandMoves, jsonForScript, resourceRef, type RawMoveEntry } from '../utils/movesPayload';
 
 interface Props {
     moves: {
@@ -28,30 +29,28 @@ const mt = methodTranslations[lang] || methodTranslations.es;
 const safeMoves = moves || [];
 const versionGroups = [...new Set(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)))].sort();
 
-const processedMoves = safeMoves.flatMap(m =>
-    (m.version_group_details || []).map(d => ({
-        name: formatName(m.move?.name || ""),
-        slug: m.move?.name || "",
-        url: m.move?.url || "",
-        level: d.level_learned_at,
-        method: d.move_learn_method?.name || "",
-        methodLabel: mt[d.move_learn_method?.name] || d.move_learn_method?.name || "",
-        version: d.version_group?.name || "",
-        versionLabel: versionTranslations[d.version_group?.name] || d.version_group?.name?.replace(/-/g, ' ') || ""
-    }))
-).filter(m => m.slug);
+// (move, level, method) per version group, deduplicated. Only this — not the
+// processed rows — travels to the browser (see utils/movesPayload.ts).
+const rawByVersion: Record<string, RawMoveEntry[]> = Object.fromEntries(versionGroups.map(v => [v, [] as RawMoveEntry[]]));
+const seenByVersion: Record<string, Set<string>> = Object.fromEntries(versionGroups.map(v => [v, new Set<string>()]));
+for (const m of safeMoves) {
+    const slug = m.move?.name || "";
+    if (!slug) continue;
+    for (const d of m.version_group_details || []) {
+        const version = d.version_group?.name || "";
+        if (!seenByVersion[version]) continue;
+        const method = d.move_learn_method?.name || "";
+        const key = `${slug}-${d.level_learned_at}-${method}`;
+        if (seenByVersion[version].has(key)) continue;
+        seenByVersion[version].add(key);
+        rawByVersion[version].push({ slug, ref: resourceRef(m.move?.url || ""), level: d.level_learned_at, method, version });
+    }
+}
 
-const movesByVersion = versionGroups.reduce((acc, version) => {
-    const versionMoves = processedMoves.filter(m => m.version === version);
-    const seen = new Set();
-    acc[version] = versionMoves.filter(m => {
-        const key = `${m.slug}-${m.level}-${m.method}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-    return acc;
-}, {} as Record<string, any[]>);
+const payload = compactMoves(rawByVersion, {
+    method: (m) => mt[m] || m,
+    version: (v) => versionTranslations[v] || v.replace(/-/g, ' '),
+});
 
 const initialVersion = versionGroups.length > 0
     ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
@@ -62,9 +61,9 @@ const initialVersion = versionGroups.length > 0
 // /movimientos/{slug}/ links exist without JavaScript. Same order as the
 // client's renderMoves(); category / priority / effect need a per-move fetch
 // and are filled in by the client.
-const ssrRows = (movesByVersion[initialVersion] || [])
+const ssrRows = expandMoves(payload, initialVersion)
     .map((m, i) => ({ m, i }))
-    .sort((a, b) => ((parseInt(a.m.level) || 0) - (parseInt(b.m.level) || 0)) || a.i - b.i)
+    .sort((a, b) => ((a.m.level || 0) - (b.m.level || 0)) || a.i - b.i)
     .map(({ m }) => m);
 ---
 
@@ -72,7 +71,7 @@ const ssrRows = (movesByVersion[initialVersion] || [])
      data-initial-version={initialVersion}
      data-lang={lang}>
 
-    <div id="moves-data" hidden>{JSON.stringify(movesByVersion)}</div>
+    <script type="application/json" id="moves-data" is:inline set:html={jsonForScript(payload)} />
 
     <div class="p-8 md:p-10 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -130,13 +129,13 @@ const ssrRows = (movesByVersion[initialVersion] || [])
                         <td class="px-6 py-6 font-bold text-slate-900 dark:text-white capitalize truncate">
                             <a href={pagePath(lang, 'movimientos', m.slug)} class="no-underline hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" data-move-url={m.url}>{m.name}</a>
                         </td>
-                        <td class="px-4 py-6"><span class="category-badge inline-block h-5 w-14 rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse" data-move-cat-url={m.url} aria-hidden="true"></span></td>
-                        <td class="px-4 py-6 font-mono text-xs text-slate-400" data-move-priority-url={m.url}></td>
+                        <td class="px-4 py-6"><span class="mv-cat category-badge inline-block h-5 w-14 rounded-lg bg-slate-200 dark:bg-slate-700 animate-pulse" aria-hidden="true"></span></td>
+                        <td class="mv-prio px-4 py-6 font-mono text-xs text-slate-400"></td>
                         <td class="px-4 py-6">
                             <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">{m.methodLabel}</span>
                         </td>
                         <td class="px-4 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">{m.versionLabel}</td>
-                        <td class="px-8 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc-url={m.url}></td>
+                        <td class="mv-desc px-8 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed"></td>
                     </tr>
                 ))}
             </tbody>
@@ -147,6 +146,7 @@ const ssrRows = (movesByVersion[initialVersion] || [])
 
 <script>
     import { pagePath } from '../utils/seo';
+    import { expandMoves, type CompactMoves, type MoveRowData } from '../utils/movesPayload';
 
     const moveCache = new Map();
 
@@ -184,9 +184,19 @@ const ssrRows = (movesByVersion[initialVersion] || [])
         const container = document.querySelector('.moves-container') as HTMLElement;
         if (!container) return;
 
-        // Read data from script tag instead of data-* attribute
+        // Compact payload from the JSON script (see utils/movesPayload.ts);
+        // rows for a version are rebuilt on demand by the same expandMoves()
+        // the server used for its rows.
         const dataScript = document.getElementById('moves-data');
-        const movesByVersion: Record<string, any[]> = dataScript ? JSON.parse(dataScript.textContent || '{}') : {};
+        const payload: CompactMoves = dataScript ? JSON.parse(dataScript.textContent || '{}') : { m: [], k: [], v: {}, l: { m: {}, v: {} } };
+        const versionRows = new Map<string, MoveRowData[]>();
+        const movesByVersion = {
+            get(version: string): MoveRowData[] {
+                let rows = versionRows.get(version);
+                if (!rows) { rows = expandMoves(payload, version); versionRows.set(version, rows); }
+                return rows;
+            }
+        };
 
         const lang = container.dataset.lang || 'es';
         let currentVersion = container.dataset.initialVersion || '';
@@ -200,7 +210,7 @@ const ssrRows = (movesByVersion[initialVersion] || [])
 
         function renderMoves() {
             if (!tableBody) return;
-            let moves = [...(movesByVersion[currentVersion] || [])];
+            let moves = [...movesByVersion.get(currentVersion)];
             const searchTerm = searchInput?.value.toLowerCase().trim() || '';
             const methodValue = methodFilter?.value || 'all';
 
@@ -211,7 +221,7 @@ const ssrRows = (movesByVersion[initialVersion] || [])
                        (methodValue === 'all' || m.method === methodValue);
             });
 
-            moves.sort((a, b) => (parseInt(a.level) || 0) - (parseInt(b.level) || 0));
+            moves.sort((a, b) => (a.level || 0) - (b.level || 0));
 
             tableBody.innerHTML = moves.map(m => {
                 const cached = moveCache.get(m.url);
@@ -233,18 +243,18 @@ const ssrRows = (movesByVersion[initialVersion] || [])
                             <a href="${pagePath(lang, 'movimientos', m.slug)}" class="no-underline hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" data-move-url="${m.url}">${displayName}</a>
                         </td>
                         <td class="px-4 py-6">
-                            <span class="category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white ${categoryColors[category] || 'bg-slate-400'} shadow-sm" data-move-cat-url="${m.url}">
+                            <span class="mv-cat category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white ${categoryColors[category] || 'bg-slate-400'} shadow-sm">
                                 ${category}
                             </span>
                         </td>
-                        <td class="px-4 py-6 font-mono text-xs ${priority > 0 ? 'text-emerald-500' : priority < 0 ? 'text-red-500' : 'text-slate-400'}" data-move-priority-url="${m.url}">
+                        <td class="mv-prio px-4 py-6 font-mono text-xs ${priority > 0 ? 'text-emerald-500' : priority < 0 ? 'text-red-500' : 'text-slate-400'}">
                             ${priority > 0 ? '+' : ''}${priority}
                         </td>
                         <td class="px-4 py-6">
                             <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700">${m.methodLabel}</span>
                         </td>
                         <td class="px-4 py-6 text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">${m.versionLabel}</td>
-                        <td class="px-8 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed" data-move-desc-url="${m.url}">
+                        <td class="mv-desc px-8 py-6 text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed">
                             ${cached?.description || '<div class="h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded-full"></div>'}
                         </td>
                     </tr>
@@ -258,24 +268,33 @@ const ssrRows = (movesByVersion[initialVersion] || [])
         async function prefetch() {
             if (!currentVersion) return;
             const requestId = ++prefetchRequestId; // A9: stamp this batch
-            const currentMoves = movesByVersion[currentVersion] || [];
+            const currentMoves = movesByVersion.get(currentVersion);
             await Promise.all(currentMoves.map(async m => {
                 const info = await fetchMoveInfo(m.url, lang);
                 if (requestId !== prefetchRequestId) return; // A9: stale, discard
                 if (info && tableBody) {
-                    tableBody.querySelectorAll(`[data-move-url="${m.url}"]`).forEach(n => { n.textContent = info.name; });
-                    tableBody.querySelectorAll(`[data-move-desc-url="${m.url}"]`).forEach(d => { d.textContent = info.description; });
-                    tableBody.querySelectorAll(`[data-move-cat-url="${m.url}"]`).forEach(c => {
-                        c.textContent = info.category;
-                        (c as HTMLElement).className = `category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm ${
-                            info.category === 'physical' ? 'bg-red-500' :
-                            info.category === 'special' ? 'bg-blue-500' : 'bg-slate-400'
-                        }`;
-                    });
-                    tableBody.querySelectorAll(`[data-move-priority-url="${m.url}"]`).forEach(p => {
-                        const prio = info.priority;
-                        p.textContent = `${prio > 0 ? '+' : ''}${prio}`;
-                        (p as HTMLElement).className = `px-4 py-6 font-mono text-xs ${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}`;
+                    // Every row for this move (the same move can appear once per
+                    // level/method): located by its anchor, cells by role class.
+                    tableBody.querySelectorAll(`a[data-move-url="${m.url}"]`).forEach(a => {
+                        a.textContent = info.name;
+                        const row = a.closest('tr');
+                        if (!row) return;
+                        const desc = row.querySelector('.mv-desc');
+                        if (desc) desc.textContent = info.description;
+                        const cat = row.querySelector('.mv-cat');
+                        if (cat) {
+                            cat.textContent = info.category;
+                            (cat as HTMLElement).className = `mv-cat category-badge px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-sm ${
+                                info.category === 'physical' ? 'bg-red-500' :
+                                info.category === 'special' ? 'bg-blue-500' : 'bg-slate-400'
+                            }`;
+                        }
+                        const prioCell = row.querySelector('.mv-prio');
+                        if (prioCell) {
+                            const prio = info.priority;
+                            prioCell.textContent = `${prio > 0 ? '+' : ''}${prio}`;
+                            (prioCell as HTMLElement).className = `mv-prio px-4 py-6 font-mono text-xs ${prio > 0 ? 'text-emerald-500' : prio < 0 ? 'text-red-500' : 'text-slate-400'}`;
+                        }
                     });
                 }
             }));

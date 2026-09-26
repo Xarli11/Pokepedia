@@ -2,6 +2,34 @@
 
 All notable changes to Pokepedia are documented in this file.
 
+## [0.14.0] - 2026-09-26
+
+### Added
+
+- One generic PokeAPI catalog loader (`getCompleteResourceList`): a single request verified against the API's own `count`, completed via `next`, deduplicated, and rejected if incomplete. Used by items, moves, abilities, species and forms.
+- Central upstream layer (`src/services/upstream.ts`): per-provider timeouts and structured JSON logs for upstream errors, retries, slow calls and stale serves, plus one log line per 503/500 page.
+- In-flight de-duplication of identical PokeAPI requests, one bounded retry for fast transient faults (network errors, HTTP 5xx; never timeouts, 429, 404 or invalid JSON), stale-on-error from the last valid copy, and an LRU-bounded per-isolate cache.
+- Showdown / Smogon dataset cache: validated in-memory copy plus the Cloudflare Cache API where available. A dataset's real origin time (`cachedAt`) is preserved across edge and memory, and no copy older than 7 days is ever served, even if the origin is down.
+- Compact payload for the Pokémon `MovesTable` (`src/utils/movesPayload.ts`): only (move, level, method) per version group; names, URLs and labels are rebuilt by the same function the server uses for its rows.
+- Pokémon cards for learned-by / held-by / has-ability lists built from the cached Showdown pokedex when it is already available (no `pokemon/{id}` requests), with server-rendered tier badges; unchanged PokeAPI behaviour on a cold instance.
+- Tests for catalogs, the fetch layer, dataset cache ages, cards, the MovesTable payload, index HTML weight, per-page fetch budgets, an upstream fault-injection matrix (timeout, network error, 429, 500, 503, invalid JSON × required / optional / primary dependencies) and the sitemap (396 → 564).
+- `docs/audits/seo-phase5-crawl-performance.md`.
+
+### Changed
+
+- `/es|en/objetos/` initial HTML 5.61 MB → 0.96 MB and `/es|en/movimientos/` 1.38 MB → 0.30 MB, keeping one real `<a href>` per entity (2222 items, 937 moves per language): card and row styling moved to one stylesheet, no per-card fallback SVG, inline `onerror` or per-row URL attributes.
+- Pokémon pages: hidden move dataset 290–509 KB → 10–17 KB; initial HTML 455–641 KB → 143–165 KB for the measured pages.
+- Pokémon page loads Showdown, ability catalog, evolution chain, forms and Smogon concurrently instead of in sequence; previous/next navigation now comes from the cached species list (no two full `pokemon/{id}` requests). The evolution chain and its item/location names are cached and time-limited.
+- Item and sitemap catalogs use one request instead of two.
+- Timeouts: Smogon sets 8 s → 5 s; WikiDex and the evolution chain, previously unbounded, are bounded.
+
+### Fixed
+
+- The sitemap no longer answers a partial 200 when one entity family fails to load: it answers 503 with `Retry-After` and `no-store`. Its 8436 URLs are unchanged.
+- Moves, abilities and species catalogs no longer use hard-coded `limit=1000` / `500` / `1025` / `2000` caps that would truncate them as the API grows.
+- Tier badge lookup key stripped digits (`porygon2`).
+- A settled in-flight entry could pin a Showdown/Smogon result after an edge-fresh return.
+
 ## [0.13.0] - 2026-09-25
 
 ### Added

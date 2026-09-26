@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getMoveDetailByName, getPokemonListByUrls } from '../../../services/pokeapi';
+import { getLocalizedName, getMoveDetailByName, getPokemonCards } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 import { buildMoveTitle, resolveMoveDescription, type MoveFacts } from '../../../utils/moveMeta';
@@ -46,7 +46,7 @@ const pageTitle = buildMoveTitle(lang as string, facts);
 // (learned_by_pokemon), not the number of cards rendered.
 const POKEMON_LIST_LIMIT = 40;
 const totalLearnedBy = moveData.learned_by_pokemon.length;
-const pokemonList = await getPokemonListByUrls(moveData.learned_by_pokemon.map((p) => p.url), POKEMON_LIST_LIMIT);
+const pokemonList = await getPokemonCards(moveData.learned_by_pokemon, POKEMON_LIST_LIMIT);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 

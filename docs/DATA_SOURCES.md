@@ -64,8 +64,8 @@ source. Do not read "Showdown" and "Smogon" as interchangeable.
 | Species flavor text (Pokémon page) | PokeAPI `flavor_text_entries[lang]` | manual patch (if any) inserted first, then WikiDex if still no Spanish entry exists | `getPokemonByName()` | 24h (WikiDex call itself is not cached — it's a single best-effort request) |
 | Competitive tier | Showdown `pokedex.json` `.tier` | `'Untiered'` | `getPokemonTier()` / inline in the Pokémon page | 24h |
 | Competitive sets | Smogon `sets/{format}.json`, keyed by tier -> format | `null` (section simply doesn't render) | `getSmogonSets()` | 24h |
-| Evolution chain | PokeAPI `evolution-chain/{id}` | `null` | `getEvolutionChain()` | not cached (single fetch, cheap payload) |
-| Sitemap Pokémon/move/ability/item lists | PokeAPI list endpoints | that one family is silently omitted if its fetch fails, other families still render | `getAllPokemonBasic/getAllMoves/getAllAbilities/getAllItems` + `Promise.allSettled` in `sitemap.xml.ts` | 24h |
+| Evolution chain | PokeAPI `evolution-chain/{id}` | `null` | `getEvolutionChain()` | 24h (through `fetchWithCache`) |
+| Sitemap Pokémon/move/ability/item lists | PokeAPI list endpoints | none: every family is required — a failing one makes the sitemap a 503 (never a partial 200) | `getAllPokemonBasic/getAllMoves/getAllAbilities/getAllItems` in `sitemap.xml.ts` | 24h |
 
 ## Selection layer: `localizedText.ts`
 
@@ -154,15 +154,25 @@ tested entry — never widen the automatic fallback back out.
 `fetch('https://pokeapi.co/...')`. It provides:
 
 - `fetchWithCache<T>(url)` — the shared primitive: 24h in-memory cache keyed
-  by exact URL, 8s timeout, throws on non-2xx.
+  by exact URL (LRU-bounded), 8s timeout, one bounded retry for fast
+  transient faults only, in-flight de-duplication, stale-on-error from the
+  last valid copy, structured failure logs, throws classified errors on
+  failure. Full policy: `docs/audits/seo-phase5-crawl-performance.md`
+  (section "Cache and reliability policy"). Provider timeouts live in
+  `src/services/upstream.ts`.
+- `getCompleteResourceList(resource)` — every list catalog (items, moves,
+  abilities, species, pokemon) through ONE request verified against the
+  API's own `count`; never a hard-coded `?limit=N`.
 - Entity accessors: `getPokemonByName`, `getPokemonDetailByUrl`,
   `getAbilityDetail(ByName)`, `getMoveDetail(ByName)`, `getItemDetail`,
   `getMachineMove`.
-- `getPokemonListByUrls(urls, limit)` — caps and resolves a list of Pokémon
-  URLs with `Promise.allSettled`, so one bad upstream response drops that
-  one Pokémon instead of failing the whole "Pokémon that learn/hold/have
-  this" listing. Some of these lists are large (Levitate alone lists 50+
-  Pokémon) — always cap, never fetch the full list unbounded.
+- `getPokemonCards(refs, limit)` — caps and resolves a list of Pokémon
+  references for the "Pokémon that learn/hold/have this" listings. From the
+  cached Showdown pokedex + species list when available (0 requests),
+  otherwise one PokeAPI summary per Pokémon; an entry that can't be resolved
+  is dropped instead of failing the listing. Some of these lists are large
+  (Levitate alone lists 50+ Pokémon) — always cap, never fetch the full list
+  unbounded.
 
 As of this sprint, `pokemon/[name].astro`, `objetos/[name].astro`,
 `movimientos/[name].astro`, and `habilidades/[name].astro` all route
@@ -213,7 +223,9 @@ section", never a placeholder that looks like real data:
 - `fetchWithCache`'s 24h in-memory cache is per server instance (Cloudflare
   Workers isolate) and is not shared/persisted across deploys or across
   concurrent instances — this is a soft cache for repeat requests within a
-  warm instance, not a CDN-level guarantee.
+  warm instance, not a CDN-level guarantee. (Showdown/Smogon datasets
+  additionally use the Cloudflare Cache API where available — see the
+  Phase 5 audit.)
 - Showdown's `pokedex.json` and Smogon's per-format `sets/*.json` are
   fetched whole (with a 10MB size guard in `smogon.ts`) and have no
   official versioning; a malformed upstream release degrades gracefully

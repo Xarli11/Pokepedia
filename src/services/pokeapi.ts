@@ -1,6 +1,8 @@
 // src/services/pokeapi.ts
 
 import { EntityNotFoundError, NotFoundError, UpstreamError, errorForUpstreamStatus } from './errors';
+import { getCachedSmogonDataBatch } from './smogon';
+import { UPSTREAM_TIMEOUT_MS, SLOW_UPSTREAM_MS, fetchWithTimeout, logUpstream } from './upstream';
 import { defaultVariety } from '../utils/seo';
 
 export interface PokemonType {
@@ -96,9 +98,10 @@ export interface PokemonSpecies {
  * Obtiene la cadena evolutiva completa por su URL.
  */
 export async function getEvolutionChain(url: string) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al obtener cadena evolutiva');
-    return response.json();
+    // Optional enrichment: the caller degrades if this rejects. Cached and
+    // timed like every other PokeAPI resource (it used a bare, uncached,
+    // untimed fetch, so every Pokémon page re-downloaded it).
+    return fetchWithCache<any>(url);
 }
 
 export interface MoveDetail {
@@ -144,46 +147,172 @@ export interface AbilityDetail {
 }
 
 /**
- * Simple In-Memory Cache for Node.js SSR
+ * PokeAPI fetch layer: one place for timeout, bounded retry, in-flight
+ * de-duplication, the per-isolate cache and stale-on-error.
+ *
+ * Cache policy (in-memory, one Cloudflare Workers isolate; nothing is
+ * shared across isolates or persisted):
+ *  - what: successful (2xx, valid JSON) PokeAPI GET responses, keyed by the
+ *    exact URL (plus an optional `variant` when a reduced projection of the
+ *    same URL is stored). Language is never part of a key: PokeAPI resources
+ *    carry every language and pages pick theirs at render time.
+ *  - TTL: 24 h (the data changes with game releases, not with traffic).
+ *  - never cached: any failure (404, 429, 5xx, timeout, network error,
+ *    non-JSON). A failure is not stored and does not poison later requests.
+ *  - stale-on-error: if an entry is past its TTL and PokeAPI is failing
+ *    (UpstreamError only: timeout / network / 5xx / 429 / bad JSON) the
+ *    previous *valid* copy of that same URL is served for up to
+ *    STALE_MAX_AGE_MS and retried after STALE_RETRY_MS. A 404 is never
+ *    answered from stale (the entity is gone), and with no previous copy
+ *    the error propagates untouched (503 by src/middleware.ts).
+ *  - bounded: LRU capped at CACHE_MAX_ENTRIES so a long-lived isolate
+ *    cannot grow without limit (full pokemon/{id} objects are ~300 KB).
+ *  - in-flight de-duplication: concurrent identical requests share one
+ *    fetch (e.g. two evolution requirements naming the same item).
  */
-const cache = new Map<string, { data: any, timestamp: number }>();
+// timestamp: freshness clock (pushed forward when a stale copy is re-served);
+// storedAt: when the data was really fetched, which bounds how stale it may get.
+const cache = new Map<string, { data: any, timestamp: number, storedAt?: number }>();
+const inflight = new Map<string, Promise<any>>();
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 Hours
+const STALE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+const STALE_RETRY_MS = 1000 * 60;
+const CACHE_MAX_ENTRIES = 400;
+
+// Retry policy for GET requests: at most ONE retry, only for a transient
+// fault that answered fast (network error, HTTP 5xx), never for a timeout
+// (it already spent its budget), a 4xx (404 entity, 429 rate limit: retrying
+// would multiply the problem) or invalid JSON; and always inside the same
+// overall deadline as a single attempt.
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 250;
 
 interface FetchOptions {
     ttl?: number;
     /** See UpstreamStatusOptions: only primary entity lookups by slug set it. */
     invalidIdIsNotFound?: boolean;
+    /**
+     * Stores `transform(data)` under `${url}#${variant}` instead of the full
+     * response: for callers that need a few fields of a large resource.
+     */
+    variant?: string;
+    transform?: (data: any) => any;
 }
 
-async function fetchWithCache<T>(url: string, { ttl = CACHE_TTL, invalidIdIsNotFound = false }: FetchOptions = {}): Promise<T> {
-    const cached = cache.get(url);
+function cacheGet(key: string) {
+    const hit = cache.get(key);
+    if (hit) {
+        // LRU touch.
+        cache.delete(key);
+        cache.set(key, hit);
+    }
+    return hit;
+}
+
+function cacheSet(key: string, data: unknown, timestamp: number, storedAt: number = timestamp) {
+    cache.delete(key);
+    cache.set(key, { data, timestamp, storedAt });
+    while (cache.size > CACHE_MAX_ENTRIES) {
+        cache.delete(cache.keys().next().value as string);
+    }
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function requestJson<T>(url: string, invalidIdIsNotFound: boolean): Promise<T> {
+    const deadline = Date.now() + UPSTREAM_TIMEOUT_MS.pokeapi;
+    for (let attempt = 1; ; attempt++) {
+        const started = Date.now();
+        const canRetry = () => attempt < MAX_ATTEMPTS && Date.now() + RETRY_DELAY_MS < deadline;
+        let response: Response;
+        try {
+            response = await fetch(url, { signal: AbortSignal.timeout(Math.max(1, deadline - started)) });
+        } catch (error) {
+            // fetch only rejects when no HTTP answer arrived: the timeout
+            // (TimeoutError) or a network/DNS/TLS failure (TypeError).
+            const name = (error as Error)?.name ?? 'Error';
+            const timedOut = name === 'TimeoutError' || name === 'AbortError';
+            logUpstream({ event: 'upstream_error', url, ms: Date.now() - started, error: name, attempt });
+            if (!timedOut && canRetry()) {
+                logUpstream({ event: 'upstream_retry', url, error: name, attempt });
+                await sleep(RETRY_DELAY_MS);
+                continue;
+            }
+            throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
+        }
+        const ms = Date.now() - started;
+        if (!response.ok) {
+            const failure = errorForUpstreamStatus(response.status, url, { invalidIdIsNotFound });
+            if (failure instanceof UpstreamError) {
+                logUpstream({ event: 'upstream_error', url, status: response.status, ms, error: failure.name, attempt });
+                if (response.status >= 500 && canRetry()) {
+                    logUpstream({ event: 'upstream_retry', url, status: response.status, attempt });
+                    await sleep(RETRY_DELAY_MS);
+                    continue;
+                }
+            }
+            throw failure;
+        }
+        try {
+            const data = (await response.json()) as T;
+            if (ms > SLOW_UPSTREAM_MS) logUpstream({ event: 'upstream_slow', url, status: response.status, ms });
+            return data;
+        } catch (error) {
+            // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
+            // truncated body), not a missing entity.
+            logUpstream({ event: 'upstream_error', url, status: response.status, ms, error: 'InvalidJson', attempt });
+            throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
+        }
+    }
+}
+
+async function fetchWithCache<T>(url: string, { ttl = CACHE_TTL, invalidIdIsNotFound = false, variant, transform }: FetchOptions = {}): Promise<T> {
+    const key = variant ? `${url}#${variant}` : url;
+    const cached = cacheGet(key);
     const now = Date.now();
 
     if (cached && (now - cached.timestamp < ttl)) {
         return cached.data;
     }
 
-    let response: Response;
-    try {
-        response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    } catch (error) {
-        // fetch only rejects when no HTTP answer arrived: the 8s timeout
-        // (TimeoutError) or a network/DNS/TLS failure (TypeError).
-        throw new UpstreamError(`PokeAPI request failed for ${url}`, undefined, { cause: error });
-    }
-    if (!response.ok) throw errorForUpstreamStatus(response.status, url, { invalidIdIsNotFound });
+    // The 400-is-NotFound flag changes how a failure is classified, so it is
+    // part of the in-flight key: a primary lookup never shares a promise
+    // with (and inherits the errors of) a secondary one.
+    const flightKey = invalidIdIsNotFound ? `${key}|entity` : key;
+    const pending = inflight.get(flightKey);
+    if (pending) return pending as Promise<T>;
 
-    let data: T;
-    try {
-        data = await response.json();
-    } catch (error) {
-        // A 2xx that isn't JSON is an upstream fault (proxy/CDN error page,
-        // truncated body), not a missing entity.
-        throw new UpstreamError(`PokeAPI returned invalid JSON for ${url}`, response.status, { cause: error });
-    }
+    const load = (async () => {
+        try {
+            const raw = await requestJson<T>(url, invalidIdIsNotFound);
+            const data = transform ? transform(raw) : raw;
+            cacheSet(key, data, Date.now());
+            return data as T;
+        } catch (error) {
+            if (error instanceof UpstreamError && cached && now - (cached.storedAt ?? cached.timestamp) < STALE_MAX_AGE_MS) {
+                logUpstream({ event: 'upstream_stale', url, status: error.status, error: error.name });
+                // Serve the last valid copy and don't hammer a failing upstream:
+                // it counts as fresh for STALE_RETRY_MS.
+                cacheSet(key, cached.data, Date.now() - ttl + STALE_RETRY_MS, cached.storedAt ?? cached.timestamp);
+                return cached.data as T;
+            }
+            throw error;
+        } finally {
+            inflight.delete(flightKey);
+        }
+    })();
+    inflight.set(flightKey, load);
+    return load;
+}
 
-    cache.set(url, { data, timestamp: now });
-    return data;
+/**
+ * Cached, timed, classified GET of any PokeAPI resource URL, for callers
+ * outside this module that used a bare fetch(): same failure semantics as
+ * every other secondary lookup (UpstreamError / NotFoundError, never
+ * EntityNotFoundError).
+ */
+export function fetchPokeApiCached<T = any>(url: string): Promise<T> {
+    return fetchWithCache<T>(url);
 }
 
 /**
@@ -356,10 +485,8 @@ export async function getPokemonByType(typeSlug: string): Promise<PokemonListEnt
  * instead of silently emitting links to redirecting default-form URLs.
  */
 export async function getSpeciesNamesById(): Promise<Map<number, string>> {
-    const data = await fetchWithCache<{ results: { name: string; url: string }[] }>(
-        'https://pokeapi.co/api/v2/pokemon-species?limit=2000'
-    );
-    return new Map(data.results.map((s) => [idFromResourceUrl(s.url), s.name]));
+    const species = await getCompleteResourceList('pokemon-species');
+    return new Map(species.map((s) => [idFromResourceUrl(s.url), s.name]));
 }
 
 /**
@@ -392,7 +519,7 @@ async function getWikiDexFallback(name: string): Promise<string | null> {
         const cleanName = name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('_');
         const url = `https://www.wikidex.net/api.php?action=query&prop=extracts&titles=${cleanName}&format=json&exintro=1&explaintext=1&origin=*`;
         
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, 'wikidex');
         if (!response.ok) return null;
         
         const data = await response.json();
@@ -515,20 +642,35 @@ interface ResourceListPage {
 }
 
 /**
+ * Page size asked of PokeAPI list endpoints: "everything". Not a catalog
+ * size: PokeAPI honours any limit and answers `count`, and the result is
+ * checked against that `count` below, so a catalog outgrowing (or an API
+ * capping) this value is completed or rejected, never silently truncated.
+ */
+export const LIST_REQUEST_LIMIT = 100000;
+
+/**
  * Complete list of a PokeAPI resource, however many entries it has.
  *
- * `?limit=N` with a hard-coded N silently truncates once the catalog grows:
- * /item?limit=2000 returned 2000 of 2223 items, dropping 223 (TMs, mega
- * stones, picnic items...) from the sitemap and the items index. The list is
- * therefore requested with the API's own `count`, and if a page still comes
- * back short it is completed by following `next`, so the result is
- * `count` entries by construction (checked, not assumed).
+ * `?limit=N` with a hard-coded catalog-sized N silently truncates once the
+ * catalog grows: /item?limit=2000 returned 2000 of 2223 items, dropping 223
+ * (TMs, mega stones, picnic items...) from the sitemap and the items index;
+ * /move?limit=1000 and /ability?limit=500 were the same latent bug. One
+ * request asks for everything; the response's own `count` is the contract:
+ * if the page still comes back short it is completed by following `next`,
+ * and if that can't reach `count` the call throws (503 upstream) instead of
+ * serving a partial catalog. `count` entries by construction (checked, not
+ * assumed). Entries are deduplicated by name (PokeAPI lists e.g.
+ * roseli-berry twice), so callers never emit the same URL twice.
  */
 export async function getCompleteResourceList(resource: string): Promise<NamedResource[]> {
     const base = `https://pokeapi.co/api/v2/${resource}`;
-    const head = await fetchWithCache<ResourceListPage>(`${base}?limit=1`);
-    const count = head.count;
-    let page = await fetchWithCache<ResourceListPage>(`${base}?limit=${count}`);
+    let page = await fetchWithCache<ResourceListPage>(`${base}?limit=${LIST_REQUEST_LIMIT}`);
+    const count = page.count;
+    if (typeof count !== 'number' || !Array.isArray(page.results)) {
+        // Without `count` completeness can't be checked: not a catalog.
+        throw new UpstreamError(`PokeAPI ${resource} list malformed (no count/results)`, undefined);
+    }
     const results = [...page.results];
     // Defensive: follow `next` (bounded by count) if the server capped the page.
     let guard = 0;
@@ -536,22 +678,21 @@ export async function getCompleteResourceList(resource: string): Promise<NamedRe
         page = await fetchWithCache<ResourceListPage>(page.next);
         results.push(...page.results);
     }
-    if (results.length !== count) {
+    if (results.length < count) {
         throw new UpstreamError(`PokeAPI ${resource} list incomplete: ${results.length} of ${count}`);
     }
-    return results;
+    const seen = new Set<string>();
+    return results.filter((entry) => {
+        if (seen.has(entry.name)) return false;
+        seen.add(entry.name);
+        return true;
+    });
 }
 
 export async function getAllItems(): Promise<NamedResource[]> {
     const { isRealItem } = await import('../utils/pokemon');
-    const seen = new Set<string>();
-    // PokeAPI lists at least one slug twice (roseli-berry: ids 723 and 2279),
-    // which would emit the same URL twice.
-    return (await getCompleteResourceList('item')).filter((item) => {
-        if (!isRealItem(item.name) || seen.has(item.name)) return false;
-        seen.add(item.name);
-        return true;
-    });
+    // getCompleteResourceList already dedupes (roseli-berry: ids 723 and 2279).
+    return (await getCompleteResourceList('item')).filter((item) => isRealItem(item.name));
 }
 
 /**
@@ -561,9 +702,8 @@ export async function getAllItems(): Promise<NamedResource[]> {
  * whereas the `pokemon` list names 37 species by their default variety
  * ("basculin-red-striped"), which now 301s to the species URL.
  */
-export async function getAllPokemonBasic(limit: number = 1025): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>(`https://pokeapi.co/api/v2/pokemon-species?limit=${limit}`);
-    return data.results || [];
+export async function getAllPokemonBasic(): Promise<NamedResource[]> {
+    return getCompleteResourceList('pokemon-species');
 }
 
 export async function getAbilityDetail(url: string): Promise<AbilityDetail> {
@@ -618,7 +758,7 @@ export async function getMachineMove(machineUrl: string): Promise<MoveDetail | n
 
 /**
  * Un único Pokémon por URL/id, o null si no se puede resolver — para
- * navegación previo/siguiente y otros lookups puntuales por URL.
+ * lookups puntuales que necesitan el objeto completo (moves, abilities).
  */
 export async function getPokemonDetailByUrl(url: string): Promise<PokemonDetail | null> {
     try {
@@ -629,28 +769,117 @@ export async function getPokemonDetailByUrl(url: string): Promise<PokemonDetail 
 }
 
 /**
- * Resuelve una lista de Pokémon a partir de sus URLs de PokeAPI, con límite
- * y tolerancia a fallos individuales (Promise.allSettled): una entrada que
- * falla se omite en vez de romper toda la página. Pensado para listados
- * "aprendido/llevado por" de movimientos, objetos y habilidades, que pueden
- * referenciar decenas o cientos de Pokémon.
+ * What a Pokémon card / link needs from `pokemon/{id}` — a few hundred
+ * bytes of a ~300 KB resource (its moves alone are ~250 KB).
  */
-export async function getPokemonListByUrls(urls: string[], limit: number): Promise<PokemonDetail[]> {
-    const capped = urls.slice(0, limit);
-    const results = await Promise.allSettled(capped.map(url => fetchWithCache<PokemonDetail>(url)));
-    return results
-        .filter((r): r is PromiseFulfilledResult<PokemonDetail> => r.status === 'fulfilled')
-        .map(r => r.value);
+export interface PokemonSummary {
+    id: number;
+    name: string;
+    is_default?: boolean;
+    species?: { name: string; url?: string };
+    types: PokemonType[];
+    sprites: {
+        front_default: string;
+        other: { 'official-artwork': { front_default: string } };
+    };
+    /**
+     * Showdown tier, present only when the card was built from the pokedex
+     * (which then also spares the browser its own 524 KB download for the
+     * tier badge). Absent = unknown: the client fills the badge in.
+     */
+    tier?: string;
 }
 
-export async function getAllAbilities(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/ability?limit=500');
-    return data.results;
+function summarizePokemon(d: PokemonDetail): PokemonSummary {
+    return {
+        id: d.id,
+        name: d.name,
+        is_default: d.is_default,
+        species: d.species,
+        types: d.types,
+        sprites: {
+            front_default: d.sprites?.front_default,
+            other: { 'official-artwork': { front_default: d.sprites?.other?.['official-artwork']?.front_default } },
+        },
+    };
 }
 
-export async function getAllMoves(): Promise<{ name: string, url: string }[]> {
-    const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/move?limit=1000');
-    return data.results;
+/**
+ * Summary of one Pokémon by URL, or null. Cached (under its own key) as the
+ * summary only, not the full object: forms, prev/next and card fallbacks
+ * used to keep ~300 KB of moves each in the isolate for a name and a sprite.
+ */
+export async function getPokemonSummaryByUrl(url: string): Promise<PokemonSummary | null> {
+    try {
+        return await fetchWithCache<PokemonSummary>(url, { variant: 'summary', transform: summarizePokemon });
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Cards for a list of Pokémon references (learned-by / held-by / has-ability
+ * lists). When Showdown's pokedex is ALREADY cached (memory or edge cache —
+ * the source the Pokémon and type pages use for types) and PokeAPI's species
+ * list is available (canonical slugs), N Pokémon cost 0 extra requests
+ * instead of N x ~300 KB `pokemon/{id}` fetches (measured: 41 requests /
+ * 12 MB for /movimientos/surf/). It never *starts* the Showdown download for
+ * this: cold, that 0.7 s wait was slower than the PokeAPI fan-out it saves
+ * (0.2 s), so a cold isolate does exactly what it did before.
+ * An entry Showdown doesn't know (or when either source is unavailable)
+ * falls back to that Pokémon's PokeAPI summary; an entry that can't be
+ * resolved either way is omitted rather than failing the page.
+ */
+export async function getPokemonCards(refs: NamedResource[], limit: number): Promise<PokemonSummary[]> {
+    const capped = refs.slice(0, limit);
+    if (capped.length === 0) return [];
+
+    const dex = await getCachedSmogonDataBatch(capped.map((r) => r.name));
+    let speciesNames: Map<number, string> | null = null;
+    if (Object.keys(dex).length > 0) {
+        try {
+            speciesNames = await getSpeciesNamesById();
+        } catch {
+            speciesNames = null;
+        }
+    }
+
+    const cards = await Promise.all(
+        capped.map(async (ref): Promise<PokemonSummary | null> => {
+            const id = idFromResourceUrl(ref.url);
+            const sd = dex[ref.name];
+            if (sd && speciesNames && Number.isFinite(id) && sd.types.length > 0) {
+                const isDefault = id < 10000;
+                const speciesName = isDefault ? speciesNames.get(id) : undefined;
+                // A default form needs its species name for its canonical URL;
+                // without it the card would link a redirecting URL.
+                if (!isDefault || speciesName) {
+                    return {
+                        id,
+                        name: ref.name,
+                        is_default: isDefault,
+                        tier: sd.tier ?? 'N/A',
+                        species: speciesName ? { name: speciesName } : undefined,
+                        types: sd.types.map((name, i) => ({ slot: i + 1, type: { name, url: '' } })),
+                        sprites: {
+                            front_default: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+                            other: { 'official-artwork': { front_default: buildSpriteUrl(id) } },
+                        },
+                    };
+                }
+            }
+            return getPokemonSummaryByUrl(ref.url);
+        })
+    );
+    return cards.filter((c): c is PokemonSummary => c !== null);
+}
+
+export async function getAllAbilities(): Promise<NamedResource[]> {
+    return getCompleteResourceList('ability');
+}
+
+export async function getAllMoves(): Promise<NamedResource[]> {
+    return getCompleteResourceList('move');
 }
 
 export function getLocalizedName(names: PokemonName[] | undefined, lang: string): string {
@@ -695,8 +924,8 @@ export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
             return cached.data;
         }
 
-        const data = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon-species?limit=2000');
-        const baseSpecies = data.results.map((p: any) => {
+        const species = await getCompleteResourceList('pokemon-species');
+        const baseSpecies = species.map((p: any) => {
             const id = parseInt(p.url.split('/').filter(Boolean).pop());
             return { 
                 name: p.name, 
@@ -705,18 +934,19 @@ export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
             };
         });
 
-        const varData = await fetchWithCache<any>('https://pokeapi.co/api/v2/pokemon?limit=1000&offset=1025');
-        const varieties = varData.results
-            .map((p: any) => {
-                const id = parseInt(p.url.split('/').filter(Boolean).pop());
-                if (id < 10000) return null;
+        // Varieties/forms are the `pokemon` entries with id >= 10000.
+        const varData = await getCompleteResourceList('pokemon');
+        const varieties = varData
+            .map((p): PokemonNameEntry | null => {
+                const id = parseInt(p.url.split('/').filter(Boolean).pop() ?? '', 10);
+                if (!(id >= 10000)) return null;
                 return { 
                     name: p.name, 
                     id: id,
                     sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
                 }; 
             })
-            .filter(Boolean);
+            .filter((v): v is PokemonNameEntry => v !== null);
 
         const result = [...baseSpecies, ...varieties];
         cache.set(cacheKey, { data: result, timestamp: now });

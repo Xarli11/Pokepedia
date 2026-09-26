@@ -55,14 +55,18 @@ function moveFixture(id: number, name: string, over: Record<string, unknown> = {
 const MANY = Array.from({ length: 45 }, (_, i) => ({ name: `mon${i}`, url: `${API}/pokemon/${900 + i}/` }));
 
 const FIXTURES: Record<string, unknown> = {
-  '/move?limit=1000': {
+  '/move?limit=100000': {
+    count: 3,
+    next: null,
     results: [
       { name: 'surf', url: `${API}/move/57/` },
       { name: 'swords-dance', url: `${API}/move/14/` },
       { name: 'protect', url: `${API}/move/182/` },
     ],
   },
-  '/ability?limit=500': {
+  '/ability?limit=100000': {
+    count: 4,
+    next: null,
     results: ['torrent', 'minds-eye', 'levitate', 'dragons-maw'].map((n, i) => ({ name: n, url: `${API}/ability/${i + 1}/` })),
   },
   '/pokemon/feraligatr': pokemonDetail(

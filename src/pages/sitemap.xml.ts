@@ -4,24 +4,6 @@ import { buildSitemapEntries, renderSitemapXml, type SitemapUrlEntry } from '../
 import { typeColors } from '../utils/pokemon';
 import { indexableItems } from '../utils/itemIndexing';
 
-// Root cause fixed here: `moves`/`abilities`/`items` used to be declared and
-// never populated, so those entity families were silently absent from the
-// sitemap despite having live detail pages. Each family is now fetched
-// independently via Promise.allSettled so a slow/failing upstream family
-// (e.g. PokeAPI timing out) degrades that family only, instead of throwing
-// away the entire sitemap.
-async function safeList<T extends { name: string }>(
-  promise: Promise<T[]>,
-  label: string
-): Promise<T[]> {
-  try {
-    return await promise;
-  } catch (error) {
-    console.error(`Sitemap: failed to load ${label}`, error);
-    return [];
-  }
-}
-
 interface NamedEntity {
   name: string;
 }
@@ -65,12 +47,20 @@ export function buildSitemapXml(
   return renderSitemapXml(entries);
 }
 
+// Every entity family is a required dependency of the sitemap. It used to
+// swallow a failing family (safeList -> []) and answer 200 with the rest,
+// cached for 24 h by s-maxage: a transient PokeAPI blip would have told
+// crawlers that all moves (or abilities, or items) had left the site. A
+// failure now propagates as UpstreamError, which src/middleware.ts answers
+// 503 + Retry-After + no-store — a retryable status crawlers understand —
+// and the catalogs' stale-on-error copy (services/pokeapi.ts) makes even
+// that rare. The sitemap costs 4 requests (one per catalog), all cached.
 export const GET: APIRoute = async () => {
   const [pokemon, moves, abilities, items] = await Promise.all([
-    safeList(getAllPokemonBasic(1025), 'pokemon'),
-    safeList(getAllMoves(), 'moves'),
-    safeList(getAllAbilities(), 'abilities'),
-    safeList(getAllItems(), 'items'),
+    getAllPokemonBasic(),
+    getAllMoves(),
+    getAllAbilities(),
+    getAllItems(),
   ]);
 
   return new Response(buildSitemapXml(pokemon, moves, abilities, items), {

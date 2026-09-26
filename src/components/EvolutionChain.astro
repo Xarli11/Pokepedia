@@ -1,6 +1,6 @@
 ---
 import { formatName, evolutionTranslations, uiTranslations, typeTranslations } from '../utils/pokemon';
-import { getLocalizedName } from '../services/pokeapi';
+import { getLocalizedName, fetchPokeApiCached } from '../services/pokeapi';
 import { pagePath } from '../utils/seo';
 
 interface Props {
@@ -21,9 +21,9 @@ const isValid = Boolean(node && node.species);
 async function getTranslation(url: string) {
     if (!url) return null;
     try {
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const data = await res.json();
+        // Cached, timed and de-duplicated (the same item/location is often named
+        // by several evolution details): it used to be a bare fetch per mention.
+        const data = await fetchPokeApiCached<any>(url);
         let name = getLocalizedName(data.names, lang);
         
         if (!name && lang === 'es') {
