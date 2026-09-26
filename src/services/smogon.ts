@@ -7,7 +7,7 @@ import { fetchWithTimeout, logUpstream, type UpstreamProvider } from './upstream
 //
 // Cache policy, two layers, static datasets ONLY (PokeAPI has its own in
 // services/pokeapi.ts; entity HTML is never cached):
-//  1. in-memory, per isolate, 24 h.
+//  1. in-memory, per isolate: a copy is reused for 24 h of its REAL age.
 //  2. Cloudflare Cache API (`caches.default`, per data center, shared by
 //     isolates) when the runtime has it: fresh for EDGE_FRESH_MS, kept up to
 //     EDGE_MAX_AGE_S as a stale fallback. Keyed by the dataset URL (one
@@ -15,14 +15,26 @@ import { fetchWithTimeout, logUpstream, type UpstreamProvider } from './upstream
 //     parsed AND passed the dataset's validator is ever written, so an
 //     error page, an empty object or a truncated file can't be cached.
 //     Absent (Node, tests, unsupported host) it is skipped silently.
-//  Upstream failure -> the last valid copy (memory, then edge) is served
-//  and logged as stale; with none, the dataset is simply unavailable (null)
+//  Age is absolute: `cachedAt` (time of the real origin fetch) survives
+//  origin -> edge -> memory and is never renewed by reading or promoting a
+//  copy. Fresh = < 6 h; a copy older than 7 days (MAX_STALE_MS) is never
+//  served from any layer, even if the origin is down.
+//  Upstream failure -> the freshest valid copy still inside that limit
+//  (memory or edge) is served and logged as stale; with none, the dataset is simply unavailable (null)
 //  and the page degrades (optional enrichment, HTTP 200 degraded).
-const cache = new Map<string, { data: any, timestamp: number }>();
+// cachedAt: when the dataset was REALLY obtained from the origin. It travels
+// unchanged origin -> edge (x-pokepedia-cached-at header) -> memory, and is
+// never renewed by reading, promoting or re-serving a copy: every age check
+// below is measured from it.
+const cache = new Map<string, { data: any, cachedAt: number }>();
 const inflight = new Map<string, Promise<any>>();
 const CACHE_TTL = 1000 * 60 * 60 * 24;
 const EDGE_FRESH_MS = 1000 * 60 * 60 * 6;
-const EDGE_MAX_AGE_S = 60 * 60 * 24 * 7;
+// Absolute limit: no copy older than this is EVER served, in any layer, even
+// when the origin is down (the edge's own max-age is set to the same value,
+// but correctness does not depend on the edge honouring it).
+const MAX_STALE_MS = 1000 * 60 * 60 * 24 * 7;
+const EDGE_MAX_AGE_S = MAX_STALE_MS / 1000;
 const CACHED_AT_HEADER = 'x-pokepedia-cached-at';
 const MAX_DATASET_BYTES = 10 * 1024 * 1024;
 
@@ -50,7 +62,9 @@ function edgeCache(): any | null {
     }
 }
 
-async function edgeRead(url: string, validate: Validator): Promise<{ data: any, fresh: boolean } | null> {
+const ageOf = (cachedAt: number) => Date.now() - cachedAt;
+
+async function edgeRead(url: string, validate: Validator): Promise<{ data: any, fresh: boolean, cachedAt: number } | null> {
     const edge = edgeCache();
     if (!edge) return null;
     try {
@@ -59,13 +73,15 @@ async function edgeRead(url: string, validate: Validator): Promise<{ data: any, 
         const data = parseDataset(await res.text());
         if (!validate(data)) return null;
         const cachedAt = Number(res.headers.get(CACHED_AT_HEADER)) || 0;
-        return { data, fresh: Date.now() - cachedAt < EDGE_FRESH_MS };
+        // Unknown or over-age copies are not served, whatever the edge kept.
+        if (!cachedAt || ageOf(cachedAt) > MAX_STALE_MS) return null;
+        return { data, fresh: ageOf(cachedAt) < EDGE_FRESH_MS, cachedAt };
     } catch {
         return null;
     }
 }
 
-async function edgeWrite(url: string, text: string): Promise<void> {
+async function edgeWrite(url: string, text: string, cachedAt: number): Promise<void> {
     const edge = edgeCache();
     if (!edge) return;
     try {
@@ -73,7 +89,7 @@ async function edgeWrite(url: string, text: string): Promise<void> {
             headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': `public, max-age=${EDGE_MAX_AGE_S}`,
-                [CACHED_AT_HEADER]: String(Date.now()),
+                [CACHED_AT_HEADER]: String(cachedAt),
             },
         }));
     } catch {
@@ -83,7 +99,7 @@ async function edgeWrite(url: string, text: string): Promise<void> {
 
 async function fetchDataset<T>(url: string, provider: UpstreamProvider, validate: Validator): Promise<T | null> {
     const cached = cache.get(url);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) return cached.data;
+    if (cached && ageOf(cached.cachedAt) < CACHE_TTL) return cached.data;
 
     const pending = inflight.get(url);
     if (pending) return pending as Promise<T | null>;
@@ -91,7 +107,11 @@ async function fetchDataset<T>(url: string, provider: UpstreamProvider, validate
     const load = (async (): Promise<T | null> => {
         const edge = await edgeRead(url, validate);
         if (edge?.fresh) {
-            cache.set(url, { data: edge.data, timestamp: Date.now() });
+            // (inflight is released below: the early return must not leave a
+            // settled promise registered, or later requests would reuse it
+            // forever instead of re-checking the copy's age.)
+            inflight.delete(url);
+            cache.set(url, { data: edge.data, cachedAt: edge.cachedAt });
             return edge.data;
         }
 
@@ -110,13 +130,19 @@ async function fetchDataset<T>(url: string, provider: UpstreamProvider, validate
             const data = parseDataset(text);
             if (!validate(data)) throw new Error('dataset failed validation');
 
-            cache.set(url, { data, timestamp: Date.now() });
-            await edgeWrite(url, text);
+            const cachedAt = Date.now();
+            cache.set(url, { data, cachedAt });
+            await edgeWrite(url, text, cachedAt);
             return data;
         } catch (e) {
             const error = e as Error & { status?: number };
             logUpstream({ event: 'upstream_error', url, status: error.status, ms: Date.now() - started, error: error.name });
-            const stale = edge?.data ?? cached?.data ?? null;
+            // Stale fallback: the freshest valid copy that is still inside the
+            // absolute limit, measured from its real origin time.
+            const candidates = [edge && { data: edge.data, cachedAt: edge.cachedAt }, cached].filter(
+                (c): c is { data: any, cachedAt: number } => !!c && ageOf(c.cachedAt) <= MAX_STALE_MS
+            );
+            const stale = candidates.sort((a, b) => b.cachedAt - a.cachedAt)[0]?.data ?? null;
             if (stale) logUpstream({ event: 'upstream_stale', url });
             return stale;
         } finally {
@@ -177,14 +203,15 @@ export async function getSmogonDataBatch(names: string[]): Promise<Record<string
  * fallback is cheap (a Pokémon card can be built from PokeAPI): measured
  * cold, waiting on the 524 KB dataset (~0.7 s) was slower than the
  * requests it saves, so they use it when it is free and not otherwise.
- * Stale copies are fine here: base types don't change with the TTL.
+ * Stale copies are fine here, up to the absolute MAX_STALE_MS limit.
  */
 export async function getCachedSmogonDataBatch(names: string[]): Promise<Record<string, SmogonBatchEntry>> {
     const memory = cache.get(POKEDEX_URL);
-    if (memory) return batchFrom(memory.data, names);
+    if (memory && ageOf(memory.cachedAt) <= MAX_STALE_MS) return batchFrom(memory.data, names);
     const edge = await edgeRead(POKEDEX_URL, isPokedex);
     if (!edge) return {};
-    cache.set(POKEDEX_URL, { data: edge.data, timestamp: Date.now() });
+    // Promotion keeps the ORIGINAL age: reading a copy never rejuvenates it.
+    cache.set(POKEDEX_URL, { data: edge.data, cachedAt: edge.cachedAt });
     return batchFrom(edge.data, names);
 }
 
