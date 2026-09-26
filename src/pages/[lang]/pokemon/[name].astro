@@ -6,7 +6,7 @@ import CompetitiveSets from '../../../components/CompetitiveSets.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
-import { getShowdownPokemon, getSmogonSets } from '../../../services/smogon';
+import { getShowdownPokemon, getSmogonSets, type SmogonSet } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
@@ -114,8 +114,8 @@ try {
 
 // 1b. Sets competitivos de Smogon (optional). Needs the tier, so it starts as
 // soon as Showdown resolves and overlaps the ability lookups below.
-let smogonSets: any = null;
-const smogonPromise: Promise<any> = showdownData
+let smogonSets: SmogonSet[] | null = null;
+const smogonPromise: Promise<SmogonSet[] | null> = showdownData
     ? getSmogonSets(detail.name, showdownData.tier || 'Untiered').catch(() => null)
     : Promise.resolve(null);
 

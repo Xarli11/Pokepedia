@@ -221,7 +221,7 @@ const ssrRows = expandMoves(payload, initialVersion)
                        (methodValue === 'all' || m.method === methodValue);
             });
 
-            moves.sort((a, b) => (parseInt(a.level) || 0) - (parseInt(b.level) || 0));
+            moves.sort((a, b) => (a.level || 0) - (b.level || 0));
 
             tableBody.innerHTML = moves.map(m => {
                 const cached = moveCache.get(m.url);

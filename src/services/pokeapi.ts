@@ -937,16 +937,16 @@ export async function getAllPokemonNames(): Promise<PokemonNameEntry[]> {
         // Varieties/forms are the `pokemon` entries with id >= 10000.
         const varData = await getCompleteResourceList('pokemon');
         const varieties = varData
-            .map((p: any) => {
-                const id = parseInt(p.url.split('/').filter(Boolean).pop());
-                if (id < 10000) return null;
+            .map((p): PokemonNameEntry | null => {
+                const id = parseInt(p.url.split('/').filter(Boolean).pop() ?? '', 10);
+                if (!(id >= 10000)) return null;
                 return { 
                     name: p.name, 
                     id: id,
                     sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`
                 }; 
             })
-            .filter(Boolean);
+            .filter((v): v is PokemonNameEntry => v !== null);
 
         const result = [...baseSpecies, ...varieties];
         cache.set(cacheKey, { data: result, timestamp: now });
