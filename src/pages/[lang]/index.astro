@@ -216,6 +216,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         import { resolveFavorites } from '../../utils/favorites';
         import { canonicalPokemonSlug, pagePath } from '../../utils/seo';
         import { buildEntityRow, loadSearchIndex, runSearch } from '../../utils/searchUi';
+        import { computeGridVisibility } from '../../utils/homeSearch';
 
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
@@ -245,24 +246,22 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             if (!searchInput || !typeFilter || !sortOrder || !grid) return;
 
-            const query = normalize(searchInput.value);
             const selectedType = typeFilter.value;
             const currentSort = sortOrder.value;
             const currentCards = Array.from(document.querySelectorAll<HTMLElement>('.pokemon-card'));
 
-            let visibleCount = 0;
-            currentCards.forEach(card => {
-                const name = normalize(card.getAttribute('data-name') || '');
-                const id = card.getAttribute('data-id') || '';
-                const types = (card.getAttribute('data-types') || '').split(',');
-
-                const matchesSearch = query === '' || name.includes(query) || id.includes(query);
-                const matchesType = selectedType === 'all' || types.includes(selectedType);
-
-                const isVisible = matchesSearch && matchesType;
-                card.style.display = isVisible ? 'flex' : 'none';
-                if (isVisible) visibleCount++;
-            });
+            // The text narrows the grid only if some card matches it (utils/homeSearch.ts);
+            // otherwise it belongs to the multi-entity dropdown alone.
+            const gridState = computeGridVisibility(
+                currentCards.map(card => ({
+                    name: card.getAttribute('data-name') || '',
+                    id: card.getAttribute('data-id') || '',
+                    types: (card.getAttribute('data-types') || '').split(','),
+                })),
+                searchInput.value,
+                selectedType
+            );
+            currentCards.forEach((card, i) => { card.style.display = gridState.visible[i] ? 'flex' : 'none'; });
 
             const sortedCards = currentCards.sort((a, b) => {
                 const getStat = (card: HTMLElement, stat: string) => parseInt(card.dataset[stat] || '0');
@@ -279,7 +278,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
             sortedCards.forEach(card => grid.appendChild(card));
 
-            if (visibleCount === 0 && (query.length > 0 || selectedType !== 'all')) {
+            if (gridState.showEmpty) {
                 grid.classList.add('hidden');
                 noResults?.classList.remove('hidden');
             } else {
