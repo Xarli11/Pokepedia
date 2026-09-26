@@ -1,11 +1,21 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getAllMoves } from '../../../services/pokeapi';
+import { getMoveCatalog } from '../../../services/catalogs';
 import { typeTranslations, typeColors, formatName, uiTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 const moves = await getAllMoves();
+// Primary fields per move come from the generated catalog (scripts/generate-catalogs.ts):
+// server-rendered, no per-row request. A move PokeAPI lists but the catalog does not
+// know yet still gets its link, with the name formatted from its slug and empty cells.
+const catalog = await getMoveCatalog(lang as string);
+const typeNames = typeTranslations[lang as string] || typeTranslations.es;
+const catLabels: Record<string, string> = lang === 'en'
+    ? { physical: 'Physical', special: 'Special', status: 'Status' }
+    : { physical: 'Físico', special: 'Especial', status: 'Estado' };
+const typeCss = Object.entries(typeColors).map(([type, color]) => `.tb.t-${type}{background-color:${color}}`).join('');
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
@@ -62,17 +72,20 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                         </tr>
                     </thead>
                     <tbody id="move-table-body" class="divide-y divide-slate-50 dark:divide-slate-700/50">
-                        {moves.map((move) => (
-                            <tr class="move-row" data-name={move.name}>
-                                <td class="mi-name"><a href={pagePath(lang as string, 'movimientos', move.name)}>{formatName(move.name)}</a></td>
-                                <td class="mi-type"></td>
-                                <td class="mi-cat">-</td>
-                                <td class="mi-prio">-</td>
-                                <td class="mi-pow">-</td>
-                                <td class="mi-acc">-</td>
-                                <td class="mi-pp">-</td>
-                            </tr>
-                        ))}
+                        {moves.map((move) => {
+                            const m = catalog.get(move.name);
+                            return (
+                                <tr class="move-row" data-name={move.name} data-type={m?.type || undefined}>
+                                    <td class="mi-name"><a href={pagePath(lang as string, 'movimientos', move.name)}>{m?.name || formatName(move.name)}</a></td>
+                                    <td class="mi-type">{m && <span class={`tb t-${m.type}`}>{typeNames[m.type] || m.type}</span>}</td>
+                                    <td class="mi-cat">{m ? <span class={`cb c-${m.damageClass}`}>{catLabels[m.damageClass] || m.damageClass}</span> : '-'}</td>
+                                    <td class="mi-prio" data-p={m && m.priority !== 0 ? (m.priority > 0 ? 'up' : 'down') : undefined}>{m ? (m.priority > 0 ? `+${m.priority}` : String(m.priority)) : '-'}</td>
+                                    <td class="mi-pow">{m ? (m.power ?? '—') : '-'}</td>
+                                    <td class="mi-acc">{m ? (m.accuracy ? `${m.accuracy}%` : '—') : '-'}</td>
+                                    <td class="mi-pp">{m ? m.pp : '-'}</td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -95,235 +108,50 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         .move-row .mi-prio[data-p="up"] { @apply text-emerald-500; }
         .move-row .mi-prio[data-p="down"] { @apply text-rose-500; }
         .move-row .mi-pow, .move-row .mi-acc, .move-row .mi-pp { @apply font-mono text-sm font-bold text-slate-600 dark:text-slate-400; }
-        /* Type badge placeholder until the row's move data arrives. */
-        .move-row:not([data-type]) .mi-type::before { @apply inline-block h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full align-middle; content: ""; }
-        .move-row .mi-type span { @apply px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm; }
-        .move-row .mi-cat span { @apply px-2 py-0.5 rounded text-[9px] font-black uppercase text-white shadow-sm; }
+        .move-row .tb { @apply px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm; }
+        .move-row .cb { @apply px-2 py-0.5 rounded text-[9px] font-black uppercase text-white shadow-sm; }
+        .move-row .c-physical { @apply bg-orange-500; }
+        .move-row .c-special { @apply bg-indigo-500; }
+        .move-row .c-status { @apply bg-slate-400; }
+
     </style>
 
-    <div id="movimientos-data" data-lang={lang} data-colors={JSON.stringify(typeColors)} data-translations={JSON.stringify(typeTranslations)} class="hidden"></div>
+    <!-- One rule per type instead of an inline style on each of the ~937 rows. -->
+    <style is:inline set:html={typeCss}></style>
+
+    <div id="movimientos-data" data-lang={lang} class="hidden"></div>
 
     <script>
         import { trackEvent } from '../../../utils/analytics';
-        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
+        import { applyCatalogFilter, readRows, showSuggestions, type CatalogRowRef } from '../../../utils/catalogSearch';
 
-        interface MoveInfo {
-            name: string;
-            type: string;
-            category: string;
-            power: number | string;
-            accuracy: string;
-            pp: number;
-            priority: number;
-        }
-
-        // Subset of the PokeAPI /move/{id} response this page reads.
-        interface PokeApiMoveResponse {
-            name: string;
-            names?: { name: string; language: { name: string } }[];
-            type: { name: string };
-            damage_class?: { name: string };
-            power: number | null;
-            accuracy: number | null;
-            pp: number;
-            priority: number;
-        }
-
-        interface MoveRowEntry {
-            name: string;
-            el: HTMLElement;
-            url: string;
-        }
-
-        type TypeColors = Record<string, string>;
-        type TypeTranslations = Record<string, Record<string, string>>;
-        type CatTranslations = Record<string, string>;
-
-        // Assigned synchronously by init() on astro:page-load, before any
-        // listener registered inside init() can fire — every other function
-        // here is only reachable through one of those listeners.
-        let searchInput!: HTMLInputElement;
-        let suggestionsContainer!: HTMLElement;
-        let typeFilter!: HTMLSelectElement;
-        let rows!: NodeListOf<HTMLElement>;
-        let itemsData!: MoveRowEntry[];
-        const cache = new Map<string, MoveInfo>();
-
-        // A row carries only the move's slug; its PokeAPI URL is derived.
-        const MOVE_API = 'https://pokeapi.co/api/v2/move/';
-        const moveUrl = (slug: string) => `${MOVE_API}${slug}/`;
-
-        const catColors: CatTranslations = {
-            physical: 'bg-orange-500',
-            special: 'bg-indigo-500',
-            status: 'bg-slate-400'
-        };
-
-        function escHtml(str: string) {
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        async function fetchMoveInfo(url: string, lang: string): Promise<MoveInfo | null> {
-            const cached = cache.get(url);
-            if (cached) return cached;
-            try {
-                const data = await fetchPokeApiJson<PokeApiMoveResponse>(url);
-                const name = data.names?.find(n => n.language.name === lang)?.name || data.name;
-                const type = data.type.name;
-                const category = data.damage_class?.name || 'status';
-                const power = data.power || '—';
-                const accuracy = data.accuracy ? `${data.accuracy}%` : '—';
-                const pp = data.pp;
-                const priority = data.priority;
-
-                const result: MoveInfo = { name, type, category, power, accuracy, pp, priority };
-                cache.set(url, result);
-                return result;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        async function updateSuggestions(query: string, lang: string, typeColors: TypeColors, typeTranslations: TypeTranslations, catTranslations: CatTranslations) {
-            if (!query || query.length < 2) {
-                suggestionsContainer.classList.add('hidden');
-                return;
-            }
-            const queryLower = query.toLowerCase();
-            const matches = itemsData.filter(item => {
-                const translated = (item.el.dataset.translatedName || '').toLowerCase();
-                return item.name.includes(queryLower) || translated.includes(queryLower);
-            }).slice(0, 6);
-
-            if (matches.length === 0) {
-                suggestionsContainer.classList.add('hidden');
-                return;
-            }
-
-            suggestionsContainer.innerHTML = '';
-            suggestionsContainer.classList.remove('hidden');
-
-            for (const item of matches) {
-                const info = await fetchMoveInfo(item.url, lang);
-                if (!info) continue;
-                const div = document.createElement('div');
-                div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
-                div.innerHTML = `
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-lg shadow-black/10 transition-transform group-hover:scale-110" style="background-color: ${escHtml(typeColors[info.type] || '#777')}" aria-hidden="true">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 dark:text-white capitalize">${escHtml(info.name)}</div>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">${escHtml(typeTranslations[lang]?.[info.type] || info.type)}</span>
-                            <span class="w-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full"></span>
-                            <span class="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">${escHtml(catTranslations[info.category] || info.category)}</span>
-                        </div>
-                    </div>
-                `;
-                div.onclick = () => {
-                    searchInput.value = info.name;
-                    suggestionsContainer.classList.add('hidden');
-                    filterTable();
-                };
-                suggestionsContainer.appendChild(div);
-            }
-        }
-
-        async function loadRow(row: HTMLElement, lang: string, typeColors: TypeColors, typeTranslations: TypeTranslations, catTranslations: CatTranslations) {
-            if (!row.dataset.name) return;
-            const info = await fetchMoveInfo(moveUrl(row.dataset.name), lang);
-            if (info) {
-                const nameEl = row.querySelector('.mi-name a');
-                if (nameEl) nameEl.textContent = info.name;
-                const typeEl = row.querySelector('.mi-type');
-                if (typeEl) typeEl.innerHTML = `<span style="background-color: ${typeColors[info.type]}">${typeTranslations[lang]?.[info.type]}</span>`;
-                const catEl = row.querySelector('.mi-cat');
-                if (catEl) catEl.innerHTML = `<span class="${catColors[info.category]}">${catTranslations[info.category]}</span>`;
-
-                const prioEl = row.querySelector<HTMLElement>('.mi-prio');
-                if (prioEl) {
-                    prioEl.textContent = info.priority > 0 ? `+${info.priority}` : info.priority < 0 ? String(info.priority) : '0';
-                    if (info.priority !== 0) prioEl.dataset.p = info.priority > 0 ? 'up' : 'down';
-                }
-
-                const powEl = row.querySelector('.mi-pow');
-                if (powEl) powEl.textContent = String(info.power);
-                const accEl = row.querySelector('.mi-acc');
-                if (accEl) accEl.textContent = info.accuracy;
-                const ppEl = row.querySelector('.mi-pp');
-                if (ppEl) ppEl.textContent = String(info.pp);
-
-                row.dataset.translatedName = info.name.toLowerCase();
-                row.dataset.type = info.type;
-            }
-        }
-
-        function filterTable() {
-            const query = searchInput.value.toLowerCase().trim();
-            const type = typeFilter.value;
-
-            rows.forEach(row => {
-                const englishName = (row.dataset.name ?? '').toLowerCase();
-                const translatedName = row.dataset.translatedName || '';
-                const moveType = row.dataset.type || '';
-
-                const matchesSearch = englishName.includes(query) || translatedName.includes(query);
-                const matchesType = type === 'all' || moveType === type;
-
-                row.style.display = (matchesSearch && matchesType) ? 'table-row' : 'none';
-            });
-        }
-
+        // Everything the filter needs is in the server-rendered rows: nothing is fetched.
         function init() {
             const dataEl = document.getElementById('movimientos-data');
             if (!dataEl) return;
             const lang = dataEl.dataset.lang || 'es';
-            const typeColors: TypeColors = JSON.parse(dataEl.dataset.colors || '{}');
-            const typeTranslations: TypeTranslations = JSON.parse(dataEl.dataset.translations || '{}');
 
-            const catTranslations: CatTranslations = {
-                physical: lang === 'es' ? 'Físico' : 'Physical',
-                special: lang === 'es' ? 'Especial' : 'Special',
-                status: lang === 'es' ? 'Estado' : 'Status'
-            };
+            const input = document.querySelector<HTMLInputElement>('#move-search');
+            const suggestions = document.getElementById('search-suggestions');
+            const typeFilter = document.querySelector<HTMLSelectElement>('#type-filter');
+            if (!input || !suggestions || !typeFilter) return;
 
-            const searchInputEl = document.querySelector<HTMLInputElement>('#move-search');
-            const suggestionsContainerEl = document.getElementById('search-suggestions');
-            const typeFilterEl = document.querySelector<HTMLSelectElement>('#type-filter');
-            if (!searchInputEl || !suggestionsContainerEl || !typeFilterEl) return;
-            searchInput = searchInputEl;
-            suggestionsContainer = suggestionsContainerEl;
-            typeFilter = typeFilterEl;
-            rows = document.querySelectorAll<HTMLElement>('.move-row');
+            const rows = readRows(
+                document.querySelectorAll<HTMLElement>('.move-row'),
+                (el) => el.querySelector('.mi-name a')?.textContent ?? '',
+                (el) => [el.querySelector('.mi-type')?.textContent, el.querySelector('.mi-cat')?.textContent].filter(Boolean).join(' · ')
+            );
+            const accept = (row: CatalogRowRef) => typeFilter.value === 'all' || row.el.dataset.type === typeFilter.value;
+            const options = { input, suggestions, rows, accept };
 
-            itemsData = Array.from(rows).map(row => ({
-                name: row.dataset.name ?? '',
-                el: row,
-                url: moveUrl(row.dataset.name ?? '')
-            }));
-
-            searchInput.addEventListener('input', () => {
-                filterTable();
-                updateSuggestions(searchInput.value, lang, typeColors, typeTranslations, catTranslations);
+            input.addEventListener('input', () => {
+                applyCatalogFilter(options);
+                showSuggestions(options);
             });
-
             typeFilter.addEventListener('change', () => {
-                filterTable();
+                applyCatalogFilter(options);
                 trackEvent('filter_moves', { language: lang, target: typeFilter.value });
             });
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.target instanceof HTMLElement) {
-                        const row = entry.target;
-                        loadRow(row, lang, typeColors, typeTranslations, catTranslations);
-                        observer.unobserve(row);
-                    }
-                });
-            }, { rootMargin: '100px' });
-
-            rows.forEach(row => observer.observe(row));
 
             // Whole-row click is a convenience on top of the real <a> in the
             // name cell (which crawlers and keyboard users follow); clicks on
@@ -336,9 +164,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             document.addEventListener('click', (e) => {
                 if (!(e.target instanceof Node)) return;
-                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                    suggestionsContainer.classList.add('hidden');
-                }
+                if (!input.contains(e.target) && !suggestions.contains(e.target)) suggestions.classList.add('hidden');
             });
         }
 

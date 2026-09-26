@@ -1,12 +1,16 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getAllAbilities } from '../../../services/pokeapi';
+import { getAbilityCatalog } from '../../../services/catalogs';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 
 const { lang = 'es' } = Astro.params;
 // Limitamos a 307 que son las habilidades oficiales hasta Gen 9 (evitando CAP y entries de debug)
 const abilities = await getAllAbilities();
+// Name and one-line description per ability come from the generated catalog
+// (scripts/generate-catalogs.ts), server-rendered: no per-card request.
+const catalog = await getAbilityCatalog(lang as string);
 const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
@@ -38,221 +42,61 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         </div>
 
         <div id="ability-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {abilities.map((ability) => (
-                <a 
-                    href={pagePath(lang, 'habilidades', ability.name)}
-                    class="ability-card bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all group"
-                    data-name={ability.name}
-                >
-                    <div class="flex justify-between items-start mb-6">
-                        <h3 class="text-2xl font-black text-slate-800 dark:text-white capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" data-ability-url={ability.url}>
-                            {formatName(ability.name)}
-                        </h3>
-                        <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            {abilities.map((ability) => {
+                const info = catalog.get(ability.name);
+                return (
+                    <a href={pagePath(lang, 'habilidades', ability.name)} class="ability-card group" data-name={ability.name}>
+                        <div class="ab-head">
+                            <h3 class="ab-title">{info?.name || formatName(ability.name)}</h3>
+                            <div class="ab-arrow">
+                                <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </div>
                         </div>
-                    </div>
-                    <div class="space-y-2">
-                        <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium" data-ability-desc-url={ability.url}>
-                            <span class="inline-block h-4 w-full bg-slate-100 dark:bg-slate-700 animate-pulse rounded"></span>
-                        </p>
-                    </div>
-                </a>
-            ))}
+                        {info?.description && <p class="ab-desc">{info.description}</p>}
+                    </a>
+                );
+            })}
         </div>
     </div>
+
+    <!-- Card styling in one stylesheet, not repeated on each card. Same utilities, same look. -->
+    <style is:global>
+        @reference "../../../styles/global.css";
+        .ability-card { @apply block bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-emerald-200 dark:hover:border-emerald-800 hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-950/20 transition-all; }
+        .ab-head { @apply flex justify-between items-start mb-6; }
+        .ab-title { @apply text-2xl font-black text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors; }
+        .ab-arrow { @apply p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0; }
+        .ab-desc { @apply text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium; }
+    </style>
 
     <div id="habilidades-data" data-lang={lang} class="hidden"></div>
 
     <script>
-        import { fetchPokeApiJson } from '../../../utils/pokeapiClient';
+        import { applyCatalogFilter, readRows, showSuggestions } from '../../../utils/catalogSearch';
 
-        interface AbilityInfo {
-            name: string;
-            desc: string;
-            hide: boolean;
-        }
-
-        // Subset of the PokeAPI /ability/{id} response this page reads.
-        interface PokeApiAbilityResponse {
-            name: string;
-            names?: { name: string; language: { name: string } }[];
-            flavor_text_entries: { flavor_text: string; language: { name: string } }[];
-            effect_entries: { short_effect?: string; effect?: string; language: { name: string } }[];
-        }
-
-        interface AbilityCardEntry {
-            name: string;
-            el: HTMLElement;
-            url: string;
-        }
-
-        // Assigned synchronously by init() on astro:page-load, before any
-        // listener registered inside init() can fire — every other function
-        // here is only reachable through one of those listeners.
-        let searchInput!: HTMLInputElement;
-        let suggestionsContainer!: HTMLElement;
-        let cards!: NodeListOf<HTMLElement>;
-        let itemsData!: AbilityCardEntry[];
-        const cache = new Map<string, AbilityInfo>();
-
-        function escHtml(str: string) {
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        async function fetchAbilityInfo(url: string, lang: string): Promise<AbilityInfo | null> {
-            const cached = cache.get(url);
-            if (cached) return cached;
-            try {
-                const data = await fetchPokeApiJson<PokeApiAbilityResponse>(url);
-
-                const name = data.names?.find(n => n.language.name === lang)?.name ||
-                             data.names?.find(n => n.language.name === 'es')?.name ||
-                             data.name;
-
-                let desc = "";
-                const flavor = data.flavor_text_entries.find(f => f.language.name === lang);
-                if (flavor) desc = flavor.flavor_text;
-                if (!desc) {
-                    const effect = data.effect_entries.find(e => e.language.name === lang);
-                    desc = effect?.short_effect || effect?.effect || "";
-                }
-                if (!desc) {
-                    const enFlavor = data.flavor_text_entries.find(f => f.language.name === 'en');
-                    const enEffect = data.effect_entries.find(e => e.language.name === 'en');
-                    desc = enFlavor?.flavor_text || enEffect?.short_effect || "";
-                }
-
-                desc = desc.replace(/\f/g, ' ').replace(/\n/g, ' ');
-                const result: AbilityInfo = { name, desc, hide: false };
-                cache.set(url, result);
-                return result;
-            } catch (e) { return null; }
-        }
-
-        async function loadCard(card: HTMLElement, lang: string) {
-            if (card.dataset.loaded === "true") return;
-            const nameEl = card.querySelector<HTMLElement>('[data-ability-url]');
-            const descEl = card.querySelector<HTMLElement>('[data-ability-desc-url]');
-            const url = nameEl?.dataset.abilityUrl;
-            if (!nameEl || !descEl || !url) return;
-
-            const info = await fetchAbilityInfo(url, lang);
-            if (info) {
-                if (info.hide) {
-                    card.remove();
-                    return;
-                }
-                nameEl.textContent = info.name;
-                descEl.textContent = info.desc.length > 100 ? info.desc.substring(0, 100) + '...' : info.desc;
-                card.dataset.translatedName = info.name.toLowerCase();
-                card.dataset.loaded = "true";
-                applyFilters(false, lang);
-            }
-        }
-
-        async function updateSuggestions(query: string, lang: string) {
-            if (!query || query.length < 2) {
-                suggestionsContainer.classList.add('hidden');
-                return;
-            }
-            const queryLower = query.toLowerCase();
-            const matches = itemsData.filter(item => {
-                const name = item.name.toLowerCase();
-                const translated = (item.el.dataset.translatedName || '').toLowerCase();
-                return name.includes(queryLower) || translated.includes(queryLower);
-            }).slice(0, 6);
-
-            if (matches.length === 0) {
-                suggestionsContainer.classList.add('hidden');
-                return;
-            }
-
-            suggestionsContainer.innerHTML = '';
-            suggestionsContainer.classList.remove('hidden');
-
-            for (const item of matches) {
-                const info = await fetchAbilityInfo(item.url, lang);
-                if (!info || info.hide) continue;
-                const div = document.createElement('div');
-                div.className = 'flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors group';
-                div.innerHTML = `
-                    <div class="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center p-1 text-emerald-500" aria-hidden="true">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14H11V21L20 10H13Z"/></svg>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 dark:text-white capitalize">${escHtml(info.name)}</div>
-                        <div class="text-xs text-slate-400 font-medium truncate max-w-[200px]">${escHtml(info.desc)}</div>
-                    </div>
-                `;
-                div.onclick = () => {
-                    searchInput.value = info.name;
-                    suggestionsContainer.classList.add('hidden');
-                    applyFilters(true, lang);
-                };
-                suggestionsContainer.appendChild(div);
-            }
-        }
-
-        async function applyFilters(forceLoad: boolean, lang: string) {
-            const query = searchInput.value.toLowerCase().trim();
-            for (const card of cards) {
-                if (!card.parentElement) continue;
-                const englishName = (card.dataset.name ?? '').toLowerCase();
-                const translatedName = card.dataset.translatedName || '';
-                const isLoaded = card.dataset.loaded === "true";
-
-                const matchesSearch = englishName.includes(query) || translatedName.includes(query);
-
-                if (!isLoaded && query.length > 0 && englishName.includes(query) === false && forceLoad) {
-                    await loadCard(card, lang);
-                    const newTranslatedName = card.dataset.translatedName || '';
-                    card.style.display = newTranslatedName.includes(query) ? 'block' : 'none';
-                } else {
-                    card.style.display = matchesSearch ? 'block' : 'none';
-                }
-            }
-        }
-
+        // Everything the filter needs is in the server-rendered cards: nothing is fetched.
         function init() {
             const dataEl = document.getElementById('habilidades-data');
             if (!dataEl) return;
-            const lang = dataEl.dataset.lang || 'es';
+            const input = document.querySelector<HTMLInputElement>('#ability-search');
+            const suggestions = document.getElementById('search-suggestions');
+            if (!input || !suggestions) return;
 
-            const searchInputEl = document.querySelector<HTMLInputElement>('#ability-search');
-            const suggestionsContainerEl = document.getElementById('search-suggestions');
-            if (!searchInputEl || !suggestionsContainerEl) return;
-            searchInput = searchInputEl;
-            suggestionsContainer = suggestionsContainerEl;
-            cards = document.querySelectorAll<HTMLElement>('.ability-card');
+            const rows = readRows(
+                document.querySelectorAll<HTMLElement>('.ability-card'),
+                (el) => el.querySelector('.ab-title')?.textContent ?? '',
+                (el) => el.querySelector('.ab-desc')?.textContent ?? ''
+            );
+            const options = { input, suggestions, rows };
 
-            itemsData = Array.from(cards).flatMap(card => {
-                const url = card.querySelector<HTMLElement>('[data-ability-url]')?.dataset.abilityUrl;
-                if (!url) return [];
-                return [{ name: card.dataset.name ?? '', el: card, url }];
+            input.addEventListener('input', () => {
+                applyCatalogFilter(options);
+                showSuggestions(options);
             });
-
-            searchInput.addEventListener('input', () => {
-                applyFilters(true, lang);
-                updateSuggestions(searchInput.value, lang);
-            });
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.target instanceof HTMLElement) {
-                        loadCard(entry.target, lang);
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { rootMargin: '200px' });
-
-            cards.forEach(card => observer.observe(card));
 
             document.addEventListener('click', (e) => {
                 if (!(e.target instanceof Node)) return;
-                if (searchInput && suggestionsContainer && !searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-                    suggestionsContainer.classList.add('hidden');
-                }
+                if (!input.contains(e.target) && !suggestions.contains(e.target)) suggestions.classList.add('hidden');
             });
         }
 

@@ -1,0 +1,6 @@
+{
+  "_note": "Hand-written corrections applied on top of PokeAPI by scripts/generate-catalogs.ts, keyed kind -> lang -> slug. Generated files in src/data/generated/ must never be edited by hand: put a correction here, with the evidence, and regenerate.",
+  "moves": {},
+  "abilities": {},
+  "items": {}
+}

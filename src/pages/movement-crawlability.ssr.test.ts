@@ -73,10 +73,10 @@ const FIXTURES: Record<string, unknown> = {
     160,
     'feraligatr',
     [
-      learn('surf', 0, 'machine', 'red-blue'),
-      learn('swords-dance', 0, 'machine', 'red-blue'),
-      learn('protect', 1, 'level-up', 'red-blue'),
-      learn('only-in-gold', 5, 'level-up', 'gold-silver'),
+      learn('surf', 0, 'machine', 'gold-silver'),
+      learn('swords-dance', 0, 'machine', 'gold-silver'),
+      learn('protect', 1, 'level-up', 'gold-silver'),
+      learn('only-in-red-blue', 5, 'level-up', 'red-blue'),
     ],
     [{ ability: { name: 'torrent', url: `${API}/ability/1/` }, is_hidden: false, slot: 1 }]
   ),
@@ -191,13 +191,13 @@ describe('move crawlability (SSR)', () => {
       const html = await render(PokemonPage, { lang, name: 'feraligatr' }, `/${lang}/pokemon/feraligatr/`);
       const tbody = tbodyOf(html);
       expect(tbody.trim()).not.toBe('');
-      // red-blue is the initial version: 3 of the 4 fixture moves.
+      // gold-silver is the initial version (most recent of the two): 3 of the 4 fixture moves.
       expect(tbody.match(/<tr/g) ?? []).toHaveLength(3);
       const hrefs = moveHrefs(tbody, lang);
       expect([...hrefs].sort()).toEqual(['protect', 'surf', 'swords-dance'].map((s) => `/${lang}/movimientos/${s}/`));
       hrefs.forEach((h) => expectCanonicalMoveHref(h, lang));
       // A move that belongs to another version group is not in the initial rows.
-      expect(tbody).not.toContain('only-in-gold');
+      expect(tbody).not.toContain('only-in-red-blue');
       // Same order as the client render: by level ascending.
       expect(tbody.indexOf('/movimientos/protect/')).toBeGreaterThan(tbody.indexOf('/movimientos/surf/'));
     });

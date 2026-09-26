@@ -134,7 +134,7 @@ describe('machines', () => {
   });
 
   it('an unrecognized version group ranks below every known one', () => {
-    const machines = [{ version_group: { name: 'xd' }, id: 9 }, { version_group: { name: 'red-blue' }, id: 1 }];
+    const machines = [{ version_group: { name: 'unreleased-game' }, id: 9 }, { version_group: { name: 'red-blue' }, id: 1 }];
     expect(pickLatestMachine(machines)?.id).toBe(1);
   });
 
