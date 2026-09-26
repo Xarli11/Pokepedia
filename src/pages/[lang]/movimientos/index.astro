@@ -63,22 +63,14 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                     </thead>
                     <tbody id="move-table-body" class="divide-y divide-slate-50 dark:divide-slate-700/50">
                         {moves.map((move) => (
-                            <tr class="move-row hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-colors cursor-pointer group" data-name={move.name} data-url={move.url}>
-                                <td class="px-10 py-5">
-                                    <a href={pagePath(lang as string, 'movimientos', move.name)} class="font-bold text-slate-900 dark:text-white capitalize no-underline group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                                        <span data-move-name-url={move.url}>{formatName(move.name)}</span>
-                                    </a>
-                                </td>
-                                <td class="px-10 py-5 text-center">
-                                    <div class="inline-block" data-move-type-url={move.url}>
-                                        <div class="h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full"></div>
-                                    </div>
-                                </td>
-                                <td class="px-10 py-5 text-center" data-move-cat-url={move.url}>-</td>
-                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-400" data-move-prio-url={move.url}>-</td>
-                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-pow-url={move.url}>-</td>
-                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-acc-url={move.url}>-</td>
-                                <td class="px-10 py-5 text-center font-mono text-sm font-bold text-slate-600 dark:text-slate-400" data-move-pp-url={move.url}>-</td>
+                            <tr class="move-row" data-name={move.name}>
+                                <td class="mi-name"><a href={pagePath(lang as string, 'movimientos', move.name)}>{formatName(move.name)}</a></td>
+                                <td class="mi-type"></td>
+                                <td class="mi-cat">-</td>
+                                <td class="mi-prio">-</td>
+                                <td class="mi-pow">-</td>
+                                <td class="mi-acc">-</td>
+                                <td class="mi-pp">-</td>
                             </tr>
                         ))}
                     </tbody>
@@ -86,6 +78,28 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             </div>
         </div>
     </div>
+
+    <!--
+      Row styling lives in one stylesheet instead of ~7 utility-class lists and
+      7 per-cell URL attributes repeated on each of the 937 rows.
+    -->
+    <style is:global>
+        @reference "../../../styles/global.css";
+        .move-row { @apply hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-colors cursor-pointer; }
+        .move-row td { @apply px-10 py-5 text-center; }
+        .move-row td.mi-name { @apply text-left; }
+        .move-row .mi-name a { @apply font-bold text-slate-900 dark:text-white capitalize no-underline transition-colors; }
+        .move-row:hover .mi-name a { @apply text-emerald-600 dark:text-emerald-400; }
+        .move-row .mi-prio { @apply font-mono text-sm font-bold text-slate-400; }
+        /* Priority colour by data attribute: unlayered rules here would beat utility classes toggled from JS. */
+        .move-row .mi-prio[data-p="up"] { @apply text-emerald-500; }
+        .move-row .mi-prio[data-p="down"] { @apply text-rose-500; }
+        .move-row .mi-pow, .move-row .mi-acc, .move-row .mi-pp { @apply font-mono text-sm font-bold text-slate-600 dark:text-slate-400; }
+        /* Type badge placeholder until the row's move data arrives. */
+        .move-row:not([data-type]) .mi-type::before { @apply inline-block h-5 w-16 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-full align-middle; content: ""; }
+        .move-row .mi-type span { @apply px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm; }
+        .move-row .mi-cat span { @apply px-2 py-0.5 rounded text-[9px] font-black uppercase text-white shadow-sm; }
+    </style>
 
     <div id="movimientos-data" data-lang={lang} data-colors={JSON.stringify(typeColors)} data-translations={JSON.stringify(typeTranslations)} class="hidden"></div>
 
@@ -134,6 +148,10 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         let rows!: NodeListOf<HTMLElement>;
         let itemsData!: MoveRowEntry[];
         const cache = new Map<string, MoveInfo>();
+
+        // A row carries only the move's slug; its PokeAPI URL is derived.
+        const MOVE_API = 'https://pokeapi.co/api/v2/move/';
+        const moveUrl = (slug: string) => `${MOVE_API}${slug}/`;
 
         const catColors: CatTranslations = {
             physical: 'bg-orange-500',
@@ -213,37 +231,27 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         }
 
         async function loadRow(row: HTMLElement, lang: string, typeColors: TypeColors, typeTranslations: TypeTranslations, catTranslations: CatTranslations) {
-            const url = row.dataset.url;
-            if (!url) return;
-            const info = await fetchMoveInfo(url, lang);
+            if (!row.dataset.name) return;
+            const info = await fetchMoveInfo(moveUrl(row.dataset.name), lang);
             if (info) {
-                const nameEl = row.querySelector('[data-move-name-url]');
+                const nameEl = row.querySelector('.mi-name a');
                 if (nameEl) nameEl.textContent = info.name;
-                const typeEl = row.querySelector('[data-move-type-url]');
-                if (typeEl) typeEl.innerHTML = `
-                    <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white shadow-sm" style="background-color: ${typeColors[info.type]}">
-                        ${typeTranslations[lang]?.[info.type]}
-                    </span>
-                `;
-                const catEl = row.querySelector('[data-move-cat-url]');
-                if (catEl) catEl.innerHTML = `
-                    <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${catColors[info.category]} shadow-sm">
-                        ${catTranslations[info.category]}
-                    </span>
-                `;
+                const typeEl = row.querySelector('.mi-type');
+                if (typeEl) typeEl.innerHTML = `<span style="background-color: ${typeColors[info.type]}">${typeTranslations[lang]?.[info.type]}</span>`;
+                const catEl = row.querySelector('.mi-cat');
+                if (catEl) catEl.innerHTML = `<span class="${catColors[info.category]}">${catTranslations[info.category]}</span>`;
 
-                const prioEl = row.querySelector('[data-move-prio-url]');
+                const prioEl = row.querySelector<HTMLElement>('.mi-prio');
                 if (prioEl) {
                     prioEl.textContent = info.priority > 0 ? `+${info.priority}` : info.priority < 0 ? String(info.priority) : '0';
-                    if (info.priority > 0) prioEl.classList.add('text-emerald-500');
-                    if (info.priority < 0) prioEl.classList.add('text-rose-500');
+                    if (info.priority !== 0) prioEl.dataset.p = info.priority > 0 ? 'up' : 'down';
                 }
 
-                const powEl = row.querySelector('[data-move-pow-url]');
+                const powEl = row.querySelector('.mi-pow');
                 if (powEl) powEl.textContent = String(info.power);
-                const accEl = row.querySelector('[data-move-acc-url]');
+                const accEl = row.querySelector('.mi-acc');
                 if (accEl) accEl.textContent = info.accuracy;
-                const ppEl = row.querySelector('[data-move-pp-url]');
+                const ppEl = row.querySelector('.mi-pp');
                 if (ppEl) ppEl.textContent = String(info.pp);
 
                 row.dataset.translatedName = info.name.toLowerCase();
@@ -292,7 +300,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             itemsData = Array.from(rows).map(row => ({
                 name: row.dataset.name ?? '',
                 el: row,
-                url: row.dataset.url ?? ''
+                url: moveUrl(row.dataset.name ?? '')
             }));
 
             searchInput.addEventListener('input', () => {
