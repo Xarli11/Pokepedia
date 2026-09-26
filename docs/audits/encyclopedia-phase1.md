@@ -85,7 +85,7 @@ Baseline tests: 46 files / 564 passed, 2 skipped (vitest 9 s).
 
 | | Before | After |
 |---|---|---|
-| Tests | 46 files / 564 | 55 files / 657 (+93), 2 skipped as before |
+| Tests | 46 files / 564 | 55 files / 656 (+92), 2 skipped as before |
 | `astro check` | 0 errors | 0 errors |
 | `npm run build` | OK | OK, 2.7 s |
 | Catalog generation | n/a | 40 s cold, ~4.5k requests, deterministic (second run: identical bytes) |

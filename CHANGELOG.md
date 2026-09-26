@@ -11,7 +11,7 @@ All notable changes to Pokepedia are documented in this file.
 - Generated, versioned ES/EN catalogs of moves, abilities, items and Pokémon (`src/data/generated/`), built from PokeAPI by `npm run data:catalogs` (validated against the API's `count`, deduplicated, deterministic, fail on truncation) and checked against the live lists with `npm run data:catalogs:check`. Manual corrections go in `src/data/catalogOverrides.json`.
 - `versionGroupLabel`, `sortVersionGroups` and `latestVersionGroup` in `src/services/versionGroups.ts`; missing groups added to the chronology (Colosseum, XD, Isle of Armor, Crown Tundra, Champions, Japanese originals).
 - `src/utils/ecosystem.ts`: single switch for a future PokeStudio link (none is rendered while it has no public URL).
-- Tests 564 → 657.
+- Tests 564 → 656.
 - `docs/audits/encyclopedia-phase1.md`; `docs/DATA_SOURCES.md` sections on product boundaries, version groups, generated catalogs and the search index.
 
 ### Changed
