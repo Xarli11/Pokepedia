@@ -366,6 +366,34 @@ across requests only via the isolate cache.
 * Item policy unchanged: `dynamax-crystal-and15` → `noindex,follow`; `leftovers`, `tm26`, `water-tera-shard`, `oran-berry` indexable; canonicals unchanged.
 * Status/redirect matrix identical BEFORE vs AFTER for: `/es/pokemon/25/` (301), `/Pikachu/` (301), `basculin-red-striped` (301 → `basculin`), unslashed (301), unknown Pokémon/item/move/ability/type (404), `/xx/` (404), `/es/objetos/211/` (301), `/es/movimientos/57/` (301), sitemap (200 + same Cache-Control).
 
+### 7.5 Real Cloudflare edge (production v0.13.0 vs the PR's Pages preview)
+
+Production still runs the base code, so the Pages preview of this branch
+(`pokepedia-ean.pages.dev`) gives a real-edge A/B from the same client (Madrid colo),
+warm-up request first, then median of 7 (TTFB / total, ms) — relative only: production
+is the custom domain, the preview is `*.pages.dev`.
+
+| Route | TTFB prod → preview | total prod → preview | wire (gzip/br) prod → preview |
+|---|---|---|---|
+| `/es/objetos/` | 205 → 123 | 315 → 161 | 95 528 → 60 873 B |
+| `/es/movimientos/` | 98 → 90 | 173 → 116 | 46 569 → 24 184 B |
+| pokemon feraligatr | 126 → 84 | 154 → 96 | 31 580 → 23 345 B |
+| pokemon charizard | 78 → 62 | 111 → 74 | 33 470 → 23 808 B |
+| pokemon sneasler | 104 → 60 | 121 → 73 | 24 050 → 21 928 B |
+| move surf | 75 → 54 | 150 → 72 | 11 825 → 11 376 B |
+| item oran-berry | 91 → 48 | 102 → 59 | 10 600 → 10 192 B |
+| ability levitate | 75 → 65 | 154 → 84 | 11 552 → 11 191 B |
+| item leftovers | 82 → 51 | 86 → 56 | 9 640 → 9 286 B |
+| `/sitemap.xml` | 174 → 156 | 258 → 237 | 89 986 → 89 995 B |
+
+On the preview (real edge): raw HTML sizes equal the wrangler ones (`/es/objetos/` 960 033 B),
+2222 / 937 unique entity anchors, sitemap 200 with the same `Cache-Control` and 8436 `<loc>`,
+identical 301/404 semantics. Differences vs local wrangler: none in semantics; latency is
+better and steadier (no `cf-cache-status` headers on HTML — still uncached). **Whether the
+Cache API dataset layer hits on `*.pages.dev`/the custom domain is still unverified** (it
+cannot be observed from the outside; watch for `upstream_stale`/`upstream_slow` logs and
+Showdown latency in the dashboard).
+
 ---
 
 ## 8. Reliability
