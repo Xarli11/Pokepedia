@@ -142,3 +142,101 @@ describe('Showdown dataset caching', () => {
     expect([...edge.store.keys()].sort()).toEqual([POKEDEX_URL, 'https://pkmn.github.io/smogon/data/sets/gen9ou.json'].sort());
   });
 });
+
+// --- Absolute dataset age: origin -> edge -> memory never rejuvenates a copy ---
+describe('absolute age of a dataset (max 7 days, from its real origin time)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const HOUR = 60 * 60 * 1000;
+  beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }));
+  afterEach(() => vi.useRealTimers());
+
+  it('A: a dataset fetched from the origin now is served from memory without new requests', async () => {
+    fakeEdge();
+    const calls = net(() => ({ status: 200, body: JSON.stringify(DEX) }));
+    const { getShowdownPokemon } = await fresh();
+    await getShowdownPokemon('garchomp');
+    await getShowdownPokemon('garchomp');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('B: an edge copy younger than 6 h is fresh: no origin request', async () => {
+    fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: Date.now() - 5 * HOUR });
+    const calls = net(() => ({ status: 200, body: '{}' }));
+    const { getShowdownPokemon } = await fresh();
+    expect((await getShowdownPokemon('garchomp'))?.tier).toBe('OU');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('C: an edge copy between 6 h and 7 days is served stale when the origin fails', async () => {
+    fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: Date.now() - 3 * DAY });
+    const calls = net(() => ({ status: 503, body: '' }));
+    const { getShowdownPokemon } = await fresh();
+    expect((await getShowdownPokemon('garchomp'))?.tier).toBe('OU');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('D (critical): a copy promoted edge -> memory at 6d23h is NOT served once 7 days of REAL age pass', async () => {
+    fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: Date.now() - (7 * DAY - HOUR) });
+    net(() => ({ status: 503, body: '' }));
+    const { getCachedSmogonDataBatch, getShowdownPokemon } = await fresh();
+    // promotion by the cards path
+    expect((await getCachedSmogonDataBatch(['garchomp'])).garchomp?.types).toEqual(['dragon', 'ground']);
+    // still inside the limit: memory serves it
+    expect((await getCachedSmogonDataBatch(['garchomp'])).garchomp).toBeDefined();
+    // 2 hours later the copy is 7d1h old — promotion must not have renewed it
+    vi.setSystemTime(Date.now() + 2 * HOUR);
+    expect(await getCachedSmogonDataBatch(['garchomp'])).toEqual({});
+    // and the origin failing does not resurrect it through the stale fallback either
+    expect(await getShowdownPokemon('garchomp')).toBeNull();
+  });
+
+  it('D2: same through the page path (fetchDataset): promotion of a fresh-ish edge copy keeps its real age', async () => {
+    const edge = fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: Date.now() - 5 * HOUR });
+    const calls = net(() => ({ status: 503, body: '' }));
+    const { getShowdownPokemon } = await fresh();
+    await getShowdownPokemon('garchomp'); // edge fresh -> memory with cachedAt = 5 h ago
+    vi.setSystemTime(Date.now() + 20 * HOUR); // real age 25 h > memory TTL 24 h
+    await getShowdownPokemon('garchomp');
+    // memory copy is past its TTL (age counted from the real origin time), so the origin is tried
+    expect(calls).toHaveLength(1);
+    expect(edge.put).not.toHaveBeenCalled();
+  });
+
+  it('E: a copy older than 7 days is never served, in memory or edge, when the origin fails', async () => {
+    fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: Date.now() - 8 * DAY });
+    const calls = net(() => ({ status: 503, body: '' }));
+    const { getShowdownPokemon } = await fresh();
+    expect(await getShowdownPokemon('garchomp')).toBeNull(); // unavailable -> the page degrades, no 503
+    expect(calls).toHaveLength(1);
+  });
+
+  it('E2: an edge entry with no valid cached-at header is not served', async () => {
+    fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: 0 });
+    net(() => ({ status: 503, body: '' }));
+    const { getShowdownPokemon } = await fresh();
+    expect(await getShowdownPokemon('garchomp')).toBeNull();
+  });
+
+  it('E3: a memory copy past 7 days is not served as stale', async () => {
+    fakeEdge();
+    let up = true;
+    const calls = net(() => (up ? { status: 200, body: JSON.stringify(DEX) } : { status: 503, body: '' }));
+    const { getShowdownPokemon } = await fresh();
+    await getShowdownPokemon('garchomp');
+    up = false;
+    vi.setSystemTime(Date.now() + 8 * DAY);
+    expect(await getShowdownPokemon('garchomp')).toBeNull();
+    expect(calls).toHaveLength(2);
+  });
+
+  it('F: when the origin recovers a new copy is stored with a new REAL cachedAt', async () => {
+    const t0 = Date.now();
+    const edge = fakeEdge({ url: POKEDEX_URL, body: JSON.stringify(DEX), cachedAt: t0 - 3 * DAY });
+    net(() => ({ status: 200, body: JSON.stringify({ garchomp: { tier: 'Uber', baseStats: { hp: 1 } } }) }));
+    const { getShowdownPokemon } = await fresh();
+    expect((await getShowdownPokemon('garchomp'))?.tier).toBe('Uber');
+    const written = Number(edge.store.get(POKEDEX_URL)!.headers['x-pokepedia-cached-at']);
+    expect(written).toBe(t0);
+    expect(written).toBeGreaterThan(t0 - 3 * DAY);
+  });
+});
