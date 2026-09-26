@@ -21,6 +21,40 @@ async function render(lang = 'es') {
   return { html, json };
 }
 
+describe('MovesTable default context', () => {
+  const build = (versions: string[]) => Array.from({ length: 3 }, (_, i) => ({
+    move: { name: `m${i}`, url: `https://pokeapi.co/api/v2/move/${i + 1}/` },
+    version_group_details: versions.map((v) => ({ level_learned_at: i, move_learn_method: { name: 'level-up' }, version_group: { name: v } })),
+  }));
+  const open = async (versions: string[], lang = 'es') => {
+    const html = await (await AstroContainer.create()).renderToString(MovesTable, { props: { moves: build(versions), lang } });
+    const select = html.match(/<select id="versionFilter"[^>]*>([\s\S]*?)<\/select>/)![1];
+    return {
+      initial: html.match(/data-initial-version="([^"]*)"/)![1],
+      options: [...select.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1]),
+      selected: select.match(/<option value="([^"]+)" selected/)?.[1],
+      select,
+    };
+  };
+
+  it('Garchomp-like set: opens on Scarlet/Violet, Champions is still listed (newest first)', async () => {
+    for (const lang of ['es', 'en']) {
+      const r = await open(['x-y', 'sword-shield', 'scarlet-violet', 'champions', 'legends-arceus'], lang);
+      expect(r.initial).toBe('scarlet-violet');
+      expect(r.selected).toBe('scarlet-violet');
+      expect(r.options).toEqual(['champions', 'scarlet-violet', 'legends-arceus', 'sword-shield', 'x-y']);
+      expect(r.select).toContain('Pokémon Champions');
+      expect(r.select).toContain(lang === 'es' ? 'Escarlata / Púrpura' : 'Scarlet / Violet');
+    }
+  });
+
+  it('only a spin-off available: it is the fallback default', async () => {
+    const r = await open(['champions']);
+    expect(r.initial).toBe('champions');
+    expect(r.options).toEqual(['champions']);
+  });
+});
+
 describe('MovesTable SSR', () => {
   it('selects the most recent version group by default and lists every version, newest first', async () => {
     for (const lang of ['es', 'en']) {

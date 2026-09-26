@@ -1,6 +1,6 @@
 ---
 import { uiTranslations, methodTranslations } from '../utils/pokemon';
-import { sortVersionGroups, latestVersionGroup, versionGroupLabel } from '../services/versionGroups';
+import { sortVersionGroups, defaultVersionGroup, versionGroupLabel } from '../services/versionGroups';
 import { pagePath } from '../utils/seo';
 import { compactMoves, expandMoves, jsonForScript, resourceRef, type RawMoveEntry } from '../utils/movesPayload';
 
@@ -54,9 +54,10 @@ const payload = compactMoves(rawByVersion, {
     version: (v) => versionGroupLabel(v, lang),
 });
 
-// Default to the most recent version group this Pokémon has. Kept as a single
-// value so a future Game Context can override it (e.g. a remembered choice).
-const initialVersion = latestVersionGroup(versionGroups);
+// Open on the most recent main-series version group this Pokémon has (spin-offs
+// and DLC such as Champions stay in the selector but are never the default; see
+// services/versionGroups.ts). One value, so a future Game Context can override it.
+const initialVersion = defaultVersionGroup(versionGroups);
 
 // Rows for the initially selected version, server-rendered from data already in
 // hand (no per-move fetch) so the Pokémon -> Move relation and the canonical
