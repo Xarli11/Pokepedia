@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-09-26 (Sesión 7 — Fase 1: enciclopedia de entidades)
+
+**Objetivo:** corregir la versión por defecto de los movimientos, alinear Pokepedia con su papel (enciclopedia; estrategia → PokeStudio, tipos → PokeTypes), búsqueda global multi-entidad y capa de datos compacta para los índices. Rama `feature/encyclopedia-phase1`, 6 commits.
+
+**Cambios realizados:**
+
+### fix(moves): versión más reciente por defecto (`MovesTable.astro`, `services/versionGroups.ts`)
+- `versionGroups` se ordenaba alfabéticamente y se abría en `red-blue`. Ahora se ordena con la tabla cronológica explícita y se abre en la más reciente (Garchomp → Champions). Selector con la más nueva primero, etiquetas ES/EN. Decisiones de orden en `docs/DATA_SOURCES.md`.
+
+### refactor(product): copy alineado (`Layout`, `pokemon.ts`, `[name].astro`, `SmogonTier.astro`, `ecosystem.ts`)
+- Fuera "análisis estratégico / calculadora / debilidades" de home, metadatos, JSON-LD, OG y página de Pokémon. `CompetitiveSets` → `SmogonTier` (solo tier atribuido, SSR, sin script). Se elimina la petición de sets de Smogon. `meta keywords` eliminado. CTA a PokeStudio detrás de `ecosystem.ts` (sin URL pública → no se renderiza).
+
+### feat(data) + feat(search) + perf(catalogs)
+- `npm run data:catalogs` genera catálogos ES/EN (movimientos, habilidades, objetos, Pokémon) y el índice de búsqueda; `--check` compara con PokeAPI. Búsqueda global multi-entidad con ranking determinista e historial multi-tipo. Índices `/movimientos/`, `/habilidades/`, `/objetos/` con los campos principales en SSR y 0 peticiones cliente.
+- Detalle y métricas: `docs/audits/encyclopedia-phase1.md`.
+
+**Aprendido:**
+- Los tests dentro de `src/pages/` los empaqueta Astro como rutas (chunk `test.*.mjs` de 654 KB en el worker). Los nuevos van en `src/testing/` y `src/services/`; mover los existentes queda como deuda.
+- `console.log` de Vitest no llega a la terminal en este repo: escribir a fichero para sondear.
+
+---
+
 ## 2026-07-12 (Sesión 6 — hotfix MovesTable)
 
 **Cambios realizados:**

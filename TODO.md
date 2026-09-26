@@ -6,16 +6,25 @@ _ninguna_
 
 ## Pendientes
 
-### Features (Sección C — revisión futura)
-- [ ] **C1 — Inline type effectiveness calculator**: Sustituir/complementar el enlace a poketypes.app con un widget inline en la página de Pokémon que muestre las x0, x0.5, x1, x2, x4 sin salir del sitio. Revisar si vale la pena dado que poketypes.app es el destino canónico.
-- [ ] **C2 — PWA offline cache**: Service Worker que cachee las páginas de Pokémon más visitadas para uso offline. Compatible con Cloudflare Workers.
-- [ ] **C3 — Team Builder**: Página `/[lang]/equipo` para seleccionar hasta 6 Pokémon y ver la cobertura de tipos del equipo. Podría enlazar con poketypes.app para el análisis completo.
-- [ ] **C4 — Comparador ampliado**: Extender `/[lang]/comparar/[p1]/[p2]` para comparar más de 2 Pokémon en paralelo (hasta 4).
-- [ ] **C5 — Página de generaciones/regiones**: Vista visual por generación con mapa de región. Actualmente el selector de gen solo filtra la pokedex.
-- [ ] **C7 — Integración profunda poketypes.app**: Evaluar si incrustar el análisis de tipos de poketypes.app directamente (iframe o API compartida). Pendiente de decisión con el owner.
+### Fase siguiente (propuesta, no empezada)
+- [ ] **Game Context**: recordar el juego/version group elegido y aplicarlo a learnsets, MT/TR/MO, localizaciones y Pokédex regional (`MovesTable.initialVersion` y la identidad `{type, slug}` de búsqueda/historial son los puntos de enganche).
+- [ ] Completar datos factuales del Pokémon (entrenamiento, cría, grupos huevo, género, ratio de captura, EVs, Pokédex regional).
+- [ ] Enriquecer movimientos (contacto, objetivo, generación, historial de MT, retroceso/drenaje, cambios de stats, multigolpe) y habilidades (efecto exacto, cambios históricos, normal vs oculta).
+- [ ] Relaciones completas y filtrables entre entidades (Pokémon ↔ movimientos ↔ habilidades ↔ objetos ↔ tipos ↔ generaciones), con la versión cuando dependan de ella.
+- [ ] Mover los tests que siguen en `src/pages/` fuera de esa carpeta (Astro los empaqueta como rutas).
+
+### Features (Sección C — reclasificada el 2026-09-26)
+Decisión de producto: Pokepedia es la enciclopedia; tipos → PokeTypes, construcción/estrategia → PokeStudio.
+- ~~**C1 — Inline type effectiveness calculator**~~ **Descartada en Pokepedia**: pertenece a PokeTypes (se mantiene solo el enlace).
+- ~~**C3 — Team Builder**~~ **Descartada en Pokepedia**: pertenece a PokeStudio.
+- ~~**C7 — Integración profunda poketypes.app (iframe/API)**~~ **Descartada como dirección preferente**: enlace profundo, sin iframe ni duplicación.
+- [ ] **C2 — PWA offline cache** (prioridad baja): Service Worker compatible con Cloudflare Workers.
+- [ ] **C4 — Comparador ampliado** (prioridad baja): más de 2 Pokémon en `/[lang]/comparar/[p1]/[p2]`.
+- [ ] **C5 — Página de generaciones/regiones con mapa** (posterior a Game Context y localizaciones).
 
 ## Completados
 
+- [x] **Fase 1 enciclopedia (2026-09-26)**: versión por defecto de movimientos, copy alineado con el ecosistema, búsqueda global multi-entidad, catálogos generados y SSR de los índices (ver `docs/audits/encyclopedia-phase1.md`).
 - [x] Configuración inicial de CLAUDE.md con arquitectura del proyecto
 - [x] **Frontend Audit — Sección A (Bugs)**:
   - [x] A1: XSS en innerHTML de suggestions (index, habilidades, movimientos, Layout modal) — DOM construction + escHtml()
