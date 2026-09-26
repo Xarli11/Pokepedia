@@ -54,7 +54,7 @@ export const typeTranslations: Record<string, Record<string, string>> = {
 
 export const uiTranslations: Record<string, Record<string, string>> = {
     es: {
-        'search_placeholder': 'Busca por nombre, número o tipo...',
+        'search_placeholder': 'Busca Pokémon, movimientos, habilidades, objetos...',
         'back_to_pokedex': 'Volver a la Pokedex',
         'favorites': 'Favoritos',
         'no_favorites': 'No tienes Pokémon favoritos todavía.',
@@ -202,7 +202,7 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'pokemon_count_label': 'Pokémon'
         },
         en: {
-        'search_placeholder': 'Search by name, number or type...',
+        'search_placeholder': 'Search Pokémon, moves, abilities, items...',
 
         'back_to_pokedex': 'Back to Pokedex',
         'favorites': 'Favorites',

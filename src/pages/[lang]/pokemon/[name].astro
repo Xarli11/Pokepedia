@@ -5,7 +5,7 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import SmogonTier from '../../../components/SmogonTier.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
@@ -434,12 +434,15 @@ const breadcrumbItems = [
         document.addEventListener('astro:after-swap', initShiny);
     </script>
 
-    <script is:inline define:vars={{ _pokemonName: canonicalSlug, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+    <script is:inline define:vars={{ _pokemonSlug: canonicalSlug, _pokemonId: pokemonId, _pokemonLabel: localizedName }}>
+        // Recent-search history (same shape as utils/searchHistory.ts; legacy
+        // { name, id, sprite } entries are still understood there).
         (function() {
             try {
-                const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
-                const filtered = history.filter(h => h.name !== _pokemonName);
-                filtered.unshift({ name: _pokemonName, id: _pokemonId, sprite: _pokemonSprite });
+                const raw = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                const history = Array.isArray(raw) ? raw : [];
+                const filtered = history.filter(h => h && !((h.type === 'pokemon' && h.slug === _pokemonSlug) || (h.type === undefined && h.name === _pokemonSlug)));
+                filtered.unshift({ type: 'pokemon', slug: _pokemonSlug, name: _pokemonLabel, id: _pokemonId });
                 localStorage.setItem('pokepedia_history', JSON.stringify(filtered.slice(0, 8)));
             } catch {}
         })();
