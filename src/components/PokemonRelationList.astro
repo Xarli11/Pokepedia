@@ -1,0 +1,50 @@
+---
+// src/components/PokemonRelationList.astro
+//
+// A compact list of Pokémon related to a move/ability (learns it, has it),
+// deliberately lighter than PokemonCard: sprite + name + link + the one
+// relation-specific detail (e.g. "Hidden"), no type pills, no tier badge,
+// no per-card 300px reserved layout. Used where the count can be large
+// (a common move/ability can relate to hundreds of Pokémon) and a full
+// PokemonCard grid would be excessive weight for what this list needs to
+// say. Server-rendered, real <a href>s — crawlable without JS.
+import type { PokemonSummary } from '../services/pokeapi';
+import { canonicalPokemonSlug, pagePath } from '../utils/seo';
+
+export interface RelationEntry {
+    pokemon: PokemonSummary;
+    /** e.g. "Oculta" / "Hidden", "Nv. 40", "MT". Omitted when there's nothing to add. */
+    detail?: string;
+}
+
+interface Props {
+    entries: RelationEntry[];
+    lang: string;
+}
+
+const { entries, lang = 'es' } = Astro.props;
+const SPRITE_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+---
+
+<ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 list-none p-0 m-0">
+    {entries.map(({ pokemon, detail }) => (
+        <li>
+            <a
+                href={pagePath(lang, 'pokemon', canonicalPokemonSlug(pokemon))}
+                class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-all no-underline group"
+            >
+                <img
+                    src={`${SPRITE_BASE}/${pokemon.id}.png`}
+                    alt=""
+                    width="40" height="40" loading="lazy" decoding="async"
+                    class="w-10 h-10 object-contain shrink-0 group-hover:scale-110 transition-transform"
+                    onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');"
+                />
+                <span class="min-w-0">
+                    <span class="block text-xs font-bold text-slate-700 dark:text-slate-200 capitalize truncate">{pokemon.name.replace(/-/g, ' ')}</span>
+                    {detail && <span class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">{detail}</span>}
+                </span>
+            </a>
+        </li>
+    ))}
+</ul>

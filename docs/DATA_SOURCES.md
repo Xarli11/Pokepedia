@@ -261,6 +261,25 @@ value, not a claim that it held for every game — see
 Pokédex numbers section; PokeAPI's own `is_main_series` flag excludes the
 Conquest and Champions dexes, not name guessing.
 
+## Move and ability mechanics, machines, relations
+
+`src/utils/moveFacts.ts` / `src/utils/abilityFacts.ts` normalize
+mechanical facts (target, ailment, drain/recoil/healing/crit/flinch, hit/
+turn counts, stat changes, historical `past_values`/`effect_changes`) from
+`move`/`ability` fields already fetched by the entity pages — no new
+PokeAPI request. `src/data/generated/machines.json` (built by
+`scripts/generate-catalogs.ts --only=machines`, 2372 rows from PokeAPI's
+`/machine` resource, ~63 KB) gives MT/HM/TR availability per move with
+zero runtime PokeAPI calls; its labels are joined from the existing items
+catalog and `versionGroups.ts`, never duplicated. `PokemonRelationList`
+(`src/components/PokemonRelationList.astro`) replaces `PokemonCard` on
+both pages: lighter per row, no competitive tier badge (kept off these
+factual pages), and the ability page's Pokémon counter now reports the
+real total instead of the previously-capped count. Full write-up,
+including what was investigated and deliberately not built (move flags,
+a per-Pokémon learn-method/level relation dataset):
+[`docs/architecture/move-ability-entities.md`](./architecture/move-ability-entities.md).
+
 ## Known incidents (fixed)
 
 ### `item + flavor_text + es + x-y`

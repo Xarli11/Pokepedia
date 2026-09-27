@@ -2,6 +2,71 @@
 
 ---
 
+## 2026-09-27 (Sesión 10 — Fase 2C: movimientos, habilidades, relaciones)
+
+**Objetivo:** convertir `/movimientos/{slug}/` y `/habilidades/{slug}/` en
+fichas factuales completas (mecánicas, generación, MT/MO/TR, cambios
+históricos) y mejorar las relaciones Pokémon↔movimiento/habilidad, sin
+tocar estrategia competitiva. Rama `feature/move-ability-entities-phase2c`,
+partiendo de `develop` tras mergear la PR #15 (correcciones de Fase 2B).
+
+**Auditoría previa:** el contador de la ficha de habilidad mostraba
+`pokemonList.length` (el total truncado a 40) como si fuese el total real
+— bug real, corregido. El movimiento ya tenía un disclosure honesto
+("Mostrando 40"); la habilidad no. Ambas páginas usaban `PokemonCard`
+completo (tarjetas grandes, con tier competitivo Smogon).
+
+**Cambios realizados:**
+
+### feat: mecánicas de movimiento (`src/utils/moveFacts.ts`)
+- Objetivo, ailment/probabilidad, drenaje/retroceso (el campo `meta.drain`
+  de PokeAPI es con signo: positivo drena, negativo es retroceso — se
+  separa en dos hechos siempre no-negativos, verificado con Double-Edge
+  `-33` → 33% retroceso y Giga Drain `50` → 50% drenaje), curación, ratio
+  crítico, probabilidad de retraimiento, rango de golpes/turnos, cambios
+  de stats con probabilidad, `past_values` (cambios históricos).
+- **Flags de movimiento investigados, no construidos**: PokeAPI no los
+  expone en absoluto (verificado contra Earthquake). Showdown sí los
+  tiene pero integrarlos es una fuente de datos nueva; documentado como
+  deuda, no forzado.
+
+### feat: MT/MO/TR (`src/data/generated/machines.json`, `src/services/machines.ts`)
+- `move.machines` solo da ids de máquina (hasta 25 por movimiento);
+  resolverlas en caliente sería una cascada de peticiones. Generado
+  offline desde PokeAPI `/machine` (2372 registros, ~63 KB) igual que el
+  resto de catálogos — `scripts/generate-catalogs.ts --only=machines`,
+  0 peticiones en runtime. Earthquake resuelve a MT26 en Rojo/Azul y
+  juegos posteriores (dato real conocido, verificado).
+
+### feat: efecto vs. flavor de habilidad (`src/utils/abilityFacts.ts`)
+- Distingue explícitamente el efecto mecánico del flavor text de juego,
+  con fallback honesto (efecto ES → efecto EN → flavor ES → flavor EN,
+  siempre etiquetado). `effect_changes` como cambios históricos.
+  Verificado: Rough Skin no tiene `effect_entries` en español — la
+  página ES cae correctamente al efecto en inglés (etiquetado "Efecto"),
+  no al flavor.
+
+### refactor: `PokemonRelationList.astro`
+- Sustituye `PokemonCard` en ambas páginas: sprite + nombre + enlace +
+  detalle de relación (p. ej. "Oculta"), sin tier competitivo. Pese a
+  subir el tope de 40 a 60, las páginas quedaron más ligeras: Earthquake
+  456.6 → 259.6 KB HTML crudo (−43%), medido contra `develop` en un
+  worktree aislado.
+
+**Verificado en vivo (dev server real, PokeAPI real, ES y EN):**
+Earthquake (MT26, sin ailment), Tackle (sin mecánicas notables), Body
+Slam (Parálisis 30%), Double-Edge (Retroceso 33%), Giga Drain (Drenaje
+50%), Fury Swipes (rango de golpes), Rough Skin (efecto en inglés en
+página ES), Intimidate (cambios históricos reales), Levitate (45
+Pokémon, sin necesidad de "Mostrando N").
+
+**Deliberadamente descartado (documentado):** dataset de relación
+Pokémon↔movimiento con método/nivel (requeriría un dataset offline del
+orden de toda la base de learnsets, no construido esta fase); contest
+data de movimientos.
+
+---
+
 ## 2026-09-27 (Sesión 9 — Fase 2B: ficha Pokémon factual)
 
 **Objetivo:** convertir `/[lang]/pokemon/[name]/` en una ficha enciclopédica

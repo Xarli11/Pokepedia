@@ -1,0 +1,226 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { experimental_AstroContainer as AstroContainer } from 'astro/container';
+import MovePage from '../pages/[lang]/movimientos/[name].astro';
+import AbilityPage from '../pages/[lang]/habilidades/[name].astro';
+import { SITE_URL } from '../utils/seo';
+
+// Fase 2C: mechanics, generation link, machines (MT/HM/TR), historical
+// changes and the lightweight relation list on move/ability pages — all
+// from fields already fetched, or the zero-runtime-cost machines dataset.
+
+const API = 'https://pokeapi.co/api/v2';
+const SHOWDOWN = 'https://play.pokemonshowdown.com/data/pokedex.json';
+
+function learner(id: number, name: string) {
+  return {
+    [`${API}/pokemon/${name}`]: {
+      id, name, height: 10, weight: 100,
+      species: { name, url: `${API}/pokemon-species/${id}/` },
+      types: [{ slot: 1, type: { name: 'normal' } }],
+      sprites: { front_default: 'https://x/y.png', other: { 'official-artwork': { front_default: 'https://x/y.png' } } },
+    },
+  };
+}
+
+function moveFixtures(opts: {
+  name: string; type?: string; category?: string; power?: number | null; accuracy?: number | null;
+  target?: string; meta?: any; statChanges?: any[]; pastValues?: any[]; generation?: string;
+  learners?: { id: number; name: string }[];
+}) {
+  const learners = opts.learners ?? [{ id: 1, name: 'mon1' }];
+  const move = {
+    id: 1, name: opts.name, names: [], type: { name: opts.type ?? 'normal' },
+    damage_class: { name: opts.category ?? 'physical' }, power: opts.power ?? 80, accuracy: opts.accuracy ?? 100,
+    pp: 10, priority: 0, flavor_text_entries: [],
+    learned_by_pokemon: learners.map((l) => ({ name: l.name, url: `${API}/pokemon/${l.name}/` })),
+    generation: { name: opts.generation ?? 'generation-i', url: `${API}/generation/1/` },
+    target: { name: opts.target ?? 'selected-pokemon' },
+    meta: opts.meta ?? null,
+    stat_changes: opts.statChanges ?? [],
+    past_values: opts.pastValues ?? [],
+  };
+  return {
+    [SHOWDOWN]: {},
+    [`${API}/move/${opts.name}`]: move,
+    [`${API}/ability?limit=100000`]: { count: 0, next: null, results: [] },
+    ...Object.assign({}, ...learners.map((l) => learner(l.id, l.name))),
+  };
+}
+
+let fixtures: Record<string, unknown> = {};
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+    const url = String(input).replace(/\/$/, '');
+    const data = fixtures[url];
+    if (data === undefined) return { ok: false, status: 404, headers: new Headers(), json: async () => ({}), text: async () => '' } as unknown as Response;
+    return { ok: true, status: 200, headers: new Headers(), json: async () => data, text: async () => JSON.stringify(data) } as unknown as Response;
+  }));
+});
+afterEach(() => vi.unstubAllGlobals());
+
+const renderMove = async (name: string, lang = 'es') =>
+  (await AstroContainer.create()).renderToString(MovePage, { params: { lang, name }, request: new Request(`${SITE_URL}/${lang}/movimientos/${name}/`) });
+
+describe('Move page mechanics', () => {
+  it('Earthquake-like: no notable meta -> no Mechanics section, generation link present, TM26 machine section (real generated data)', async () => {
+    fixtures = moveFixtures({ name: 'groundquake', type: 'ground', target: 'all-other-pokemon', generation: 'generation-i' });
+    const html = await renderMove('groundquake');
+    expect(html).not.toContain('>Mecánicas<');
+    expect(html).toContain('Generación I');
+    expect(html).toContain('href="/es/generacion/1/"');
+  });
+
+  it('a recoil move reports recoil, not drain', async () => {
+    fixtures = moveFixtures({ name: 'doubleedge-like', meta: { ailment: { name: 'none' }, drain: -33, healing: 0, crit_rate: 0, ailment_chance: 0, flinch_chance: 0, min_hits: null, max_hits: null, min_turns: null, max_turns: null, stat_chance: 0 } });
+    const html = await renderMove('doubleedge-like');
+    expect(html).toContain('Retroceso');
+    expect(html).toContain('33%');
+    expect(html).not.toContain('>Drenaje<');
+  });
+
+  it('a draining move reports drain, not recoil', async () => {
+    fixtures = moveFixtures({ name: 'gigadrain-like', meta: { ailment: { name: 'none' }, drain: 50, healing: 0, crit_rate: 0, ailment_chance: 0, flinch_chance: 0, min_hits: null, max_hits: null, min_turns: null, max_turns: null, stat_chance: 0 } });
+    const html = await renderMove('gigadrain-like');
+    expect(html).toContain('Drenaje');
+    expect(html).toContain('50%');
+    expect(html).not.toContain('>Retroceso<');
+  });
+
+  it('a multi-hit move reports the hit range', async () => {
+    fixtures = moveFixtures({ name: 'furyswipes-like', meta: { ailment: { name: 'none' }, drain: 0, healing: 0, crit_rate: 0, ailment_chance: 0, flinch_chance: 0, min_hits: 2, max_hits: 5, min_turns: null, max_turns: null, stat_chance: 0 } });
+    const html = await renderMove('furyswipes-like');
+    expect(html).toContain('Golpes');
+    expect(html).toContain('2–5');
+  });
+
+  it('a status move causing paralysis with a chance reports it', async () => {
+    fixtures = moveFixtures({
+      name: 'bodyslam-like', category: 'physical',
+      meta: { ailment: { name: 'paralysis' }, drain: 0, healing: 0, crit_rate: 0, ailment_chance: 30, flinch_chance: 0, min_hits: null, max_hits: null, min_turns: null, max_turns: null, stat_chance: 0 },
+    });
+    const html = await renderMove('bodyslam-like');
+    expect(html).toContain('Parálisis');
+    expect(html).toContain('30%');
+  });
+
+  it('a stat-lowering move reports the stat changes and chance', async () => {
+    fixtures = moveFixtures({
+      name: 'crunch-like',
+      meta: { ailment: { name: 'none' }, drain: 0, healing: 0, crit_rate: 0, ailment_chance: 0, flinch_chance: 0, min_hits: null, max_hits: null, min_turns: null, max_turns: null, stat_chance: 20 },
+      statChanges: [{ change: -1, stat: { name: 'defense' } }],
+    });
+    const html = await renderMove('crunch-like');
+    expect(html).toContain('Cambia estadísticas');
+    expect(html).toMatch(/Defensa -1/);
+    expect(html).toContain('(20%)');
+  });
+
+  it('a move with past_values shows the historical changes section', async () => {
+    fixtures = moveFixtures({
+      name: 'tackle-like',
+      pastValues: [{ power: 35, accuracy: 95, pp: null, effect_chance: null, type: null, version_group: { name: 'black-white' } }],
+    });
+    const html = await renderMove('tackle-like');
+    expect(html).toContain('Cambios históricos');
+    expect(html).toContain('Negro / Blanco');
+    expect(html).toMatch(/95%/);
+  });
+
+  it('a move with no notable past values shows no historical section', async () => {
+    fixtures = moveFixtures({ name: 'plainmove' });
+    const html = await renderMove('plainmove');
+    expect(html).not.toContain('Cambios históricos');
+  });
+
+  it('Earthquake itself: real generated machines dataset shows TM26', async () => {
+    fixtures = moveFixtures({ name: 'earthquake', type: 'ground' });
+    const html = await renderMove('earthquake');
+    expect(html).toContain('MT / MO / TR');
+    expect(html).toMatch(/MT26/);
+  });
+
+  it('a move with many learners: counter reports the real total, list uses the lightweight relation component', async () => {
+    const learners = Array.from({ length: 70 }, (_, i) => ({ id: 900 + i, name: `mon${i}` }));
+    fixtures = moveFixtures({ name: 'popularmove', learners });
+    const html = await renderMove('popularmove');
+    expect(html).toMatch(/>70<\/span>/);
+    expect(html).toContain('Mostrando 60');
+    expect(html).not.toMatch(/tier-badge/);
+  });
+});
+
+function abilityFixtures(opts: {
+  name: string; effectEs?: string; effectEn?: string; flavorEn?: string;
+  effectChanges?: any[]; isMainSeries?: boolean; generation?: string;
+  pokemon?: { name: string; is_hidden: boolean }[];
+}) {
+  const pokemonRel = opts.pokemon ?? [{ name: 'mon1', is_hidden: false }];
+  const ability = {
+    id: 1, name: opts.name, names: [],
+    flavor_text_entries: opts.flavorEn ? [{ flavor_text: opts.flavorEn, language: { name: 'en' } }] : [],
+    effect_entries: [
+      ...(opts.effectEs ? [{ effect: opts.effectEs, language: { name: 'es' } }] : []),
+      ...(opts.effectEn ? [{ effect: opts.effectEn, language: { name: 'en' } }] : []),
+    ],
+    pokemon: pokemonRel.map((p, i) => ({ pokemon: { name: p.name, url: `${API}/pokemon/${p.name}/` }, is_hidden: p.is_hidden, slot: i + 1 })),
+    generation: { name: opts.generation ?? 'generation-iii', url: `${API}/generation/3/` },
+    is_main_series: opts.isMainSeries ?? true,
+    effect_changes: opts.effectChanges ?? [],
+  };
+  return {
+    [SHOWDOWN]: {},
+    [`${API}/ability/${opts.name}`]: ability,
+    ...Object.assign({}, ...pokemonRel.map((p, i) => learner(500 + i, p.name))),
+  };
+}
+
+const renderAbility = async (name: string, lang = 'es') =>
+  (await AstroContainer.create()).renderToString(AbilityPage, { params: { lang, name }, request: new Request(`${SITE_URL}/${lang}/habilidades/${name}/`) });
+
+describe('Ability page facts', () => {
+  it('Rough-Skin-like: mechanical effect shown, generation link present', async () => {
+    fixtures = abilityFixtures({ name: 'roughskin-like', effectEs: 'Daña al atacante al hacer contacto.', generation: 'generation-iii' });
+    const html = await renderAbility('roughskin-like');
+    expect(html).toContain('Daña al atacante al hacer contacto.');
+    expect(html).toContain('Efecto');
+    expect(html).toContain('Generación III');
+  });
+
+  it('an ability with only flavor text is honestly labelled as such, not as an effect', async () => {
+    fixtures = abilityFixtures({ name: 'flavoronly', flavorEn: 'A mysterious power.' });
+    const html = await renderAbility('flavoronly');
+    expect(html).toContain('A mysterious power.');
+    expect(html).toContain('Descripción de juego');
+    expect(html).not.toMatch(/>Efecto<\/p>/);
+  });
+
+  it('Intimidate-like: effect_changes render as historical changes', async () => {
+    fixtures = abilityFixtures({
+      name: 'intimidate-like', effectEs: 'Baja el Ataque del rival al entrar en combate.',
+      effectChanges: [{ version_group: { name: 'sun-moon' }, effect_entries: [{ effect: 'Antes solo bajaba una etapa a un rival.', language: { name: 'es' } }] }],
+    });
+    const html = await renderAbility('intimidate-like');
+    expect(html).toContain('Cambios históricos');
+    expect(html).toContain('Antes solo bajaba una etapa a un rival.');
+  });
+
+  it('a hidden ability relation is labelled "Oculta"', async () => {
+    fixtures = abilityFixtures({ name: 'hiddenexample', effectEs: 'x', pokemon: [{ name: 'mon1', is_hidden: true }, { name: 'mon2', is_hidden: false }] });
+    const html = await renderAbility('hiddenexample');
+    expect(html).toContain('Oculta');
+  });
+
+  it('an ability with many Pokémon reports the real total, not the capped count', async () => {
+    const pokemon = Array.from({ length: 70 }, (_, i) => ({ name: `mon${i}`, is_hidden: false }));
+    fixtures = abilityFixtures({ name: 'popularability', effectEs: 'x', pokemon });
+    const html = await renderAbility('popularability');
+    expect(html).toMatch(/>70<\/span>/);
+    expect(html).toContain('Mostrando 60');
+  });
+
+  it('a non-main-series ability shows the "not main series" badge', async () => {
+    fixtures = abilityFixtures({ name: 'sidegame-ability', effectEs: 'x', isMainSeries: false });
+    const html = await renderAbility('sidegame-ability');
+    expect(html).toContain('No es de la serie principal');
+  });
+});

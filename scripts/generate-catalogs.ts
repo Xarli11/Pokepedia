@@ -6,6 +6,8 @@
 //   moves.{es,en}.json  abilities.{es,en}.json  items.{es,en}.json
 //   pokemon.{es,en}.json (species + forms, for search)
 //   search-index.{es,en}.json (derived from the above, no extra requests)
+//   machines.json (move -> [item, version group] pairs, language-independent:
+//     labels are joined at runtime from items.{lang}.json / versionGroups.ts)
 //   manifest.json (counts, content hashes, generation date)
 //
 //   npm run data:catalogs                  -> fetch everything and rewrite the files
@@ -61,7 +63,7 @@ const args = process.argv.slice(2);
 const flag = (name: string) => args.find((a) => a === `--${name}` || a.startsWith(`--${name}=`));
 const CHECK = Boolean(flag('check'));
 const CACHE_DIR = flag('cache-dir')?.split('=')[1];
-const ONLY = new Set((flag('only')?.split('=')[1] ?? 'moves,abilities,items,pokemon').split(','));
+const ONLY = new Set((flag('only')?.split('=')[1] ?? 'moves,abilities,items,pokemon,machines').split(','));
 
 const log = (msg: string) => console.log(msg);
 
@@ -167,6 +169,13 @@ async function check() {
   }
   const manifest = JSON.parse(await readFile(new URL('manifest.json', OUT_DIR), 'utf8'));
   if (manifest.counts.variantsApiCount !== variants.apiCount) fail(`pokemon list: ${manifest.counts.variantsApiCount} vs live ${variants.apiCount}`);
+  {
+    // Lightweight (count only, not a full re-fetch of all 2372 machines):
+    // same cost profile as the other lists' checks above.
+    const liveMachineCount = (await getJson<{ count: number }>(`${API}/machine?limit=1`)).count;
+    const machinesFile = JSON.parse(await readFile(new URL('machines.json', OUT_DIR), 'utf8'));
+    if (machinesFile.apiCount !== liveMachineCount) fail(`machines: apiCount ${machinesFile.apiCount} vs live ${liveMachineCount}`);
+  }
   for (const lang of CATALOG_LANGS) {
     const text = await readFile(new URL(`search-index.${lang}.json`, OUT_DIR), 'utf8');
     validateSearchIndex(JSON.parse(text));
@@ -177,6 +186,54 @@ async function check() {
     process.exit(1);
   }
   log('Catalogs are valid and match PokeAPI.');
+}
+
+interface MachineRaw {
+  move: { url: string };
+  item: { url: string };
+  version_group: { url: string };
+}
+
+/**
+ * `move -> [itemSlug, versionGroupSlug][]` (MT/MO/TR availability per game),
+ * built from PokeAPI's `/machine` resource — the only place this
+ * relationship exists; a move's own `machines` field lists only machine
+ * *ids*, not the item/version-group slugs a page can render, so resolving
+ * it at request time would mean fetching every one of a move's machines
+ * (up to a few dozen) on every page view. Generated once, offline, like
+ * every other catalog.
+ *
+ * `/machine/{id}` responses reference `move`/`item`/`version_group` by
+ * numeric-id URL, not by slug: the three `/…?limit=100000` list requests
+ * below build id -> slug maps (one request each, reused for every one of
+ * the 2372 machine detail requests) rather than guessing a slug from an id.
+ */
+async function buildMachines(): Promise<{ apiCount: number; count: number; byMove: Record<string, [string, string][]> }> {
+  const [moveList, itemList, vgList] = await Promise.all([
+    listResource('move'),
+    listResource('item'),
+    listResource('version-group'),
+  ]);
+  const slugById = (list: ListResult) => new Map(list.entries.map((e) => [idFromUrl(e.url), e.name]));
+  const moveById = slugById(moveList);
+  const itemById = slugById(itemList);
+  const vgById = slugById(vgList);
+
+  const total = (await getJson<{ count: number }>(`${API}/machine?limit=1`)).count;
+  const ids = Array.from({ length: total }, (_, i) => i + 1);
+  const raw = await pool(ids, (id) => getJson<MachineRaw>(`${API}/machine/${id}/`));
+
+  const byMove: Record<string, [string, string][]> = {};
+  let resolved = 0;
+  for (const m of raw) {
+    const move = moveById.get(idFromUrl(m.move.url));
+    const item = itemById.get(idFromUrl(m.item.url));
+    const versionGroup = vgById.get(idFromUrl(m.version_group.url));
+    if (!move || !item || !versionGroup) continue; // unresolved id: skip, never guessed
+    (byMove[move] ??= []).push([item, versionGroup]);
+    resolved++;
+  }
+  return { apiCount: total, count: resolved, byMove };
 }
 
 async function generate() {
@@ -221,6 +278,22 @@ async function generate() {
     for (const lang of CATALOG_LANGS) {
       emit(`pokemon.${lang}.json`, makeFile('pokemon', lang, list, 0, raw.flatMap((r) => buildPokemonEntries(r, lang))));
     }
+  }
+
+  if (ONLY.has('machines')) {
+    const machines = await buildMachines();
+    log(`machines: ${machines.count} of ${machines.apiCount}, ${Object.keys(machines.byMove).length} moves`);
+    counts.machines = machines.count;
+    // No timestamp in the file itself (only manifest.json carries one) so a
+    // re-run against unchanged data rewrites identical bytes, like every
+    // other catalog.
+    emit('machines.json', {
+      schema: 1,
+      source: 'PokeAPI v2 (/machine)',
+      apiCount: machines.apiCount,
+      count: machines.count,
+      byMove: machines.byMove,
+    });
   }
 
   // Derived, offline: the search index is built only from the catalogs above.
