@@ -243,6 +243,24 @@ it: [`docs/architecture/game-context.md`](./architecture/game-context.md).
 locations and regional Pokédexes are not wired to it yet — the catalogs
 remain intentionally version-independent listings.
 
+## Pokémon factual profile (training, breeding, classification, regional dex)
+
+`src/utils/pokemonFacts.ts` normalizes **PokeAPI's current value** (base
+experience, capture rate, base happiness, growth rate, EV yield, egg
+groups, gender ratio, egg cycles, baby/legendary/mythical) from the
+`pokemon`/`pokemon-species` objects the Pokémon page already fetches — no
+new request. Several of these fields have real historical variance across
+games/generations (base friendship, EV yield, capture rate and base
+experience have all changed for some species) that PokeAPI does not
+expose a per-version-group history for; Pokepedia shows today's single
+value, not a claim that it held for every game — see
+[`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md)
+§8 for the historical-facts debt this leaves for a future phase.
+`src/services/pokedexes.ts` is the hand-verified table (all 35 PokeAPI
+`pokedex` resources, real ES/EN names, checked live) behind the regional
+Pokédex numbers section; PokeAPI's own `is_main_series` flag excludes the
+Conquest and Champions dexes, not name guessing.
+
 ## Known incidents (fixed)
 
 ### `item + flavor_text + es + x-y`
