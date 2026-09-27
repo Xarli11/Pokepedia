@@ -250,6 +250,39 @@ describe('move crawlability (SSR)', () => {
     // The name cell is no longer a bare text cell that hydration flattens.
     expect(script).not.toMatch(/<td[^>]*data-move-url/);
   });
+
+  it('move page client script rebuilds the method selector on every Game Context change (regression: Outrage Scarlet/Violet -> Platinum, Tutor never appeared)', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.indexOf('<script>\n    import'));
+    // The options are rebuilt from that context's own relations, never
+    // reused from whatever the SSR default context happened to have.
+    expect(script).toMatch(/function updateMethodControl\(ctxEntries[^)]*\)\s*\{[\s\S]*?methodsPresent\(ctxEntries\)/);
+    expect(script).toMatch(/methodSelect\.innerHTML = allOptionHtml \+ methods\.map/);
+    // The wrapper hides for a single-method context and un-hides for a
+    // multi-method one, never a fixed state computed once from the SSR
+    // default (§C/§D of the bug report).
+    expect(script).toMatch(/methodWrapperEl\?\.classList\.toggle\('hidden', methods\.length <= 1\)/);
+    // The filter resets to "all" on every context switch — a method valid
+    // in the previous context may not exist (or mean something else) here.
+    expect(script).toMatch(/function updateMethodControl[\s\S]*?currentMethod = 'all';\s*\n\s*\}/);
+    // Both the context <select>'s change handler and the persisted-context
+    // hydration path call it before ever calling render() for that context.
+    const contextChangeHandler = script.slice(script.indexOf("contextSelect?.addEventListener('change'"));
+    expect(contextChangeHandler.slice(0, contextChangeHandler.indexOf('render();'))).toMatch(/updateMethodControl\(/);
+    const hydrationRestore = script.slice(script.indexOf('if (currentContext !== payload.initialContext)'));
+    expect(hydrationRestore.slice(0, hydrationRestore.indexOf('render();'))).toMatch(/updateMethodControl\(/);
+  });
+
+  it('move page client script shows "Total histórico" only with no method filter active, and recomputes it per context', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.indexOf('<script>\n    import'));
+    expect(script).toMatch(/historicalEl\?\.classList\.toggle\('hidden', !\(currentMethod === 'all' && historicalCount > ctxEntries\.length\)\)/);
+    // Computed once, from every relation the move has (any context, any
+    // method) — never scoped to the currently selected context/method.
+    expect(script).toMatch(/const historicalCount = new Set\(relations\.map\(\(r\) => r\.pokemonId\)\)\.size;/);
+  });
 });
 
 describe('move page metadata and entity links (SSR)', () => {

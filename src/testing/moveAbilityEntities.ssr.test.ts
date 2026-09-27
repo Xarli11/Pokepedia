@@ -165,6 +165,80 @@ describe('Move page mechanics', () => {
     expect(html).toMatch(/>70<\/span>/);
     expect(html).not.toMatch(/tier-badge/);
   });
+
+  describe('Game Context method selector (Outrage bug: Tutor never appeared after switching to Platinum)', () => {
+    it("Scarlet/Violet (the SSR default) has no Tutor, but the client payload carries Platinum's Tutor relation so the fix can rebuild the selector after a context switch", async () => {
+      fixtures = moveFixtures({ name: 'outragelike' });
+      learnsetRelations = [
+        { pokemonId: 3, method: 'level-up', versionGroup: 'scarlet-violet', level: 50 },
+        { pokemonId: 6, method: 'machine', versionGroup: 'scarlet-violet', level: 0 },
+        { pokemonId: 6, method: 'tutor', versionGroup: 'platinum', level: 0 },
+        { pokemonId: 149, method: 'level-up', versionGroup: 'platinum', level: 64 },
+      ];
+      const html = await renderMove('outragelike');
+      // SSR default (Scarlet/Violet): method wrapper visible (2 methods:
+      // level-up, machine), but Tutor is not one of its options.
+      const wrapper = html.match(/<div id="learnset-method-wrapper"[^>]*>/)?.[0] ?? '';
+      expect(wrapper).not.toContain('hidden');
+      const selectHtml = html.match(/<select id="learnset-method"[\s\S]*?<\/select>/)?.[0] ?? '';
+      expect(selectHtml).not.toMatch(/>Tutor</);
+      // The compact client payload still carries the Platinum/Tutor
+      // relation — the data was never the problem, only the selector never
+      // being rebuilt for it (see the source-pattern regression in
+      // movement-crawlability.ssr.test.ts for the fix itself).
+      const payloadMatch = html.match(/<script type="application\/json" id="learnset-data"[^>]*>([\s\S]*?)<\/script>/);
+      expect(payloadMatch).toBeTruthy();
+      const payload = JSON.parse(payloadMatch![1]);
+      const { learnMethodIndex } = await import('../utils/moveLearnMethods');
+      const tutorIndex = learnMethodIndex('tutor');
+      expect(payload.relations.some((r: number[]) => r[1] === tutorIndex)).toBe(true);
+      expect(payload.contexts.some((c: { id: string }) => c.id === 'platinum')).toBe(true);
+    });
+
+    it('a context with a single method hides the method wrapper server-side', async () => {
+      fixtures = moveFixtures({ name: 'onemethodmove' });
+      learnsetRelations = [{ pokemonId: 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 5 }];
+      const html = await renderMove('onemethodmove');
+      const wrapper = html.match(/<div id="learnset-method-wrapper"[^>]*>/)?.[0] ?? '';
+      expect(wrapper).toMatch(/\bhidden\b/);
+    });
+
+    it('a context with several methods shows the method wrapper server-side, with every method present as an option', async () => {
+      fixtures = moveFixtures({ name: 'twomethodmove' });
+      learnsetRelations = [
+        { pokemonId: 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 5 },
+        { pokemonId: 2, method: 'egg', versionGroup: 'scarlet-violet', level: 0 },
+      ];
+      const html = await renderMove('twomethodmove');
+      const wrapper = html.match(/<div id="learnset-method-wrapper"[^>]*>/)?.[0] ?? '';
+      expect(wrapper).not.toMatch(/\bhidden\b/);
+      const selectHtml = html.match(/<select id="learnset-method"[\s\S]*?<\/select>/)?.[0] ?? '';
+      expect(selectHtml).toMatch(/>Nivel</);
+      expect(selectHtml).toMatch(/>Huevo</);
+    });
+  });
+
+  describe('"Total histórico" (context total vs all-time total)', () => {
+    it('hidden (present but class="hidden") when the default context count equals the historical total', async () => {
+      fixtures = moveFixtures({ name: 'nohistoricaldiff' });
+      learnsetRelations = [{ pokemonId: 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 5 }];
+      const html = await renderMove('nohistoricaldiff');
+      const span = html.match(/<span id="learnset-historical"[^>]*>/)?.[0] ?? '';
+      expect(span).toMatch(/\bhidden\b/);
+    });
+
+    it('visible (no "hidden" class) when the default context count is lower than the historical total', async () => {
+      fixtures = moveFixtures({ name: 'historicaldiff' });
+      learnsetRelations = [
+        { pokemonId: 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 5 },
+        { pokemonId: 2, method: 'level-up', versionGroup: 'red-blue', level: 5 }, // only ever in an old context
+      ];
+      const html = await renderMove('historicaldiff');
+      const span = html.match(/<span id="learnset-historical"[^>]*>/)?.[0] ?? '';
+      expect(span).not.toMatch(/\bhidden\b/);
+      expect(html).toContain('Total histórico: 2');
+    });
+  });
 });
 
 function abilityFixtures(opts: {

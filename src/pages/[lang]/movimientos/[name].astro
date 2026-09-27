@@ -349,9 +349,19 @@ const breadcrumbItems = [
                 <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
                 {t.pokemon_with_move}
                 <span id="learnset-count" class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{defaultRelationEntries.length}</span>
-                {distinctHistoricalCount > defaultRelationEntries.length && (
-                    <span class="text-xs font-bold text-slate-400 dark:text-slate-600">{t.learnset_total_historical}: {distinctHistoricalCount}</span>
-                )}
+                <!--
+                  Always rendered, never conditionally omitted: visibility is
+                  a `hidden` class the client script toggles on every context/
+                  method change (see setupLearnsets' updateHistorical below).
+                  An SSR-conditional element can only ever match the SSR
+                  default context — it can't come back once removed from the
+                  DOM, which is exactly the "Total histórico" bug this fixes.
+                  Meaning, always: distinct Pokémon across every relation this
+                  move has, in ANY Game Context — never scoped to the
+                  currently selected method (see §2 of
+                  docs/architecture/move-learnset-relations.md).
+                -->
+                <span id="learnset-historical" class:list={['text-xs font-bold text-slate-400 dark:text-slate-600', { hidden: distinctHistoricalCount <= defaultRelationEntries.length }]}>{t.learnset_total_historical}: {distinctHistoricalCount}</span>
             </h2>
             {availableContexts.length > 0 && (
                 <div class="flex flex-wrap items-center gap-3">
@@ -363,17 +373,26 @@ const breadcrumbItems = [
                             ))}
                         </select>
                     </div>
-                    {availableMethods.length > 1 && (
-                        <div class="relative">
-                            <label for="learnset-method" class="sr-only">{t.learnset_method_filter}</label>
-                            <select id="learnset-method" aria-label={t.learnset_method_filter} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
-                                <option value="all">{t.learnset_all_methods}</option>
-                                {availableMethods.map((m) => (
-                                    <option value={m}>{learnMethodLabel(m, lang as string)}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    <!--
+                      Always rendered (never `{availableMethods.length > 1 && ...}`):
+                      the client script rebuilds these options AND toggles
+                      this wrapper's `hidden` class on every context change,
+                      because a different Game Context can have a different
+                      set of methods (that's the whole bug this fixes — see
+                      updateMethodControl below). The "all" option's markup
+                      is also this control's one static source of truth for
+                      its own (already localized) label; the script re-reads
+                      it rather than hard-coding the text a second time.
+                    -->
+                    <div id="learnset-method-wrapper" class:list={['relative', { hidden: availableMethods.length <= 1 }]}>
+                        <label for="learnset-method" class="sr-only">{t.learnset_method_filter}</label>
+                        <select id="learnset-method" aria-label={t.learnset_method_filter} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
+                            <option value="all">{t.learnset_all_methods}</option>
+                            {availableMethods.map((m) => (
+                                <option value={m}>{learnMethodLabel(m, lang as string)}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             )}
         </div>
@@ -393,7 +412,7 @@ const breadcrumbItems = [
 
     <script>
     import { pagePath } from '../../../utils/seo';
-    import { relationsForContext, filterByMethod } from '../../../utils/moveLearnsetFacts';
+    import { relationsForContext, filterByMethod, methodsPresent } from '../../../utils/moveLearnsetFacts';
     import { learnMethodByIndex, learnMethodLabel } from '../../../utils/moveLearnMethods';
     import { VERSION_GROUP_ORDER } from '../../../services/versionGroups';
     import { readGameContext, writeGameContext, resolveContextForPokemon } from '../../../utils/gameContextStorage';
@@ -426,13 +445,25 @@ const breadcrumbItems = [
         const persisted = storage ? resolveContextForPokemon(readGameContext(storage), availableIds, payload.initialContext) : payload.initialContext;
         let currentContext = availableIds.includes(persisted) ? persisted : payload.initialContext;
         let currentMethod = 'all';
+        // Distinct Pokémon across every relation, any Game Context, any
+        // method — a single number that never changes as the user switches
+        // context/method (see docs/architecture/move-learnset-relations.md
+        // §2 for why "Total histórico" always means this, never "historical
+        // total for the currently filtered method").
+        const historicalCount = new Set(relations.map((r) => r.pokemonId)).size;
 
         const contextSelect = document.getElementById('learnset-context') as HTMLSelectElement | null;
         const methodSelect = document.getElementById('learnset-method') as HTMLSelectElement | null;
+        const methodWrapperEl = document.getElementById('learnset-method-wrapper');
         const listEl = document.getElementById('learnset-list');
         const emptyEl = document.getElementById('learnset-empty');
         const countEl = document.getElementById('learnset-count');
+        const historicalEl = document.getElementById('learnset-historical');
         if (contextSelect) contextSelect.value = currentContext;
+        // The "all" option's markup is server-rendered with the already-
+        // localized label (t.learnset_all_methods) — captured once here so
+        // rebuilding the other options never needs to know that string.
+        const allOptionHtml = methodSelect?.querySelector('option[value="all"]')?.outerHTML ?? '<option value="all">All</option>';
 
         function methodDetail(method: string, level: number, machineLabel: string): string {
             if (method === 'level-up' && level > 0) return langAttr === 'en' ? `Lv. ${level}` : `Nivel ${level}`;
@@ -440,11 +471,35 @@ const breadcrumbItems = [
             return learnMethodLabel(method, langAttr);
         }
 
+        // The set of methods a Game Context offers is a property of THAT
+        // context, not a fixed, page-wide fact computed once from the SSR
+        // default — this is what makes Outrage's "Tutor" (present in
+        // Platinum, absent from Scarlet/Violet) show up only after this
+        // runs for the newly selected context. Always resets the filter to
+        // "all": a method selected in the previous context may not exist,
+        // or mean something different, in the new one.
+        function updateMethodControl(ctxEntries: ReturnType<typeof relationsForContext>) {
+            const methods = methodsPresent(ctxEntries);
+            if (methodSelect) {
+                methodSelect.innerHTML = allOptionHtml + methods.map((m) => `<option value="${m}">${learnMethodLabel(m, langAttr)}</option>`).join('');
+                methodSelect.value = 'all';
+            }
+            methodWrapperEl?.classList.toggle('hidden', methods.length <= 1);
+            currentMethod = 'all';
+        }
+
         function render() {
             const ctx = payload.contexts.find((c) => c.id === currentContext);
             if (!ctx || !listEl) return;
-            const entries = filterByMethod(relationsForContext(relations, ctx.revisions), currentMethod);
+            const ctxEntries = relationsForContext(relations, ctx.revisions);
+            const entries = filterByMethod(ctxEntries, currentMethod);
             if (countEl) countEl.textContent = String(entries.length);
+            // Only meaningful (and only shown) with no method filter active —
+            // filtering already explains why the main counter is smaller;
+            // showing "Total histórico" at the same time would read as if it
+            // were scoped to that method, which it never is (see the
+            // historicalCount comment above).
+            historicalEl?.classList.toggle('hidden', !(currentMethod === 'all' && historicalCount > ctxEntries.length));
 
             if (entries.length === 0) {
                 listEl.classList.add('hidden');
@@ -472,8 +527,8 @@ const breadcrumbItems = [
 
         contextSelect?.addEventListener('change', (e) => {
             currentContext = (e.target as HTMLSelectElement).value;
-            currentMethod = 'all';
-            if (methodSelect) methodSelect.value = 'all';
+            const ctx = payload.contexts.find((c) => c.id === currentContext);
+            updateMethodControl(ctx ? relationsForContext(relations, ctx.revisions) : []);
             if (storage) writeGameContext(storage, currentContext);
             trackEvent('move_learnset_context_change', { target: currentContext, language: langAttr, source_surface: 'move_learnset' });
             render();
@@ -484,9 +539,17 @@ const breadcrumbItems = [
             render();
         });
 
-        // Only re-render if hydration found a different, available persisted
-        // context than the SSR default — avoids an unnecessary reflow.
-        if (currentContext !== payload.initialContext) render();
+        // Hydration found a different, available persisted context than the
+        // SSR default: the method control was built for the SSR context, so
+        // it must be rebuilt for the restored one BEFORE the first render —
+        // otherwise a persisted Platinum would render Platinum's list under
+        // Scarlet/Violet's method options (empty/wrong) for one frame, and
+        // wrongly leave a method filter selected that Platinum may not have.
+        if (currentContext !== payload.initialContext) {
+            const ctx = payload.contexts.find((c) => c.id === currentContext);
+            updateMethodControl(ctx ? relationsForContext(relations, ctx.revisions) : []);
+            render();
+        }
     }
 
     setupLearnsets();

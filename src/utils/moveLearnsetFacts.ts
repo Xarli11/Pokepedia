@@ -10,6 +10,7 @@
 
 import type { LearnsetRelation } from '../services/moveLearnsets';
 import { availableContextsForPokemon, defaultGameContextForPokemon, type ContextAvailability, type DefaultGameContext } from '../services/gameContext';
+import { LEARN_METHOD_ORDER } from './moveLearnMethods';
 
 export interface PokemonMethodDetail {
   method: string;
@@ -66,9 +67,18 @@ export function filterByMethod(entries: readonly PokemonLearnsetEntry[], method:
   return entries.filter((e) => e.methods.some((m) => m.method === method));
 }
 
-/** Every method actually used within these entries, for building a filter control that never offers an empty option. */
+/**
+ * Every method actually used within these entries, for building a filter
+ * control that never offers an empty option. Ordered by `LEARN_METHOD_ORDER`
+ * (never by relation/insertion order, which would make the dropdown's order
+ * an accident of how the dataset happened to be built) so the same set of
+ * methods always renders in the same order, in every Game Context, every
+ * time this is called — the selector rebuilds on every context switch (see
+ * the move page's client script), so a stable order matters here more than
+ * it would for a value computed once.
+ */
 export function methodsPresent(entries: readonly PokemonLearnsetEntry[]): string[] {
   const set = new Set<string>();
   for (const e of entries) for (const m of e.methods) set.add(m.method);
-  return [...set];
+  return [...set].sort((a, b) => LEARN_METHOD_ORDER.indexOf(a) - LEARN_METHOD_ORDER.indexOf(b));
 }

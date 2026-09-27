@@ -90,7 +90,21 @@ describe('filterByMethod / methodsPresent', () => {
   });
 
   it('methodsPresent lists only methods actually used, never an empty-yielding option', () => {
-    expect(methodsPresent(entries).sort()).toEqual(['egg', 'level-up', 'machine']);
+    expect(new Set(methodsPresent(entries))).toEqual(new Set(['egg', 'level-up', 'machine']));
     expect(methodsPresent([])).toEqual([]);
+  });
+
+  it('methodsPresent orders by LEARN_METHOD_ORDER, not by insertion/relation order', () => {
+    // egg appears first in these entries, machine second, level-up last —
+    // the result must not mirror that; it must mirror LEARN_METHOD_ORDER
+    // (level-up, machine, egg, tutor, ...) regardless.
+    const reordered = [
+      { pokemonId: 2, methods: [{ method: 'egg', level: 0 }] },
+      { pokemonId: 3, methods: [{ method: 'machine', level: 0 }] },
+      { pokemonId: 1, methods: [{ method: 'level-up', level: 10 }] },
+    ];
+    expect(methodsPresent(reordered)).toEqual(['level-up', 'machine', 'egg']);
+    // Same three methods, entries in yet another order: identical result.
+    expect(methodsPresent([...reordered].reverse())).toEqual(['level-up', 'machine', 'egg']);
   });
 });
