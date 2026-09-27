@@ -295,8 +295,13 @@ the default `npm run data:catalogs`) inverts every Pokémon's
 `{ pokemonId, method, versionGroup, level }` relations. 1351 `pokemon/{id}`
 requests, run once: 833 moves, 638,321 relations, 7.6 MB raw / ~0.71 MB
 gzip total, 834 files (833 moves + `learnsets/manifest.json`). Verified
-deterministic (two consecutive live runs produced byte-identical output)
-and validated with `npm run data:catalogs:check`. `services/moveLearnsets.ts`
+deterministic (two consecutive live runs produced byte-identical output).
+`npm run data:catalogs:check` passes against the committed files, but for
+this dataset it is a lightweight, count-only staleness check (committed
+vs. live Pokémon count) — not a full re-fetch-and-diff of the 638,321
+relations; only a real `--only=move-learnsets` run validates the content
+itself. See `docs/architecture/move-learnset-relations.md` §2.
+`services/moveLearnsets.ts`
 reads it at zero runtime PokeAPI cost via `import.meta.glob`; the move
 page (`/movimientos/{slug}/`) shows who learns it, how, and in which
 Game Context, with client-side context/method switching from one compact

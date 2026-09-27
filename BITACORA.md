@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-09-27 (Sesión 13 — Fase 2D: correcciones post-review + Cloudflare Preview)
+
+**Objetivo:** cerrar los hallazgos de una revisión externa de la PR #18 +
+validación visual real en Cloudflare Branch Preview, sobre la misma rama
+`feature/move-learnset-relations-phase2d`, sin abrir fase ni PR nuevas.
+
+**Bug 1 confirmado visualmente (Outrage, Escarlata/Púrpura → Platino,
+Tutor nunca aparecía):** `availableMethods` se calculaba una sola vez en
+SSR desde el contexto por defecto; el `<select>` de método nunca se
+reconstruía al cambiar de Game Context, aunque el listado sí se
+recalculaba. Corregido: el script cliente ahora recalcula
+`methodsPresent(relationsForContext(...))` (mismas funciones puras que ya
+usaba el SSR) en cada cambio de contexto — al cargar, al restaurar desde
+`localStorage` y al elegir otro juego — reconstruyendo las opciones,
+reseteando el filtro a "Todos" y ocultando el control si el contexto
+resultante tiene un único método. `methodsPresent()` ahora ordena por
+`LEARN_METHOD_ORDER` en vez de por orden de inserción (antes dependía
+accidentalmente del orden de las relaciones).
+
+**Bug 2 (Total histórico no reaccionaba a cambios):** era un elemento
+condicional en SSR (`{condición && <span>}`) — si no se renderizaba en el
+contexto por defecto, ningún cambio de contexto podía hacerlo aparecer.
+Ahora siempre se renderiza, con `class="hidden"` controlada por el
+cliente, y solo se muestra sin filtro de método activo (para que nunca se
+lea como si fuera el total histórico de ese método concreto).
+
+**Bug 3 (dataset: generador no podaba learnsets obsoletos):** si un
+movimiento dejaba de tener relaciones en una regeneración futura, su
+fichero `learnsets/{move}.json` se quedaba físicamente en el repo y
+`import.meta.glob` lo seguiría sirviendo como si fuera actual. Extraída la
+lógica de poda a una función pura y testeada
+(`src/data/catalogs/learnsetPruning.ts`): el generador ahora construye el
+dataset completo en memoria, y solo tras un `buildMoveLearnsets()`
+exitoso escribe los ficheros actuales, borra los que ya no pertenecen a la
+salida nueva (limitado estrictamente a `learnsets/`) y retira sus hashes
+del manifest global. Demostrado en vivo: fichero ficticio
+`totally-fake-stale-move.json` creado a mano, regenerado el dataset, el
+fichero desaparece y su hash no sobrevive en `manifest.json`.
+
+**Cifras corregidas:** un comentario en `generate-catalogs.ts` seguía
+citando una estimación previa (5.4 MB raw / ~0.59-0.69 MB gzip) distinta
+de las cifras reales medidas en la Sesión 12 (7.6 MB raw / ~0.71 MB gzip,
+834 ficheros). Unificado en todos los sitios; documentado explícitamente
+que `npm run data:catalogs:check` es una comprobación ligera (solo cuenta
+de Pokémon) para learnsets, no una revalidación completa de las 638.321
+relaciones — eso solo lo hace una regeneración real.
+
+**Verde:** `npm test` (839 pasan, 2 skipped, 0 fallos — +15 tests sobre la
+sesión anterior), `npm run check` (0 errores), `npm run build`.
+Regenerado el dataset tras los cambios del generador: mismos 833
+movimientos / 638.321 relaciones / 1351 Pokémon / 834 ficheros, sin drift.
+
+**Próximos pasos:** push a la misma rama, mismo PR #18, esperar CI real
+(install · check · test · build) y el redeploy de Cloudflare Preview. Sin
+merge, sin fase nueva.
+
+---
+
 ## 2026-09-27 (Sesión 12 — Fase 2D: relaciones de learnset Pokémon ↔ movimiento)
 
 **Objetivo:** cerrar la Fase 2D (`feature/move-learnset-relations-phase2d`),
