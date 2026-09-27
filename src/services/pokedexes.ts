@@ -17,7 +17,7 @@
 // HeartGold/SoulSilver's, which added Kanto Pokémon to it) — these are two
 // different real games' dexes, not duplicates, so both are shown.
 //
-// Fase 2E adds `versionGroups`/`global`, verified live 2026-09-28 against
+// Fase 2E adds `versionGroups`/`global`, verified live 2026-09-27 against
 // every `/pokedex/{name}` (not derived from `mainSeries` or guessed): which
 // PokeAPI version groups a dex's numbers actually apply to, for
 // `regionalDexEntriesForContext` (pokemonFacts.ts) to filter a Pokémon
@@ -38,7 +38,7 @@ export interface PokedexMeta {
   mainSeries: boolean;
   /**
    * PokeAPI version groups this dex's entry numbers apply to (verified
-   * live against `/pokedex/{name}`, 2026-09-28) — intersected against a
+   * live against `/pokedex/{name}`, 2026-09-27) — intersected against a
    * Game Context's revisions by `regionalDexEntriesForContext` to decide
    * whether to show this dex's number for that context. Empty only for
    * the two dexes PokeAPI itself returns no version group for; whether

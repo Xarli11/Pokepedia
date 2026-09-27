@@ -571,7 +571,22 @@ const breadcrumbItems = [
         initialContext: string;
     }
 
+    // setupRegionalDex() re-runs on every `astro:after-swap` (client-side
+    // navigation via View Transitions), each time against a freshly-swapped
+    // DOM. Without cleanup, each run's `document.addEventListener` call
+    // would pile up: old listeners closing over DOM nodes that no longer
+    // exist, firing alongside the new one on every future context change.
+    // One AbortController per run, aborted before the next run creates its
+    // own, keeps exactly one listener alive at any time — no global store,
+    // just the same short-lived variable every other client script in this
+    // codebase already keeps at module scope (e.g. MovesTable's `moveCache`).
+    let regionalDexAbort: AbortController | null = null;
+
     function setupRegionalDex() {
+        regionalDexAbort?.abort();
+        regionalDexAbort = new AbortController();
+        const { signal } = regionalDexAbort;
+
         const dataScript = document.getElementById('regional-dex-data');
         if (!dataScript) return;
         const payload: RegionalDexPayload = JSON.parse(dataScript.textContent || '{}');
@@ -603,6 +618,23 @@ const breadcrumbItems = [
         const persisted = storage ? resolveContextForPokemon(readGameContext(storage), availableIds, payload.initialContext) : payload.initialContext;
         let currentContext = availableIds.includes(persisted) ? persisted : payload.initialContext;
 
+        // DOM APIs, not an HTML string + innerHTML: pokedexLabel() and the
+        // entry number both end up as .textContent, never parsed as markup
+        // — the same escaping guarantee SSR gets from Astro automatically
+        // carries over to this client-side re-render.
+        function buildRow(entry: RegionalDexEntry): HTMLDivElement {
+            const row = document.createElement('div');
+            row.className = 'flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3';
+            const dt = document.createElement('dt');
+            dt.className = 'text-slate-500 dark:text-slate-400 font-bold leading-snug';
+            dt.textContent = pokedexLabel(entry.pokedex, langAttr);
+            const dd = document.createElement('dd');
+            dd.className = 'text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap';
+            dd.textContent = `#${String(entry.entryNumber).padStart(3, '0')}`;
+            row.append(dt, dd);
+            return row;
+        }
+
         function render() {
             if (!listEl) return;
             const ctx = payload.contexts.find((c) => c.id === currentContext);
@@ -616,12 +648,7 @@ const breadcrumbItems = [
             }
             listEl.classList.remove('hidden');
             emptyEl?.classList.add('hidden');
-            listEl.innerHTML = filtered.map((e) =>
-                `<div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">` +
-                `<dt class="text-slate-500 dark:text-slate-400 font-bold leading-snug">${pokedexLabel(e.pokedex, langAttr)}</dt>` +
-                `<dd class="text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap">#${String(e.entryNumber).padStart(3, '0')}</dd>` +
-                `</div>`
-            ).join('');
+            listEl.replaceChildren(...filtered.map(buildRow));
         }
 
         function onGameContextChange(e: Event) {
@@ -630,7 +657,7 @@ const breadcrumbItems = [
             currentContext = contextId;
             render();
         }
-        document.addEventListener('pokepedia:game-context-change', onGameContextChange);
+        document.addEventListener('pokepedia:game-context-change', onGameContextChange, { signal });
 
         // Only re-render if hydration found a different, available persisted
         // context than the SSR default — avoids an unnecessary reflow (same

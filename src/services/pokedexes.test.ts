@@ -40,7 +40,7 @@ describe('pokedexes metadata', () => {
   });
 
   // Fase 2E: Game Context filtering metadata (verified live against every
-  // /pokedex/{name}, 2026-09-28).
+  // /pokedex/{name}, 2026-09-27).
   it('every entry has a versionGroups array and a boolean global flag', () => {
     for (const p of POKEDEXES) {
       expect(Array.isArray(p.versionGroups)).toBe(true);

@@ -103,7 +103,7 @@ describe('regionalDexEntries', () => {
 });
 
 // Fase 2E: regional Pokédex numbers filtered by Game Context. Real dexes
-// used below (verified live against PokeAPI 2026-09-28, see pokedexes.ts):
+// used below (verified live against PokeAPI 2026-09-27, see pokedexes.ts):
 // paldea -> ['scarlet-violet'], kitakami -> ['scarlet-violet', 'the-teal-mask'],
 // galar -> ['sword-shield'], national -> [] (global).
 describe('regionalDexEntriesForContext', () => {

@@ -223,7 +223,7 @@ Game Context, plus any explicitly global ones.
 **Metadata** (`src/services/pokedexes.ts`): each `PokedexMeta` gained
 `versionGroups` (which PokeAPI version groups a dex's numbers apply to)
 and `global` (whether it applies to every context regardless), both
-hand-verified live against every `/pokedex/{name}` (2026-09-28) — the same
+hand-verified live against every `/pokedex/{name}` (2026-09-27) — the same
 rigor the rest of that table already had. **Two of the 35 dexes came back
 with an empty `version_groups` from PokeAPI itself; each was a distinct,
 explicit decision, never an inferred default**:

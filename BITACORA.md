@@ -2,7 +2,7 @@
 
 ---
 
-## 2026-09-28 (Sesión 14 — Fase 2E: Pokédex regional contextualizada por Game Context)
+## 2026-09-27 (Sesión 14 — Fase 2E: Pokédex regional contextualizada por Game Context)
 
 **Objetivo:** implementar la Fase 2E sobre `feature/game-context-regional-dex-phase2e`
 (partiendo de `develop` ya con la Fase 2D mergeada, PR #18): la sección de

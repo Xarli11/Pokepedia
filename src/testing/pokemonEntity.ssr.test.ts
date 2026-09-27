@@ -290,10 +290,37 @@ describe('Pokémon page: regional Pokédex contextualized by Game Context (Fase 
     const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
     const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
     expect(script).toMatch(/import \{ regionalDexEntriesForContext[^}]*\} from '..\/..\/..\/utils\/pokemonFacts'/);
-    expect(script).toMatch(/document\.addEventListener\('pokepedia:game-context-change', onGameContextChange\)/);
+    expect(script).toMatch(/document\.addEventListener\('pokepedia:game-context-change', onGameContextChange, \{ signal \}\)/);
     // No <select> is created by this script — it only ever reads
     // MovesTable's broadcast / localStorage, never renders its own control.
     expect(script).not.toMatch(/createElement\('select'\)/);
     expect(script).not.toContain('<select');
+  });
+
+  it('client script: one AbortController per setup run, aborted before the next — no listener accumulation across astro:after-swap', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
+    // The controller lives above setupRegionalDex (module scope for this
+    // script), so a second run can abort the previous one before creating
+    // its own — never a fresh, unrelated controller with no memory of it.
+    expect(script).toMatch(/let regionalDexAbort: AbortController \| null = null;\s*\n\s*\n\s*function setupRegionalDex\(\)/);
+    const setupBody = script.slice(script.indexOf('function setupRegionalDex()'), script.indexOf('setupRegionalDex();\n    document.addEventListener'));
+    expect(setupBody.indexOf('regionalDexAbort?.abort();')).toBeGreaterThanOrEqual(0);
+    expect(setupBody.indexOf('regionalDexAbort = new AbortController();')).toBeGreaterThan(setupBody.indexOf('regionalDexAbort?.abort();'));
+    // The listener is registered with that same run's signal, not bare —
+    // aborting the controller is what actually removes it.
+    expect(setupBody).toMatch(/addEventListener\('pokepedia:game-context-change', onGameContextChange, \{ signal \}\)/);
+  });
+
+  it('client script: never builds regional dex rows via innerHTML — DOM APIs (createElement/textContent) only', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
+    expect(script).not.toMatch(/listEl\.innerHTML/);
+    expect(script).toMatch(/document\.createElement\('div'\)/);
+    expect(script).toMatch(/dt\.textContent = pokedexLabel\(/);
+    expect(script).toMatch(/dd\.textContent = `#/);
+    expect(script).toMatch(/listEl\.replaceChildren\(\.\.\.filtered\.map\(buildRow\)\)/);
   });
 });
