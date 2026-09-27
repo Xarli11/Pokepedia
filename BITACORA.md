@@ -2,6 +2,54 @@
 
 ---
 
+## 2026-09-27 (Sesión 12 — Fase 2D: relaciones de learnset Pokémon ↔ movimiento)
+
+**Objetivo:** cerrar la Fase 2D (`feature/move-learnset-relations-phase2d`),
+retomando trabajo local no commiteado más un backup en patch de una sesión
+de Claude Cloud sin acceso a red de PokeAPI.
+
+**Estado recuperado:** el working tree local ya contenía la implementación
+completa (servicio `moveLearnsets.ts`, `moveLearnMethods.ts`,
+`moveLearnsetFacts.ts`, página de movimiento adaptada, dataset ya generado
+en `src/data/generated/learnsets/`) con tests propios (
+`moveLearnsets.test.ts`, `moveLearnMethods.test.ts`,
+`moveLearnsetFacts.test.ts`) ya en verde. El patch de backup
+(`backups/pokepedia-phase2d.patch`, 3 commits) contenía una implementación
+paralela equivalente de la misma arquitectura (misma forma de datos,
+estilo distinto) más las 4 correcciones de tests heredados que localmente
+faltaban. Comparado archivo a archivo contra un worktree temporal con el
+patch aplicado: se mantuvo la implementación local (ya funcional y
+probada) y se integraron solo las piezas que faltaban.
+
+**Integrado del patch:**
+- `src/pages/fetch-budget.ssr.test.ts`, `src/pages/movement-crawlability.ssr.test.ts`,
+  `src/testing/moveAbilityEntities.ssr.test.ts`: reescritos para mockear
+  `services/moveLearnsets` en vez de asumir `learned_by_pokemon` +
+  cap de 30/60 tarjetas (arquitectura ya retirada).
+- Bug real encontrado al integrar: el estado vacío del listado
+  (`#learnset-empty`) llevaba `class="hidden"` fija en el SSR — un
+  crawler o visitante sin JS nunca veía el mensaje "no hay Pokémon...".
+  Corregido en `[lang]/movimientos/[name].astro` para que el SSR decida
+  la clase `hidden` según `defaultRelationEntries.length`.
+
+**Dataset generado en este entorno** (con acceso real a PokeAPI, a
+diferencia de la sesión Cloud que originó el patch):
+`npm run data:catalogs -- --only=move-learnsets` → 833 movimientos,
+638.321 relaciones, 1351 Pokémon, 834 ficheros (833 + manifest), 7.6 MB
+raw / ~0.71 MB gzip. Ejecutado dos veces consecutivas: salida idéntica
+byte a byte (determinismo confirmado). `npm run data:catalogs:check`
+valida limpio contra PokeAPI en vivo.
+
+**Verde:** `npm test` (824 pasan, 2 skipped, 0 fallos), `npm run check`
+(0 errores), `npm run build` (completa sin errores).
+
+**Documentación:** `docs/architecture/move-learnset-relations.md` (nuevo),
+`docs/DATA_SOURCES.md`, `TODO.md`, `CHANGELOG.md`.
+
+**Próximos pasos:** push de la rama, PR contra `develop` (sin merge).
+
+---
+
 ## 2026-09-27 (Sesión 11 — UX polish: feedback visual real)
 
 **Objetivo:** corregir feedback visual real recibido tras la Fase 2C, antes
