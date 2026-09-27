@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import PokemonListCard from '../../../components/PokemonListCard.astro';
-import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getPokemonByGeneration, getDexRangeFromEntries, GENERATIONS, GENERATION_ROMAN, generationRegionLabel } from '../../../services/pokeapi';
 import { getSmogonDataBatch } from '../../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { buildGenerationLandingTitle, buildGenerationLandingDescription, canonicalUrl, pagePath } from '../../../utils/seo';
@@ -22,7 +22,7 @@ if (genParam !== String(genNum)) {
 }
 
 const genKey = `gen${genNum}`;
-const genInfo = GENERATIONS[genKey];
+const region = generationRegionLabel(genKey, lang as string);
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const roman = GENERATION_ROMAN[genKey];
 
@@ -55,8 +55,8 @@ const typeDistribution = [...typeCounts.entries()]
     .slice(0, 6)
     .map(([typeName, typeCount]) => ({ typeName, typeCount }));
 
-const seoTitle = buildGenerationLandingTitle(roman, genInfo.region, lang as 'es' | 'en');
-const seoDescription = buildGenerationLandingDescription(roman, genInfo.region, count, lang as 'es' | 'en');
+const seoTitle = buildGenerationLandingTitle(roman, region, lang as 'es' | 'en');
+const seoDescription = buildGenerationLandingDescription(roman, region, count, lang as 'es' | 'en');
 
 const breadcrumbItems = [
     { label: t.breadcrumb_home, href: pagePath(lang) },
@@ -76,7 +76,7 @@ const itemListJsonLd = {
 
 const otherGenerations = Object.keys(GENERATIONS)
     .filter((k) => k !== genKey)
-    .map((k) => ({ genKey: k, genNum: k.replace('gen', ''), roman: GENERATION_ROMAN[k], region: GENERATIONS[k].region }));
+    .map((k) => ({ genKey: k, genNum: k.replace('gen', ''), roman: GENERATION_ROMAN[k], region: generationRegionLabel(k, lang as string) }));
 ---
 
 <Layout
@@ -89,7 +89,7 @@ const otherGenerations = Object.keys(GENERATIONS)
     <div class="max-w-6xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
 
-        <h1 class="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">{t.generation_label} {roman} <span class="text-emerald-500">({genInfo.region})</span></h1>
+        <h1 class="text-4xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">{t.generation_label} {roman} <span class="text-emerald-500">({region})</span></h1>
         <p class="text-lg text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-3xl mb-10">{seoDescription}</p>
 
         <div class="flex flex-wrap gap-4 mb-12">

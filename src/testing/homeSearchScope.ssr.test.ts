@@ -11,8 +11,11 @@ const API = 'https://pokeapi.co/api/v2';
 
 const FIXTURES: Record<string, unknown> = {
   [`${API}/generation/1`]: { pokemon_species: [{ name: 'bulbasaur', url: `${API}/pokemon-species/1/` }, { name: 'charizard', url: `${API}/pokemon-species/6/` }] },
+  [`${API}/generation/2`]: { pokemon_species: [{ name: 'chikorita', url: `${API}/pokemon-species/152/` }] },
+  [`${API}/generation/3`]: { pokemon_species: [{ name: 'treecko', url: `${API}/pokemon-species/252/` }] },
   [`${API}/generation/4`]: { pokemon_species: [{ name: 'turtwig', url: `${API}/pokemon-species/387/` }, { name: 'garchomp', url: `${API}/pokemon-species/445/` }] },
   [`${API}/generation/5`]: { pokemon_species: [{ name: 'victini', url: `${API}/pokemon-species/494/` }] },
+  [`${API}/generation/6`]: { pokemon_species: [{ name: 'chespin', url: `${API}/pokemon-species/650/` }] },
   'https://play.pokemonshowdown.com/data/pokedex.json': {},
 };
 
@@ -42,13 +45,30 @@ describe('Pokédex home search: local, not global', () => {
     expect(html).toContain('placeholder="Search Pokémon in Sinnoh..."');
   });
 
-  it('EN/Unova (gen5): the search placeholder says "Unova", not the Spanish "Teselia"', async () => {
-    // The generation-pill label itself still says "Teselia" on EN pages too
-    // (GENERATIONS.region is one ES/EN-agnostic string) — a pre-existing,
-    // separate bug not fixed in this phase. This only asserts the NEW
-    // placeholder text, which must not inherit that mistake.
+  it('EN/gen5: "Unova" everywhere (placeholder AND the generation pill), never the Spanish "Teselia"', async () => {
+    // GENERATIONS.region is bilingual (services/pokeapi.ts) precisely so
+    // this holds for every surface that reads it, not just the placeholder
+    // added in the previous UX-polish commit.
     const html = await render('en', 'gen5');
     expect(html).toContain('placeholder="Search Pokémon in Unova..."');
+    expect(html).toMatch(/data-gen="gen5"[^]*?>\s*Unova\s*</);
+    expect(html).not.toContain('Teselia');
+  });
+
+  it('ES/gen5: "Teselia" everywhere (placeholder AND the generation pill), never "Unova"', async () => {
+    const html = await render('es', 'gen5');
+    expect(html).toContain('placeholder="Buscar Pokémon en Teselia..."');
+    expect(html).toMatch(/data-gen="gen5"[^]*?>\s*Teselia\s*</);
+    expect(html).not.toContain('Unova');
+  });
+
+  it.each([
+    ['gen1', 'Kanto'], ['gen2', 'Johto'], ['gen3', 'Hoenn'], ['gen6', 'Kalos'],
+  ])('other generations (%s) show the same region name in ES and EN pills', async (gen, region) => {
+    const es = await render('es', gen);
+    const en = await render('en', gen);
+    expect(es).toMatch(new RegExp(`data-gen="${gen}"[^]*?>\\s*${region}\\s*<`));
+    expect(en).toMatch(new RegExp(`data-gen="${gen}"[^]*?>\\s*${region}\\s*<`));
   });
 
   it('ES/Unova (gen5): region label stays "Teselia" in Spanish', async () => {

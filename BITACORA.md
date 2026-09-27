@@ -43,10 +43,19 @@ actualmente mostrada (o de favoritos) — nunca más búsqueda global.
   resultados para "Garchomp" en Kanto.' Textos centralizados en
   `uiTranslations` con sustitución `{token}` vía `formatTemplate()`
   (compartida por SSR y el script cliente, para que no diverjan).
-- Descubierto de paso (no corregido, deuda nueva en TODO): `GENERATIONS.region`
-  es un string único ES/EN — la píldora de Gen 5 dice "Teselia" también en
-  EN. El nuevo placeholder sí traduce correctamente a "Unova" en EN (tabla
-  propia), la píldora no se tocó (fuera del feedback original).
+- Descubierto de paso, y **corregido tras revisión externa de la PR #17**:
+  `GENERATIONS.region` era un string único ES/EN — la píldora de Gen 5
+  seguía diciendo "Teselia" en EN aunque el placeholder ya decía "Unova"
+  (un primer parche solo tocó el placeholder). Corregido de raíz:
+  `GENERATIONS.region` pasa a `{es, en}` y `generationRegionLabel(gen, lang)`
+  en `services/pokeapi.ts` es la única función que debe leerlo — usada
+  ahora por la home (píldoras + placeholder), la página de generación,
+  el hub de generaciones, la imagen OG de generación y el índice de
+  búsqueda global (que ya tenía su propia tabla correcta, ahora delegada
+  en vez de duplicada). Verificado en vivo: EN/gen5 → "Unova" en píldora,
+  placeholder, landing, hub y OG; ES/gen5 → "Teselia" en todos. Tests
+  nuevos de regresión ES/EN para gen5 y para gen1/2/3/6 (mismo nombre en
+  ambos idiomas).
 
 **Performance:** chunk JS del cliente de la home 9864 → 8793 bytes crudo
 (−10.9%), 3948 → 3525 gzip (−10.7%), medido contra `develop` en worktree
@@ -55,9 +64,10 @@ aislado. Más importante: la home ya no dispara ninguna petición a
 que el HTML servido no contiene ninguna referencia a `loadSearchIndex`.
 El buscador global de la cabecera no se ve afectado.
 
-**Tests:** 786 → 800 (14 nuevos: `homeSearch.test.ts` reescrito para el
-filtro estrictamente local, `homeSearchScope.ssr.test.ts` nuevo,
-`pokemonEntity.ssr.test.ts` ampliado). `check`: 0 errores. `build`: OK.
+**Tests:** 786 → 805 (19 nuevos: `homeSearch.test.ts` reescrito para el
+filtro estrictamente local, `homeSearchScope.ssr.test.ts` nuevo (incluida
+la regresión i18n de región), `pokemonEntity.ssr.test.ts` ampliado).
+`check`: 0 errores. `build`: OK.
 
 **Verificado en vivo (dev server real, PokeAPI real):** Kanto/Sinnoh/Unova
 (ES y EN), favoritos, Garchomp real (categoría + Pokédex regional

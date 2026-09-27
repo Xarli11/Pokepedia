@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getPokemonByGeneration, GENERATIONS } from '../../services/pokeapi';
+import { getPokemonByGeneration, GENERATIONS, generationRegionLabel } from '../../services/pokeapi';
 import { getSmogonDataBatch } from '../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../utils/pokemon';
 import { pagePath } from '../../utils/seo';
@@ -20,12 +20,12 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 // this page used to also show a global-entity dropdown here and no
 // longer does.
 //
-// GENERATIONS' `region` is a single ES/EN-agnostic string (mostly the
-// same word in both languages); Gen 5's "Teselia" is the Spanish name for
-// Unova, so it needs its own English label here.
-const REGION_EN: Partial<Record<string, string>> = { gen5: 'Unova' };
+// GENERATIONS' `region` is bilingual (Gen 5 is "Teselia" in Spanish,
+// "Unova" in English); generationRegionLabel() is the single place that
+// reads it, reused everywhere a region name is shown (this page's pills,
+// the generation landing pages, its OG image, the global search index).
 const resolvedGen = GENERATIONS[gen] ? gen : 'gen1';
-const regionName = gen === 'favorites' ? null : (lang === 'en' ? (REGION_EN[resolvedGen] ?? GENERATIONS[resolvedGen].region) : GENERATIONS[resolvedGen].region);
+const regionName = gen === 'favorites' ? null : generationRegionLabel(resolvedGen, lang as string);
 const searchPlaceholder = gen === 'favorites'
     ? t.search_favorites_placeholder
     : formatTemplate(t.search_local_placeholder, { region: regionName ?? '' });
@@ -111,7 +111,7 @@ const enrichedList = pokemonList.map(p => {
             <div class="mt-12 mb-16 max-w-5xl mx-auto px-4">
                 <div class="bg-slate-200/30 dark:bg-slate-900/40 backdrop-blur-md rounded-[2rem] p-1.5 border border-slate-200/50 dark:border-slate-800/50 shadow-inner">
                     <div class="overflow-x-auto no-scrollbar snap-x snap-mandatory flex gap-1 items-center">
-                        {Object.entries(GENERATIONS).map(([key, value], index) => (
+                        {Object.keys(GENERATIONS).map((key, index) => (
                             <button 
                                 class={`gen-pill snap-center flex-1 min-w-[110px] sm:min-w-0 px-4 py-3 rounded-[1.5rem] transition-all duration-500 flex flex-col items-center gap-0.5 group/pill ${
                                     gen === key 
@@ -128,7 +128,7 @@ const enrichedList = pokemonList.map(p => {
                                 <span class={`text-[10px] font-black uppercase tracking-wider ${
                                     gen === key ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-500'
                                 }`}>
-                                    {value.region}
+                                    {generationRegionLabel(key, lang as string)}
                                 </span>
                             </button>
                         ))}

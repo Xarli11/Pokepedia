@@ -72,16 +72,39 @@ different, disagreeing answers to "did you find it?" on the same page.
   copies of this logic can't drift.
 - The placeholder names the region: *"Search Pokémon in Kanto..."* /
   *"Buscar Pokémon en Kanto..."*, or *"Search favorites..."* in favorites
-  mode. `GENERATIONS.region` (`services/pokeapi.ts`) is a single
-  ES/EN-agnostic string reused by the existing generation-pill labels;
-  Gen 5's value is `"Teselia"` (Spanish for Unova), which would have been
-  wrong on English pages — a small `REGION_EN` override table in
-  `index.astro` fixes it for the new placeholder specifically. The
-  pill label itself still shows "Teselia" on EN pages too — a
-  pre-existing, separate bug, not touched in this phase (see TODO.md;
-  discovered while building the placeholder, not part of the original
-  feedback, and fixing the pill has a larger blast radius since
-  `GENERATIONS` is also read by other pages).
+  mode.
+
+### Correction (post-review): `GENERATIONS.region` is bilingual, centrally
+
+The first version of this phase gave `GENERATIONS.region` a single
+ES/EN-agnostic string (`services/pokeapi.ts`) and patched around it with a
+one-off `REGION_EN` table local to `index.astro`, just for the new
+placeholder — so the generation-selector pill below it kept showing the
+Spanish `"Teselia"` on English pages, a visible inconsistency caught in
+review of the preview deploy.
+
+Fixed at the source instead of patched at the call site: `GENERATIONS`
+now stores `region: { es: string; en: string }` for every generation, and
+`generationRegionLabel(genKey, lang)` (`services/pokeapi.ts`) is the one
+function anything should call to read it. `index.astro`'s local
+`REGION_EN` table is gone. This also fixed three call sites that were
+never part of this phase's original scope but shared the same root cause
+and the same bug on English pages: the generation landing page
+(`generacion/[gen].astro`, title/description/heading/"other generations"
+list), the generations hub (`generaciones/index.astro`), and the
+generation OG image (`og/v1/[lang]/generation/[gen].png.ts`). The global
+search index's own `generationRegion()` helper
+(`data/catalogs/searchIndex.ts`) already had a correct, separate
+ES/EN table for this (verified — "Unova" was already right there); it now
+delegates to `generationRegionLabel()` instead of keeping its own copy,
+per "don't duplicate the dictionary."
+
+Regression coverage: `homeSearchScope.ssr.test.ts` asserts ES shows
+"Teselia" (and never "Unova") and EN shows "Unova" (and never "Teselia")
+in *both* the placeholder and the pill for gen5, plus a parametrized check
+that gen1/gen2/gen3/gen6 show the identical region word in both languages
+(the common case, verified so the bilingual table didn't only work for
+the one generation that differs).
 
 ## What did NOT change
 
