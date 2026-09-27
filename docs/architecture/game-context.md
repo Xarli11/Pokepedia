@@ -194,15 +194,108 @@ belongs to whichever future phase reads data that does differ per DLC
 
 ## 11. Current limitations
 
-- The DLC-folding table is not exercised by any real Pokémon's moves data
-  today (§4) — it is correct by construction and tested with synthetic
-  data, but has not been observed live. Re-verify against PokeAPI whenever
-  a new game's DLC ships, in case that changes.
-- Only moves consume Game Context. Learn methods, machines (MT/TR/MO),
-  availability, locations and regional Pokédexes are explicitly out of
-  scope for this phase (see the PR description) — they are the intended
-  next consumers of `availableContextsForPokemon` /
-  `defaultGameContextForPokemon`, not yet wired up.
+- The DLC-folding table is not exercised by any real Pokémon's **moves**
+  data today (§4) — it is correct by construction and tested with
+  synthetic data, but has not been observed live for moves specifically.
+  Re-verify against PokeAPI whenever a new game's DLC ships, in case that
+  changes. (Fase 2E found the first real, live confirmation of the
+  underlying model in a different data domain: Pikachu's regional Pokédex
+  numbers include a real `isle-of-armor` entry alongside its `galar` one —
+  both correctly fold into the single "Sword / Shield" context, §12.)
+- Learn methods and machines (MT/HM/TR) consume Game Context since Fase 2D
+  (`docs/architecture/move-learnset-relations.md`); the regional Pokédex
+  does since Fase 2E (§12). **Availability and locations/encounters remain
+  out of scope** — see §12's note on why "this Pokémon has Game Context X
+  data" is not the same claim as "this Pokémon is obtainable in game X",
+  and `TODO.md` for the future investigation this would need before a
+  Fase 2F.
 - No indexable URL exists per Game Context. It is UI state only, as
   decided for this phase; see the PR description for the criteria that
   would justify one later.
+
+## 12. Fase 2E: regional Pokédex numbers
+
+The Pokémon page's regional Pokédex section (`buildPokemonFacts`'s
+`regionalDex`, previously an unfiltered dump of every dex a species has
+ever been numbered in) now shows only the entries relevant to the page's
+Game Context, plus any explicitly global ones.
+
+**Metadata** (`src/services/pokedexes.ts`): each `PokedexMeta` gained
+`versionGroups` (which PokeAPI version groups a dex's numbers apply to)
+and `global` (whether it applies to every context regardless), both
+hand-verified live against every `/pokedex/{name}` (2026-09-28) — the same
+rigor the rest of that table already had. **Two of the 35 dexes came back
+with an empty `version_groups` from PokeAPI itself; each was a distinct,
+explicit decision, never an inferred default**:
+- `national`: `global: true`. It is the cross-game index by definition —
+  the empty array is PokeAPI confirming there is no per-game breakdown,
+  not a gap.
+- `conquest-gallery`: `global: false`. It is already excluded before
+  context-filtering ever runs (`isMainSeriesPokedex`), so nothing in this
+  feature depends on what its `versionGroups` would mean if it did.
+
+The other 33 dexes all came back with at least one real version group —
+there is no "known main-series dex with genuinely undecided empty data"
+case left. An entry this table has no record of at all (`pokedexVersionGroups`
+returning `undefined`, not `[]`) is treated as visible for every context —
+fail open, matching `pokedexLabel`'s existing fallback for an unrecognized
+name — rather than silently hiding real data for a gap in the table.
+
+**Filtering** (`regionalDexEntriesForContext`, `src/utils/pokemonFacts.ts`):
+pure, same shape as Fase 2D's `relationsForContext` — a dex entry shows for
+a context when it's global, or its `versionGroups` intersect the context's
+`revisions` (the whole DLC/base-game span, never just the latest
+revision — same policy as everywhere else Game Context is consumed).
+
+**One Game Context computation, not two.** Before this phase, `MovesTable`
+was the only page section that derived Game Context, and did so from its
+own `moves` prop internally. The Pokémon page now computes
+`availableContextsForPokemon` / `defaultGameContextForPokemon` once
+(from `versionGroupsFromMoveDetails(detail.moves)`, extracted to
+`utils/movesPayload.ts` so both call sites derive the raw version-group
+list identically) and passes the result to `MovesTable` as optional props;
+`MovesTable` only self-computes them when a caller doesn't provide them
+(existing standalone tests still do, unaffected). The regional Pokédex
+section reads the same computation's SSR output for its default render.
+
+**Reactivity without a second selector.** `MovesTable`'s own `<select>`
+remains the page's only Game Context control. Its client script now
+broadcasts `pokepedia:game-context-change` (`{ contextId }`, a plain DOM
+`CustomEvent`) every time `currentContext` is resolved: once up front
+(covering both the SSR default and any persisted context already restored
+from `localStorage` above it in the same function) and again on every
+manual selection. The regional Pokédex section's own script listens for
+this — but, critically, **does not depend on it for correctness on
+load**: module scripts execute in document order, `MovesTable`'s sits
+earlier and dispatches synchronously, so a listener registered afterward
+would already have missed that first event. Instead, the regional
+Pokédex script independently resolves the exact same initial state
+(persisted context if this Pokémon has data for it, else the SSR default)
+using the identical pure function and storage key
+(`resolveContextForPokemon`, `utils/gameContextStorage.ts`) — so both
+sections deterministically agree on load regardless of script ordering,
+and the event is only ever relied on for a later, live change (always
+safe, since both listeners are long registered by the time a person can
+interact with the selector).
+
+**"Total histórico"** follows the exact rule Fase 2D established for
+learnsets: always rendered (never SSR-omitted, which — as Fase 2D found
+the hard way — would make it unable to ever appear again after a context
+change), client-toggled, meaning *distinct historical entries across every
+Game Context* — never scoped to whatever is currently filtered.
+
+**Game Context ≠ availability/capturability.** `availableContextsForPokemon`
+answers "does this Pokémon have *move* data for this context" — it is
+reused as-is for the regional Pokédex's revisions, but that is still a
+statement about which contexts have data in hand, not a claim that a
+Pokémon is obtainable/encounterable in a given game. No "Available in: ..."
+section was built from it (that would have been exactly this
+conflation); see `TODO.md` for where real availability (encounters/
+locations) is tracked as a distinct, unstarted future investigation.
+
+**Explicitly out of scope for Fase 2E** (deferred to a possible future
+phase, not started): `/pokemon/{id}/encounters`, location areas and their
+translations, encounter methods, a `version -> Game Context` mapping
+(encounters are keyed by PokeAPI `version`, not `version_group` — a
+different relationship this phase did not need and did not build), and
+filtering varieties/forms by game.
