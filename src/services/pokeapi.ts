@@ -138,6 +138,31 @@ export interface MoveDetail {
         version_group?: { name: string };
     }[];
     learned_by_pokemon: { name: string; url: string }[];
+    generation: { name: string; url: string };
+    target: { name: string; url: string };
+    meta: {
+        ailment: { name: string };
+        category: { name: string };
+        min_hits: number | null;
+        max_hits: number | null;
+        min_turns: number | null;
+        max_turns: number | null;
+        drain: number;
+        healing: number;
+        crit_rate: number;
+        ailment_chance: number;
+        flinch_chance: number;
+        stat_chance: number;
+    } | null;
+    stat_changes: { change: number; stat: { name: string } }[];
+    past_values: {
+        power: number | null;
+        accuracy: number | null;
+        pp: number | null;
+        effect_chance: number | null;
+        type: { name: string } | null;
+        version_group: { name: string };
+    }[];
 }
 
 export interface AbilityDetail {
@@ -157,6 +182,12 @@ export interface AbilityDetail {
         pokemon: { name: string; url: string };
         is_hidden: boolean;
         slot: number;
+    }[];
+    generation: { name: string; url: string };
+    is_main_series: boolean;
+    effect_changes: {
+        version_group: { name: string };
+        effect_entries: { effect: string; short_effect?: string; language: { name: string } }[];
     }[];
 }
 

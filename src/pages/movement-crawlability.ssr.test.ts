@@ -51,8 +51,8 @@ function moveFixture(id: number, name: string, over: Record<string, unknown> = {
   };
 }
 
-// 45 learners: more than the page's 40-card cap.
-const MANY = Array.from({ length: 45 }, (_, i) => ({ name: `mon${i}`, url: `${API}/pokemon/${900 + i}/` }));
+// 70 learners: more than the page's 60-card cap.
+const MANY = Array.from({ length: 70 }, (_, i) => ({ name: `mon${i}`, url: `${API}/pokemon/${900 + i}/` }));
 
 const FIXTURES: Record<string, unknown> = {
   '/move?limit=100000': {
@@ -274,8 +274,8 @@ describe('move page metadata and entity links (SSR)', () => {
 
   it('learned-by counter reports the real total, not the capped card count', async () => {
     const html = await render(MovePage, { lang: 'en', name: 'surf' }, '/en/movimientos/surf/');
-    expect(html).toMatch(/>45<\/span>/);
-    expect(html).toContain('Showing 40');
+    expect(html).toMatch(/>70<\/span>/);
+    expect(html).toContain('Showing 60');
     const hrefs = [...html.matchAll(/href="(\/en\/pokemon\/[^"]*)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(0);
     hrefs.forEach((h) => expect(h).toMatch(/^\/en\/pokemon\/[a-z0-9-]+\/$/));

@@ -93,19 +93,13 @@ describe('fetch budgets (SSR)', () => {
     expect(calls.filter((u) => !u.includes('/pokemon/'))).toHaveLength(3); // pokedex (warm-up), move, species list
   });
 
-  it('move page, warm isolate: tier badges are server-rendered (no client pokedex download needed)', async () => {
+  it('move page: the learned-by list is the lightweight PokemonRelationList, not tier-badged PokemonCard (Fase 2C: no competitive content on entity pages)', async () => {
     stub();
     const raw = await (await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true)).text();
     const html = raw.replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ''); // dev-only attributes
-    expect(html.match(/<div class="tier-badge">\s*<span[^>]*>OU<\/span>/g)).toHaveLength(30);
-    expect(html).not.toMatch(/data-tier-for="/); // (the loader script still names the selector)
-  });
-
-  it('move page, COLD isolate: tier badges stay client-filled', async () => {
-    stub();
-    for (const h of HOLDERS) ROUTES[`/pokemon/${h.url.split('/').slice(-2)[0]}`] ??= pokemon(Number(h.url.split('/').slice(-2)[0]), h.name);
-    const html = await (await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/')).text();
-    expect(html.match(/data-tier-for="mon\d+"/g)).toHaveLength(30);
+    expect(html).not.toMatch(/tier-badge/);
+    expect(html).not.toMatch(/data-tier-for="/);
+    expect(html.match(/href="\/es\/pokemon\/mon\d+\/"/g)).toHaveLength(30);
   });
 
   it('move page, COLD isolate: does not wait on Showdown — same PokeAPI cards as before', async () => {

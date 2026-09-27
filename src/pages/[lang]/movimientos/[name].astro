@@ -1,12 +1,16 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import PokemonCard from '../../../components/PokemonCard.astro';
+import PokemonRelationList from '../../../components/PokemonRelationList.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getMoveDetailByName, getPokemonCards } from '../../../services/pokeapi';
+import { getLocalizedName, getMoveDetailByName, getPokemonCards, idFromResourceUrl, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 import { buildMoveTitle, resolveMoveDescription, type MoveFacts } from '../../../utils/moveMeta';
+import { buildMoveMechanics, targetLabel, ailmentLabel, movePastValues } from '../../../utils/moveFacts';
+import { getMachinesForMove } from '../../../services/machines';
+import { getItemCatalog } from '../../../services/catalogs';
+import { versionGroupLabel, sortVersionGroups } from '../../../services/versionGroups';
 
 const { lang, name } = Astro.params;
 
@@ -44,11 +48,34 @@ const pageTitle = buildMoveTitle(lang as string, facts);
 
 // The list is capped for page weight; the counter reports the real total
 // (learned_by_pokemon), not the number of cards rendered.
-const POKEMON_LIST_LIMIT = 40;
+const POKEMON_LIST_LIMIT = 60;
 const totalLearnedBy = moveData.learned_by_pokemon.length;
 const pokemonList = await getPokemonCards(moveData.learned_by_pokemon, POKEMON_LIST_LIMIT);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
+
+// Mechanics, generation link, historical values and MT/MO/TR availability —
+// all from fields already in `moveData` or a zero-request generated dataset
+// (services/machines.ts). See docs/architecture/move-ability-entities.md.
+const mechanics = buildMoveMechanics(moveData.target, moveData.meta, moveData.stat_changes);
+const pastValues = movePastValues(moveData.past_values);
+
+const moveGenNumRaw = moveData.generation?.url ? idFromResourceUrl(moveData.generation.url) : null;
+const moveGenKey = moveGenNumRaw ? `gen${moveGenNumRaw}` : null;
+const moveGenRoman = moveGenKey ? GENERATION_ROMAN[moveGenKey] : null;
+
+const machinesRaw = await getMachinesForMove(moveData.name);
+const itemCatalog = machinesRaw.length > 0 ? await getItemCatalog(lang as string) : null;
+const machineVersionGroups = sortVersionGroups(machinesRaw.map((m) => m.versionGroup)).reverse();
+const machinesByVersionGroup = new Map(machinesRaw.map((m) => [m.versionGroup, m.item]));
+const machines = machineVersionGroups.map((vg) => {
+    const itemSlug = machinesByVersionGroup.get(vg)!;
+    return {
+        versionGroupLabel: versionGroupLabel(vg, lang as string),
+        itemLabel: itemCatalog?.get(itemSlug)?.name ?? itemSlug.toUpperCase(),
+    };
+});
+const MACHINES_VISIBLE = 8;
 
 const categoryColors: Record<string, string> = {
     physical: 'bg-orange-500',
@@ -94,6 +121,11 @@ const breadcrumbItems = [
                         <span class={`${categoryColors[moveData.damage_class.name]} text-white px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg`}>
                             {categoryLabels[moveData.damage_class.name]}
                         </span>
+                        {moveGenRoman && moveGenKey && (
+                            <a href={pagePath(lang as string, 'generacion', String(moveGenNumRaw))} class="px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                                {t.generation_label} {moveGenRoman}
+                            </a>
+                        )}
                     </div>
                     <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-2 capitalize leading-tight tracking-tighter">{localizedName}</h1>
                     <div class="mb-6"><ReportDataIssue entityType="move" entitySlug={moveData.name} lang={lang as string} /></div>
@@ -152,6 +184,89 @@ const breadcrumbItems = [
             </div>
         </div>
 
+        {(mechanics.ailment || mechanics.drain || mechanics.recoil || mechanics.healing || mechanics.critRate || mechanics.flinchChance || mechanics.minHits || mechanics.minTurns || mechanics.statChanges.length > 0) && (
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-16">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.mechanics}</h2>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-4 text-sm">
+                    <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_target}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{targetLabel(mechanics.target, lang as string)}</dd></div>
+                    {mechanics.ailment && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_ailment}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{ailmentLabel(mechanics.ailment, lang as string)}{mechanics.ailmentChance ? ` (${mechanics.ailmentChance}%)` : ''}</dd></div>
+                    )}
+                    {mechanics.drain != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_drain}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.drain}%</dd></div>
+                    )}
+                    {mechanics.recoil != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_recoil}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.recoil}%</dd></div>
+                    )}
+                    {mechanics.healing != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_healing}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.healing}%</dd></div>
+                    )}
+                    {mechanics.critRate != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_crit_rate}</dt><dd class="text-slate-900 dark:text-white font-black">+{mechanics.critRate}</dd></div>
+                    )}
+                    {mechanics.flinchChance != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_flinch_chance}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.flinchChance}%</dd></div>
+                    )}
+                    {mechanics.minHits != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_hits}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.minHits === mechanics.maxHits ? mechanics.minHits : `${mechanics.minHits}–${mechanics.maxHits}`}</dd></div>
+                    )}
+                    {mechanics.minTurns != null && (
+                        <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_turns}</dt><dd class="text-slate-900 dark:text-white font-black">{mechanics.minTurns === mechanics.maxTurns ? mechanics.minTurns : `${mechanics.minTurns}–${mechanics.maxTurns}`}</dd></div>
+                    )}
+                    {mechanics.statChanges.length > 0 && (
+                        <div class="sm:col-span-2 flex justify-between gap-4">
+                            <dt class="text-slate-500 dark:text-slate-400 font-bold">{t.move_stat_changes}</dt>
+                            <dd class="text-slate-900 dark:text-white font-black text-right">
+                                {mechanics.statChanges.map((s) => `${t[s.stat] || s.stat} ${s.change > 0 ? '+' : ''}${s.change}`).join(', ')}
+                                {mechanics.statChance ? ` (${mechanics.statChance}%)` : ''}
+                            </dd>
+                        </div>
+                    )}
+                </dl>
+            </div>
+        )}
+
+        {machines.length > 0 && (
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-16">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.machines_section}</h2>
+                <ul class="flex flex-wrap gap-2 text-xs list-none p-0 m-0">
+                    {machines.slice(0, MACHINES_VISIBLE).map((m) => (
+                        <li class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl font-bold text-slate-600 dark:text-slate-300">{m.itemLabel} · {m.versionGroupLabel}</li>
+                    ))}
+                </ul>
+                {machines.length > MACHINES_VISIBLE && (
+                    <details class="mt-3">
+                        <summary class="text-xs font-bold text-emerald-600 dark:text-emerald-400 cursor-pointer">{lang === 'es' ? `Ver ${machines.length - MACHINES_VISIBLE} más` : `Show ${machines.length - MACHINES_VISIBLE} more`}</summary>
+                        <ul class="flex flex-wrap gap-2 text-xs list-none p-0 mt-3">
+                            {machines.slice(MACHINES_VISIBLE).map((m) => (
+                                <li class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl font-bold text-slate-600 dark:text-slate-300">{m.itemLabel} · {m.versionGroupLabel}</li>
+                            ))}
+                        </ul>
+                    </details>
+                )}
+            </div>
+        )}
+
+        {pastValues.length > 0 && (
+            <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-16">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.move_history}</h2>
+                <ul class="space-y-3 text-sm list-none p-0 m-0">
+                    {pastValues.map((v) => {
+                        const parts: string[] = [];
+                        if (v.power != null) parts.push(`${t.power} ${v.power}`);
+                        if (v.accuracy != null) parts.push(`${t.accuracy} ${v.accuracy}%`);
+                        if (v.pp != null) parts.push(`PP ${v.pp}`);
+                        if (v.type) parts.push(`${t.pokemon_types}: ${typeTranslations[lang as string]?.[v.type] || formatName(v.type)}`);
+                        return (
+                            <li class="text-slate-600 dark:text-slate-400">
+                                <span class="font-black text-slate-900 dark:text-white">{versionGroupLabel(v.versionGroup, lang as string)}{lang === 'es' ? ' y anteriores' : ' and earlier'}:</span> {parts.join(', ')}
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+        )}
+
         <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-10 px-4 flex items-center gap-4">
             <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
             {t.pokemon_with_move}
@@ -161,10 +276,6 @@ const breadcrumbItems = [
             )}
         </h2>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {pokemonList.map((pokemon) => (
-                <PokemonCard pokemon={pokemon} lang={lang as string} />
-            ))}
-        </div>
+        <PokemonRelationList entries={pokemonList.map((pokemon) => ({ pokemon }))} lang={lang as string} />
     </div>
 </Layout>
