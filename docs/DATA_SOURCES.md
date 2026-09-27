@@ -230,6 +230,12 @@ kind, id, name; at most 5 results per kind and 12 in total. Text is normalized
 person opened, never typed text; legacy Pokémon-only entries are still read.
 Analytics only records `results` / `no_results`.
 
+This index and its ranking serve exactly one surface: the header's global
+search modal (`Layout.astro`). The Pokédex home page's own big search box
+(`/[lang]/`) is a **local** filter over the currently rendered
+generation/favorites grid — it does not use this index at all. See
+[`docs/architecture/home-search-scope.md`](./architecture/home-search-scope.md).
+
 ## Game Context
 
 `src/services/gameContext.ts` groups PokeAPI version groups into game

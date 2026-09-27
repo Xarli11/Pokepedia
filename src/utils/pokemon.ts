@@ -54,10 +54,15 @@ export const typeTranslations: Record<string, Record<string, string>> = {
 
 export const uiTranslations: Record<string, Record<string, string>> = {
     es: {
-        'search_placeholder': 'Busca Pokémon, movimientos, habilidades, objetos...',
         'back_to_pokedex': 'Volver a la Pokedex',
         'favorites': 'Favoritos',
         'no_favorites': 'No tienes Pokémon favoritos todavía.',
+        'search_local_placeholder': 'Buscar Pokémon en {region}...',
+        'search_favorites_placeholder': 'Buscar en favoritos...',
+        'no_pokemon_found_title': 'No se encontraron Pokémon',
+        'no_results_query_region': 'No hay resultados para "{query}" en {region}.',
+        'no_results_query_favorites': 'No hay resultados para "{query}" en favoritos.',
+        'no_results_type_only': 'Prueba con otro tipo.',
         'basic_info': 'Información Básica',
         'height': 'Altura',
         'weight': 'Peso',
@@ -237,11 +242,16 @@ export const uiTranslations: Record<string, Record<string, string>> = {
         'pokemon_count_label': 'Pokémon'
         },
         en: {
-        'search_placeholder': 'Search Pokémon, moves, abilities, items...',
 
         'back_to_pokedex': 'Back to Pokedex',
         'favorites': 'Favorites',
         'no_favorites': 'You don\'t have any favorite Pokémon yet.',
+        'search_local_placeholder': 'Search Pokémon in {region}...',
+        'search_favorites_placeholder': 'Search favorites...',
+        'no_pokemon_found_title': 'No Pokémon found',
+        'no_results_query_region': 'No results for "{query}" in {region}.',
+        'no_results_query_favorites': 'No results for "{query}" in favorites.',
+        'no_results_type_only': 'Try a different type.',
         'basic_info': 'Basic Information',
         'height': 'Height',
         'weight': 'Weight',

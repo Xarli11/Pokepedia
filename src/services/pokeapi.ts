@@ -383,17 +383,29 @@ async function lookupEntity<T>(url: string): Promise<T> {
 // hardcoded range when an official DLC ships. Verified live against
 // PokeAPI that generations 1-8 are unaffected (their old ranges match
 // generation/{n} exactly) — only Gen 9 was wrong.
-export const GENERATIONS: Record<string, { region: string }> = {
-    'gen1': { region: 'Kanto' },
-    'gen2': { region: 'Johto' },
-    'gen3': { region: 'Hoenn' },
-    'gen4': { region: 'Sinnoh' },
-    'gen5': { region: 'Teselia' },
-    'gen6': { region: 'Kalos' },
-    'gen7': { region: 'Alola' },
-    'gen8': { region: 'Galar' },
-    'gen9': { region: 'Paldea' },
+//
+// `region` is bilingual because it isn't always the same word: Gen 5's
+// region is "Teselia" in Spanish (the games' own localized name) and
+// "Unova" in English — every other generation happens to use the same
+// word in both languages. This is the single source of truth for both;
+// `generationRegionLabel()` below is the only way anything should read it.
+export const GENERATIONS: Record<string, { region: { es: string; en: string } }> = {
+    'gen1': { region: { es: 'Kanto', en: 'Kanto' } },
+    'gen2': { region: { es: 'Johto', en: 'Johto' } },
+    'gen3': { region: { es: 'Hoenn', en: 'Hoenn' } },
+    'gen4': { region: { es: 'Sinnoh', en: 'Sinnoh' } },
+    'gen5': { region: { es: 'Teselia', en: 'Unova' } },
+    'gen6': { region: { es: 'Kalos', en: 'Kalos' } },
+    'gen7': { region: { es: 'Alola', en: 'Alola' } },
+    'gen8': { region: { es: 'Galar', en: 'Galar' } },
+    'gen9': { region: { es: 'Paldea', en: 'Paldea' } },
 };
+
+/** The region name for a generation in `lang` ('es'/'en'). Unknown gen keys fall back to gen1. */
+export function generationRegionLabel(genKey: string, lang: string): string {
+    const info = GENERATIONS[genKey] ?? GENERATIONS.gen1;
+    return lang === 'en' ? info.region.en : info.region.es;
+}
 
 /**
  * Obtiene la lista básica de Pokémon por generación.

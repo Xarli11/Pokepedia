@@ -2,6 +2,79 @@
 
 ---
 
+## 2026-09-27 (Sesión 11 — UX polish: feedback visual real)
+
+**Objetivo:** corregir feedback visual real recibido tras la Fase 2C, antes
+de seguir ampliando datasets. Rama `feature/encyclopedia-ux-polish-phase2`,
+partiendo de `develop` tras mergear la PR #16.
+
+**Feedback resuelto:**
+
+### 1. Nombres de Pokédex regional cortados
+`pokemon/[name].astro`: la celda tenía `truncate` dentro de un `flex
+justify-between` que la comprimía contra el número. Quitado `truncate`,
+permitido wrap a dos líneas (`leading-snug`, `items-start`), grid con
+menos columnas más anchas (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`).
+Verificado con "Ciudad Luminalia" y "Nieves de la Corona" completos, ES y EN.
+
+### 2. "Pokémon Mach" sin contexto
+Contextualizado como "Categoría: Pokémon Mach" / "Category: Mach Pokémon",
+reutilizando la clave de traducción `category` ya existente (objetos).
+
+### 3. Buscador de home: global vs local (el cambio más importante)
+**Decisión de arquitectura, ahora fija:** el buscador de la cabecera sigue
+siendo la búsqueda global de entidades (sin cambios). El buscador grande de
+`/[lang]/` pasa a ser un **filtro local** de la Pokédex/generación
+actualmente mostrada (o de favoritos) — nunca más búsqueda global.
+
+- `utils/homeSearch.ts`: `computeGridVisibility()` pierde la vía de escape
+  que dejaba el grid intacto cuando el texto no encontraba nada local (esa
+  vía existía solo para que el dropdown global, ahora eliminado, "se hiciera
+  cargo" de ese caso). Ahora el texto siempre filtra el grid, incluso hasta
+  0 resultados.
+- Eliminado por completo de `index.astro` (no solo ocultado): el dropdown
+  multi-entidad, la carga del índice global (`loadSearchIndex`/`runSearch`),
+  el evento de analítica `global_search`/`home_search`, y el manejador de
+  Enter que podía navegar a una sugerencia oculta — **esto resuelve de raíz
+  la deuda de Fase 1** sobre esa navegación fantasma, sin necesidad de
+  jsdom/happy-dom (el mecanismo que la causaba ya no existe).
+- Placeholder contextual: "Buscar Pokémon en Kanto..." / "Search Pokémon in
+  Kanto...", o "Buscar en favoritos...". Empty state honesto: 'No hay
+  resultados para "Garchomp" en Kanto.' Textos centralizados en
+  `uiTranslations` con sustitución `{token}` vía `formatTemplate()`
+  (compartida por SSR y el script cliente, para que no diverjan).
+- Descubierto de paso, y **corregido tras revisión externa de la PR #17**:
+  `GENERATIONS.region` era un string único ES/EN — la píldora de Gen 5
+  seguía diciendo "Teselia" en EN aunque el placeholder ya decía "Unova"
+  (un primer parche solo tocó el placeholder). Corregido de raíz:
+  `GENERATIONS.region` pasa a `{es, en}` y `generationRegionLabel(gen, lang)`
+  en `services/pokeapi.ts` es la única función que debe leerlo — usada
+  ahora por la home (píldoras + placeholder), la página de generación,
+  el hub de generaciones, la imagen OG de generación y el índice de
+  búsqueda global (que ya tenía su propia tabla correcta, ahora delegada
+  en vez de duplicada). Verificado en vivo: EN/gen5 → "Unova" en píldora,
+  placeholder, landing, hub y OG; ES/gen5 → "Teselia" en todos. Tests
+  nuevos de regresión ES/EN para gen5 y para gen1/2/3/6 (mismo nombre en
+  ambos idiomas).
+
+**Performance:** chunk JS del cliente de la home 9864 → 8793 bytes crudo
+(−10.9%), 3948 → 3525 gzip (−10.7%), medido contra `develop` en worktree
+aislado. Más importante: la home ya no dispara ninguna petición a
+`/search-index/{lang}.json/` (antes ~265 KB crudos / ~73 KB gzip) — verificado
+que el HTML servido no contiene ninguna referencia a `loadSearchIndex`.
+El buscador global de la cabecera no se ve afectado.
+
+**Tests:** 786 → 805 (19 nuevos: `homeSearch.test.ts` reescrito para el
+filtro estrictamente local, `homeSearchScope.ssr.test.ts` nuevo (incluida
+la regresión i18n de región), `pokemonEntity.ssr.test.ts` ampliado).
+`check`: 0 errores. `build`: OK.
+
+**Verificado en vivo (dev server real, PokeAPI real):** Kanto/Sinnoh/Unova
+(ES y EN), favoritos, Garchomp real (categoría + Pokédex regional
+completos).
+
+---
+
 ## 2026-09-27 (Sesión 10 — Fase 2C: movimientos, habilidades, relaciones)
 
 **Objetivo:** convertir `/movimientos/{slug}/` y `/habilidades/{slug}/` en

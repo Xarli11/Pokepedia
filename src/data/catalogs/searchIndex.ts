@@ -13,7 +13,7 @@
 //   extra    move: type slug · item: super-category slug · generation: region name · else ''
 //   aliases  other names it can be found by (the other language's name), omitted when none
 
-import { GENERATION_ROMAN, GENERATIONS } from '../../services/pokeapi';
+import { GENERATION_ROMAN, generationRegionLabel } from '../../services/pokeapi';
 import { typeTranslations } from '../../utils/pokemon';
 import { normalizeSearchText } from '../../utils/searchText';
 import { CODE_TYPE, SEARCH_INDEX_SCHEMA, SEARCH_TYPES, TYPE_CODE, type SearchIndexFile, type SearchRow, type SearchType } from '../../utils/searchTypes';
@@ -29,13 +29,11 @@ import {
   type PokemonEntry,
 } from './schema';
 
-/** Main region of each generation, per language (PokeAPI region names). */
-const REGIONS_EN: Record<string, string> = {
-  gen1: 'Kanto', gen2: 'Johto', gen3: 'Hoenn', gen4: 'Sinnoh', gen5: 'Unova', gen6: 'Kalos', gen7: 'Alola', gen8: 'Galar', gen9: 'Paldea',
-};
 export { SEARCH_INDEX_SCHEMA };
-export const generationRegion = (genKey: string, lang: CatalogLang): string =>
-  lang === 'en' ? REGIONS_EN[genKey] : GENERATIONS[genKey].region;
+// services/pokeapi.ts's GENERATIONS is the single source of truth for
+// region names per language; this is just that lookup under the name this
+// file's callers already use.
+export const generationRegion = (genKey: string, lang: CatalogLang): string => generationRegionLabel(genKey, lang);
 
 type Catalogs = Record<CatalogLang, Record<CatalogKind, CatalogFile>>;
 
