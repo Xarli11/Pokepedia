@@ -39,10 +39,12 @@ export interface PokemonDetail {
     };
     stats: {
         base_stat: number;
+        effort: number;
         stat: {
             name: string;
         };
     }[];
+    base_experience?: number | null;
     abilities: {
         ability: {
             name: string;
@@ -92,6 +94,18 @@ export interface PokemonSpecies {
         name: string;
         url: string;
     };
+    genera: { genus: string; language: { name: string } }[];
+    capture_rate: number;
+    base_happiness: number | null;
+    hatch_counter: number | null;
+    gender_rate: number;
+    growth_rate: { name: string; url: string };
+    egg_groups: { name: string; url: string }[];
+    pokedex_numbers: { entry_number: number; pokedex: { name: string; url: string } }[];
+    is_baby: boolean;
+    is_legendary: boolean;
+    is_mythical: boolean;
+    evolves_from_species: { name: string; url: string } | null;
 }
 
 /**

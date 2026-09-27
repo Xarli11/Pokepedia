@@ -10,6 +10,8 @@ import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
+import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus } from '../../../utils/pokemonFacts';
+import { pokedexLabel } from '../../../services/pokedexes';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -244,6 +246,13 @@ const pokemonGenKey = pokemonGenNumRaw ? `gen${pokemonGenNumRaw}` : null;
 const pokemonGenRoman = pokemonGenKey ? GENERATION_ROMAN[pokemonGenKey] : null;
 const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 
+// Factual data (training, breeding, classification, regional Pokédex
+// numbers): normalized once here from `detail`/`species` — both already in
+// hand, no extra request — and rendered as-is by the template. See
+// docs/architecture/pokemon-entity.md.
+const facts = buildPokemonFacts(detail, species);
+const genus = localizedGenus(species?.genera || [], lang as string);
+
 const breadcrumbItems = [
     { label: t.breadcrumb_home, href: pagePath(lang) },
     { label: 'Pokédex', href: pagePath(lang) },
@@ -268,12 +277,16 @@ const breadcrumbItems = [
                     </div>
                     {t.back_to_pokedex}
                 </a>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 flex-wrap">
                     <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">{localizedName}</h1>
                     <button class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400" data-pokemon={name} onclick="window.toggleFavorite(this.dataset.pokemon)">
                         <svg class="w-6 h-6 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
+                    {facts.classification.isLegendary && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-500/20">{t.legendary_pokemon}</span>}
+                    {facts.classification.isMythical && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-500/20">{t.mythical_pokemon}</span>}
+                    {facts.classification.isBaby && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-500/20">{t.baby_pokemon}</span>}
                 </div>
+                {genus && <p class="text-sm font-bold text-slate-400 dark:text-slate-500 -mt-2">{genus}</p>}
                 <ReportDataIssue entityType="pokemon" entitySlug={detail.name} lang={lang as string} />
             </div>
 
@@ -394,6 +407,62 @@ const breadcrumbItems = [
                         </div>
                     </div>
                 </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-10">
+                    <section>
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.training}</h2>
+                        <dl class="space-y-4 text-sm">
+                            {facts.training.baseExperience != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.base_experience}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.baseExperience}</dd></div>
+                            )}
+                            {facts.training.captureRate != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.capture_rate}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.captureRate}</dd></div>
+                            )}
+                            {facts.training.baseHappiness != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.base_happiness}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.baseHappiness}</dd></div>
+                            )}
+                            {facts.training.growthRate && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.growth_rate}</dt><dd class="text-slate-900 dark:text-white font-black capitalize">{growthRateLabel(facts.training.growthRate, lang as string)}</dd></div>
+                            )}
+                            {facts.training.evYield.length > 0 && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.ev_yield}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{facts.training.evYield.map((e) => `${e.amount} ${t[e.stat] || e.stat}`).join(' + ')}</dd></div>
+                            )}
+                        </dl>
+                    </section>
+                    <section>
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.breeding}</h2>
+                        <dl class="space-y-4 text-sm">
+                            {facts.breeding.eggGroups.length > 0 && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.egg_groups}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{facts.breeding.eggGroups.map((g) => eggGroupLabel(g, lang as string)).join(', ')}</dd></div>
+                            )}
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-slate-500 dark:text-slate-400 font-bold">{t.gender_ratio}</dt>
+                                <dd class="text-slate-900 dark:text-white font-black">
+                                    {facts.breeding.gender.genderless
+                                        ? t.genderless
+                                        : `♂ ${facts.breeding.gender.malePercent}% · ♀ ${facts.breeding.gender.femalePercent}%`}
+                                </dd>
+                            </div>
+                            {facts.breeding.hatchCounter != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.hatch_cycles}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.breeding.hatchCounter}</dd></div>
+                            )}
+                        </dl>
+                    </section>
+                </div>
+
+                {facts.regionalDex.length > 0 && (
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.pokedex_numbers}</h2>
+                        <dl class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                            {facts.regionalDex.map((entry) => (
+                                <div class="flex justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2">
+                                    <dt class="text-slate-500 dark:text-slate-400 font-bold truncate">{pokedexLabel(entry.pokedex, lang as string)}</dt>
+                                    <dd class="text-slate-900 dark:text-white font-black shrink-0">#{String(entry.entryNumber).padStart(3, '0')}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </div>
+                )}
 
                 {varieties && varieties.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
