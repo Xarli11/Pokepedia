@@ -53,6 +53,29 @@ describe('MovesTable default context', () => {
     expect(r.initial).toBe('champions');
     expect(r.options).toEqual(['champions']);
   });
+
+  it('Scarlet/Violet + DLC: the selector shows one "Scarlet / Violet" option, not three', async () => {
+    const r = await open(['scarlet-violet', 'the-teal-mask', 'the-indigo-disk']);
+    // No separate DLC options: the game-context selector folds them.
+    expect(r.options).toEqual(['scarlet-violet']);
+    expect(r.selected).toBe('scarlet-violet');
+    // But the data actually shown is the latest DLC revision (Indigo Disk).
+    expect(r.initial).toBe('the-indigo-disk');
+  });
+
+  it('Sword/Shield + DLC: the selector shows one "Sword / Shield" option', async () => {
+    const r = await open(['sword-shield', 'the-isle-of-armor', 'the-crown-tundra']);
+    expect(r.options).toEqual(['sword-shield']);
+    expect(r.selected).toBe('sword-shield');
+    expect(r.initial).toBe('the-crown-tundra');
+  });
+
+  it('Champions stays listed as its own option alongside a folded Scarlet/Violet context', async () => {
+    const r = await open(['scarlet-violet', 'the-indigo-disk', 'champions']);
+    expect(r.options).toEqual(['champions', 'scarlet-violet']);
+    expect(r.selected).toBe('scarlet-violet');
+    expect(r.initial).toBe('the-indigo-disk');
+  });
 });
 
 describe('MovesTable SSR', () => {

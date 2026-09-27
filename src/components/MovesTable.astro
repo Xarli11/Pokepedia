@@ -1,6 +1,7 @@
 ---
 import { uiTranslations, methodTranslations } from '../utils/pokemon';
-import { sortVersionGroups, defaultVersionGroup, versionGroupLabel } from '../services/versionGroups';
+import { sortVersionGroups, versionGroupLabel } from '../services/versionGroups';
+import { availableContextsForPokemon, defaultGameContextForPokemon, gameContextLabel } from '../services/gameContext';
 import { pagePath } from '../utils/seo';
 import { compactMoves, expandMoves, jsonForScript, resourceRef, type RawMoveEntry } from '../utils/movesPayload';
 
@@ -54,10 +55,24 @@ const payload = compactMoves(rawByVersion, {
     version: (v) => versionGroupLabel(v, lang),
 });
 
-// Open on the most recent main-series version group this Pokémon has (spin-offs
-// and DLC such as Champions stay in the selector but are never the default; see
-// services/versionGroups.ts). One value, so a future Game Context can override it.
-const initialVersion = defaultVersionGroup(versionGroups);
+// Game Context: the selector groups version groups into game families
+// (a DLC/data revision such as The Indigo Disk is folded into its base
+// game, Scarlet/Violet), so the user picks "Scarlet / Violet", never a
+// PokeAPI version-group slug. See services/gameContext.ts for the policy.
+const availableContexts = availableContextsForPokemon(versionGroups);
+const defaultContext = defaultGameContextForPokemon(versionGroups);
+
+// contextId -> the specific revision to read this Pokémon's data from
+// (its latest available revision within that context).
+const contextRevision: Record<string, string> = Object.fromEntries(
+    availableContexts.map((a) => [a.context.id, a.latestRevision])
+);
+
+const initialContext = defaultContext.contextId;
+// The version group whose data is actually shown: the default context's
+// latest revision (e.g. Scarlet/Violet's latest data may be the Indigo
+// Disk revision, but the visible/selected context stays "Scarlet / Violet").
+const initialVersion = defaultContext.revision;
 
 // Rows for the initially selected version, server-rendered from data already in
 // hand (no per-move fetch) so the Pokémon -> Move relation and the canonical
@@ -72,6 +87,8 @@ const ssrRows = expandMoves(payload, initialVersion)
 
 <div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300"
      data-initial-version={initialVersion}
+     data-initial-context={initialContext}
+     data-context-revisions={jsonForScript(contextRevision)}
      data-lang={lang}>
 
     <script type="application/json" id="moves-data" is:inline set:html={jsonForScript(payload)} />
@@ -101,9 +118,10 @@ const ssrRows = expandMoves(payload, initialVersion)
                 </div>
 
                 <div class="relative">
-                    <select id="versionFilter" class="w-full pl-6 pr-10 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300 appearance-none">
-                        {[...versionGroups].reverse().map(v => (
-                            <option value={v} selected={v === initialVersion}>{versionGroupLabel(v, lang)}</option>
+                    <label for="versionFilter" class="absolute -top-5 left-1 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.game}</label>
+                    <select id="versionFilter" aria-label={t.game} class="w-full pl-6 pr-10 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300 appearance-none">
+                        {availableContexts.map(a => (
+                            <option value={a.context.id} selected={a.context.id === initialContext}>{gameContextLabel(a.context.id, lang)}</option>
                         ))}
                     </select>
                     <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -150,6 +168,8 @@ const ssrRows = expandMoves(payload, initialVersion)
 <script>
     import { pagePath } from '../utils/seo';
     import { expandMoves, type CompactMoves, type MoveRowData } from '../utils/movesPayload';
+    import { readGameContext, writeGameContext, resolveContextForPokemon } from '../utils/gameContextStorage';
+    import { trackEvent } from '../utils/analytics';
 
     const moveCache = new Map();
 
@@ -202,6 +222,10 @@ const ssrRows = expandMoves(payload, initialVersion)
         };
 
         const lang = container.dataset.lang || 'es';
+        // contextId -> the version group that represents it for this Pokémon
+        // (see services/gameContext.ts; e.g. 'scarlet-violet' -> 'the-indigo-disk').
+        const contextRevisions: Record<string, string> = JSON.parse(container.dataset.contextRevisions || '{}');
+        let currentContext = container.dataset.initialContext || '';
         let currentVersion = container.dataset.initialVersion || '';
         let prefetchRequestId = 0; // A9: track request ID to cancel stale fetches
 
@@ -209,6 +233,19 @@ const ssrRows = expandMoves(payload, initialVersion)
         const methodFilter = document.getElementById('methodFilter') as HTMLSelectElement;
         const versionFilter = document.getElementById('versionFilter') as HTMLSelectElement;
         const tableBody = document.getElementById('movesTableBody');
+
+        // SSR renders the server-computed default context (localStorage is
+        // client-only). After hydration, switch to the persisted context if
+        // this Pokémon has data for it; otherwise keep the SSR default.
+        let storage: Storage | null = null;
+        try { storage = window.localStorage; } catch { storage = null; }
+        const availableContextIds = Object.keys(contextRevisions);
+        const persistedContext = storage ? resolveContextForPokemon(readGameContext(storage), availableContextIds, currentContext) : currentContext;
+        if (persistedContext !== currentContext && contextRevisions[persistedContext]) {
+            currentContext = persistedContext;
+            currentVersion = contextRevisions[currentContext];
+            if (versionFilter) versionFilter.value = currentContext;
+        }
         const noMoves = document.getElementById('noMoves');
 
         function renderMoves() {
@@ -307,7 +344,10 @@ const ssrRows = expandMoves(payload, initialVersion)
         searchInput?.addEventListener('input', renderMoves);
         methodFilter?.addEventListener('change', renderMoves);
         versionFilter?.addEventListener('change', (e) => {
-            currentVersion = (e.target as HTMLSelectElement).value;
+            currentContext = (e.target as HTMLSelectElement).value;
+            currentVersion = contextRevisions[currentContext] ?? currentContext;
+            if (storage) writeGameContext(storage, currentContext);
+            trackEvent('game_context_change', { target: currentContext, language: lang, source_surface: 'moves_table' });
             renderMoves();
             prefetch();
         });

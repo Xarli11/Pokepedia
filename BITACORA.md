@@ -2,6 +2,66 @@
 
 ---
 
+## 2026-09-27 (Sesión 8 — Fase 2: base de Game Context)
+
+**Objetivo:** construir la base de Game Context (juego/familia vs revisión
+de datos PokeAPI) y aplicarla primero a los movimientos de la ficha
+Pokémon, sin tocar todavía learnsets ampliados, localizaciones, Pokédex
+regional ni páginas de juego. Rama `feature/game-context-phase2`, partiendo
+de `develop` tras mergear la PR #13 (Fase 1 enciclopedia).
+
+**Cambios realizados:**
+
+### feat(game-context): modelo (`src/services/gameContext.ts`)
+- `GameContextDefinition` agrupa version groups en familias de juego sobre
+  la tabla `VERSION_GROUPS` existente (sin tocarla): Escarlata/Púrpura +
+  Máscara Turquesa + Disco Índigo, Espada/Escudo + Isla de la Armadura +
+  Nieves de la Corona, y Leyendas Z-A + Mega Dimensión se pliegan en un
+  único contexto cada uno. Clasificación `main-series`/`spin-off`/`battle`.
+  Resolución de contexto por defecto: el `main-series` más reciente
+  disponible, con su revisión de datos más reciente dentro de ese contexto;
+  spin-offs/battle nunca lo desplazan.
+- **Investigación en vivo antes de decidir** (no asumido por nombre):
+  `GET /version-group/the-indigo-disk` devuelve `move_learn_methods: []`, y
+  ningún Pokémon comprobado (Ogerpon, Okidogi, Walking Wake,
+  Ursaluna-Bloodmoon, Iron Crown, Wo-Chien, Garchomp, Pikachu) tiene ninguna
+  DLC de Escarlata/Púrpura o Espada/Escudo en su `moves[].version_group_details`
+  — solo la base. El plegado DLC→juego base es correcto y queda listo, pero
+  hoy no se ejerce con datos reales de movimientos. Detalle completo:
+  `docs/architecture/game-context.md`.
+
+### refactor(moves): `MovesTable.astro` consume Game Context
+- El selector lista un contexto por opción (p. ej. una sola "Escarlata /
+  Púrpura"), no un version group crudo por opción. `data-context-revisions`
+  lleva al cliente el mapa contexto→revisión ya resuelto por el servidor
+  (sin re-derivar la tabla de DLC en el navegador). Sin petición extra a
+  PokeAPI al cambiar de contexto (los datos ya viajan en el payload
+  compacto existente).
+
+### feat: persistencia (`src/utils/gameContextStorage.ts`)
+- Un valor (`pokepedia_game_context`) en `localStorage`, mismo patrón que
+  `favorites.ts`/`searchHistory.ts`. SSR renderiza el contexto por defecto
+  del servidor; el cliente, tras hidratar, cambia al contexto persistido
+  solo si el Pokémon actual tiene datos para él.
+
+### feat(analytics)
+- Evento `game_context_change` (contexto, idioma, superficie), a través de
+  `trackEvent()` existente — sin texto libre ni PII.
+
+**Verificado en vivo (AstroContainer + PokeAPI real, no solo tests
+sintéticos):** Garchomp/Pikachu/Lucario abren en Escarlata/Púrpura
+(Champions listado, no por defecto); Genesect/Zeraora (sin datos de
+Escarlata/Púrpura) caen a Espada/Escudo; Ogerpon (solo Escarlata/Púrpura)
+muestra una única opción.
+
+**Aprendido:**
+- La deuda de UX de Fase 1 sobre el Enter en la búsqueda de home (enlace
+  oculto navegable) no se corrigió: cubrirla con un test aislado requeriría
+  añadir jsdom/happy-dom como dependencia de test, lo que excede el scope
+  de esta fase. Queda anotada en `TODO.md`.
+
+---
+
 ## 2026-09-26 (Sesión 7 — Fase 1: enciclopedia de entidades)
 
 **Objetivo:** corregir la versión por defecto de los movimientos, alinear Pokepedia con su papel (enciclopedia; estrategia → PokeStudio, tipos → PokeTypes), búsqueda global multi-entidad y capa de datos compacta para los índices. Rama `feature/encyclopedia-phase1`, 6 commits.
