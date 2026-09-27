@@ -10,8 +10,10 @@ import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
-import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus } from '../../../utils/pokemonFacts';
+import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus, regionalDexEntriesForContext } from '../../../utils/pokemonFacts';
 import { pokedexLabel } from '../../../services/pokedexes';
+import { versionGroupsFromMoveDetails, jsonForScript } from '../../../utils/movesPayload';
+import { availableContextsForPokemon, defaultGameContextForPokemon } from '../../../services/gameContext';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -253,6 +255,30 @@ const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 const facts = buildPokemonFacts(detail, species);
 const genus = localizedGenus(species?.genera || [], lang as string);
 
+// Game Context (Fase 2E): computed once, here, from this Pokémon's own
+// moves — the SAME derivation MovesTable uses internally — and handed
+// down to it as props so the page has exactly one Game Context
+// computation, never two independent ones. The regional Pokédex section
+// below reuses this same result to filter its entries; MovesTable's own
+// <select> stays the only Game Context control on the page (see its
+// client script for the `pokepedia:game-context-change` broadcast this
+// section listens for).
+const pokemonVersionGroups = versionGroupsFromMoveDetails(detail.moves);
+const availableContexts = availableContextsForPokemon(pokemonVersionGroups);
+const defaultContext = defaultGameContextForPokemon(pokemonVersionGroups);
+const defaultContextAvailability = availableContexts.find((a) => a.context.id === defaultContext.contextId);
+const defaultRevisions = defaultContextAvailability?.availableRevisions ?? (defaultContext.revision ? [defaultContext.revision] : []);
+
+// Regional Pokédex numbers, filtered to the default Game Context — SSR is
+// correct from the start, never "show everything, JS narrows it later".
+// No available context at all (no recognized version groups) means there
+// is nothing to filter *by*, not that every entry is out of scope: show
+// every historical entry unfiltered rather than hiding real data.
+const defaultRegionalDex = availableContexts.length > 0
+    ? regionalDexEntriesForContext(facts.regionalDex, defaultRevisions)
+    : facts.regionalDex;
+const regionalDexHistoricalCount = facts.regionalDex.length;
+
 const breadcrumbItems = [
     { label: t.breadcrumb_home, href: pagePath(lang) },
     { label: 'Pokédex', href: pagePath(lang) },
@@ -456,15 +482,36 @@ const breadcrumbItems = [
 
                 {facts.regionalDex.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
-                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.pokedex_numbers}</h2>
-                        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                            {facts.regionalDex.map((entry) => (
+                        <div class="flex flex-wrap items-center gap-3 mb-6">
+                            <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest">{t.pokedex_numbers}</h2>
+                            <!--
+                              Always rendered, never SSR-conditional (Fase 2D
+                              lesson, see docs/architecture/game-context.md):
+                              visibility is a `hidden` class the client
+                              toggles on every Game Context change, which an
+                              element omitted from the DOM outright could
+                              never react to. Always means the same thing —
+                              distinct historical Pokédex entries across
+                              every Game Context, never scoped to "this
+                              context's method" (there is no method concept
+                              here, but the honesty principle is the same).
+                            -->
+                            <span id="regional-dex-historical" class:list={['text-xs font-bold text-slate-400 dark:text-slate-600', { hidden: regionalDexHistoricalCount <= defaultRegionalDex.length }]}>{t.learnset_total_historical}: {regionalDexHistoricalCount}</span>
+                        </div>
+                        <dl id="regional-dex-list" class:list={['grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm', { hidden: defaultRegionalDex.length === 0 }]}>
+                            {defaultRegionalDex.map((entry) => (
                                 <div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">
                                     <dt class="text-slate-500 dark:text-slate-400 font-bold leading-snug">{pokedexLabel(entry.pokedex, lang as string)}</dt>
                                     <dd class="text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap">#{String(entry.entryNumber).padStart(3, '0')}</dd>
                                 </div>
                             ))}
                         </dl>
+                        <div id="regional-dex-empty" class:list={['p-8 text-center text-slate-400 dark:text-slate-600 font-bold text-sm', { hidden: defaultRegionalDex.length > 0 }]}>{t.regional_dex_no_results}</div>
+                        <script type="application/json" id="regional-dex-data" is:inline set:html={jsonForScript({
+                            entries: facts.regionalDex.map((e) => [e.pokedex, e.entryNumber]),
+                            contexts: availableContexts.map((a) => ({ id: a.context.id, revisions: a.availableRevisions })),
+                            initialContext: defaultContext.contextId,
+                        })} />
                     </div>
                 )}
 
@@ -486,7 +533,7 @@ const breadcrumbItems = [
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
         <SmogonTier pokemonName={detail.name} lang={lang as string} tier={showdownData?.tier || null} />
-        <MovesTable moves={detail.moves} lang={lang as string} />
+        <MovesTable moves={detail.moves} lang={lang as string} availableContexts={availableContexts} defaultContext={defaultContext} />
     </div>
 
     <script is:inline>
@@ -505,6 +552,94 @@ const breadcrumbItems = [
         }
         initShiny();
         document.addEventListener('astro:after-swap', initShiny);
+    </script>
+
+    <script>
+    // Fase 2E: reacts to MovesTable's `pokepedia:game-context-change`
+    // broadcast to filter the regional Pokédex section without a second
+    // Game Context selector, a fetch, or a page navigation — same compact-
+    // payload + pure-filter pattern the move page established in Fase 2D
+    // for learnsets (see docs/architecture/move-learnset-relations.md and
+    // this page's own note in docs/architecture/game-context.md).
+    import { pokedexLabel } from '../../../services/pokedexes';
+    import { regionalDexEntriesForContext, type RegionalDexEntry } from '../../../utils/pokemonFacts';
+    import { readGameContext, resolveContextForPokemon } from '../../../utils/gameContextStorage';
+
+    interface RegionalDexPayload {
+        entries: [string, number][];
+        contexts: { id: string; revisions: string[] }[];
+        initialContext: string;
+    }
+
+    function setupRegionalDex() {
+        const dataScript = document.getElementById('regional-dex-data');
+        if (!dataScript) return;
+        const payload: RegionalDexPayload = JSON.parse(dataScript.textContent || '{}');
+        if (!payload.contexts || payload.contexts.length === 0) return;
+
+        const langAttr = document.documentElement.lang || 'es';
+        const entries: RegionalDexEntry[] = payload.entries.map(([pokedex, entryNumber]) => ({ pokedex, entryNumber }));
+        const historicalCount = entries.length;
+
+        const listEl = document.getElementById('regional-dex-list');
+        const emptyEl = document.getElementById('regional-dex-empty');
+        const historicalEl = document.getElementById('regional-dex-historical');
+        if (!listEl) return;
+
+        // Resolves the SAME initial state MovesTable resolves (persisted
+        // context if this Pokémon has data for it, else the SSR default),
+        // independently, with the exact same pure function and storage key
+        // — this never depends on catching MovesTable's own broadcast for
+        // correctness on load (module scripts execute in document order;
+        // MovesTable's script sits earlier and dispatches synchronously, so
+        // a listener registered here would already be too late for that
+        // first dispatch). The event below is only relied on for a LATER,
+        // live context change — always safe, since by the time a person can
+        // interact with the selector both scripts have long finished
+        // registering their listeners.
+        let storage: Storage | null = null;
+        try { storage = window.localStorage; } catch { storage = null; }
+        const availableIds = payload.contexts.map((c) => c.id);
+        const persisted = storage ? resolveContextForPokemon(readGameContext(storage), availableIds, payload.initialContext) : payload.initialContext;
+        let currentContext = availableIds.includes(persisted) ? persisted : payload.initialContext;
+
+        function render() {
+            if (!listEl) return;
+            const ctx = payload.contexts.find((c) => c.id === currentContext);
+            const filtered = ctx ? regionalDexEntriesForContext(entries, ctx.revisions) : entries;
+            historicalEl?.classList.toggle('hidden', historicalCount <= filtered.length);
+
+            if (filtered.length === 0) {
+                listEl.classList.add('hidden');
+                emptyEl?.classList.remove('hidden');
+                return;
+            }
+            listEl.classList.remove('hidden');
+            emptyEl?.classList.add('hidden');
+            listEl.innerHTML = filtered.map((e) =>
+                `<div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">` +
+                `<dt class="text-slate-500 dark:text-slate-400 font-bold leading-snug">${pokedexLabel(e.pokedex, langAttr)}</dt>` +
+                `<dd class="text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap">#${String(e.entryNumber).padStart(3, '0')}</dd>` +
+                `</div>`
+            ).join('');
+        }
+
+        function onGameContextChange(e: Event) {
+            const contextId = (e as CustomEvent<{ contextId: string }>).detail?.contextId;
+            if (!contextId || !availableIds.includes(contextId) || contextId === currentContext) return;
+            currentContext = contextId;
+            render();
+        }
+        document.addEventListener('pokepedia:game-context-change', onGameContextChange);
+
+        // Only re-render if hydration found a different, available persisted
+        // context than the SSR default — avoids an unnecessary reflow (same
+        // pattern as the move page's learnset script, Fase 2D).
+        if (currentContext !== payload.initialContext) render();
+    }
+
+    setupRegionalDex();
+    document.addEventListener('astro:after-swap', setupRegionalDex);
     </script>
 
     <script is:inline define:vars={{ _pokemonSlug: canonicalSlug, _pokemonId: pokemonId, _pokemonLabel: localizedName }}>

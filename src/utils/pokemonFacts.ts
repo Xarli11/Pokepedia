@@ -15,7 +15,7 @@
 // (Lento/Medio/Rápido/Medio lento/Errático/Fluctuante), not a translation
 // invented for this project.
 
-import { isMainSeriesPokedex, pokedexRank } from '../services/pokedexes';
+import { isMainSeriesPokedex, pokedexRank, pokedexVersionGroups, isGlobalPokedex } from '../services/pokedexes';
 import type { PokemonDetail, PokemonSpecies } from '../services/pokeapi';
 
 export interface GenderInfo {
@@ -158,6 +158,33 @@ export function buildPokemonFacts(
     },
     regionalDex: regionalDexEntries(species.pokedex_numbers ?? []),
   };
+}
+
+/**
+ * Fase 2E: `entries` restricted to the ones relevant to a Game Context's
+ * `revisions` — reuses `pokedexes.ts`'s per-dex `versionGroups`/`global`
+ * metadata, the same pure-filter shape `relationsForContext` (Fase 2D)
+ * established for move learnsets. A dex shows for this context when:
+ *
+ *  - it is explicitly global (`isGlobalPokedex` — currently `national`
+ *    only), or
+ *  - its own `versionGroups` intersect `revisions`, or
+ *  - this table has no entry for it at all (`pokedexVersionGroups`
+ *    returns `undefined`) — never hide a real Pokédex number for a gap in
+ *    our metadata table; same fail-open policy `pokedexLabel` already
+ *    uses for an unrecognized name.
+ *
+ * Order is preserved from `entries` (already `pokedexRank`-sorted by
+ * `regionalDexEntries`), so this never needs to re-sort.
+ */
+export function regionalDexEntriesForContext(entries: readonly RegionalDexEntry[], revisions: readonly string[]): RegionalDexEntry[] {
+  const revisionSet = new Set(revisions);
+  return entries.filter((e) => {
+    if (isGlobalPokedex(e.pokedex)) return true;
+    const versionGroups = pokedexVersionGroups(e.pokedex);
+    if (!versionGroups) return true;
+    return versionGroups.some((vg) => revisionSet.has(vg));
+  });
 }
 
 /** Localized genus ("Mach Pokémon" / "Pokémon Mach"), falling back across languages. */
