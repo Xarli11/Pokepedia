@@ -286,7 +286,11 @@ const breadcrumbItems = [
                     {facts.classification.isMythical && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-500/20">{t.mythical_pokemon}</span>}
                     {facts.classification.isBaby && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-500/20">{t.baby_pokemon}</span>}
                 </div>
-                {genus && <p class="text-sm font-bold text-slate-400 dark:text-slate-500 -mt-2">{genus}</p>}
+                {genus && (
+                    <p class="text-sm font-bold text-slate-400 dark:text-slate-500 -mt-2">
+                        <span class="uppercase tracking-wide text-[11px] text-slate-400/80 dark:text-slate-500/80">{t.category}:</span> {genus}
+                    </p>
+                )}
                 <ReportDataIssue entityType="pokemon" entitySlug={detail.name} lang={lang as string} />
             </div>
 
@@ -453,11 +457,11 @@ const breadcrumbItems = [
                 {facts.regionalDex.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.pokedex_numbers}</h2>
-                        <dl class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                             {facts.regionalDex.map((entry) => (
-                                <div class="flex justify-between gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-2">
-                                    <dt class="text-slate-500 dark:text-slate-400 font-bold truncate">{pokedexLabel(entry.pokedex, lang as string)}</dt>
-                                    <dd class="text-slate-900 dark:text-white font-black shrink-0">#{String(entry.entryNumber).padStart(3, '0')}</dd>
+                                <div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">
+                                    <dt class="text-slate-500 dark:text-slate-400 font-bold leading-snug">{pokedexLabel(entry.pokedex, lang as string)}</dt>
+                                    <dd class="text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap">#{String(entry.entryNumber).padStart(3, '0')}</dd>
                                 </div>
                             ))}
                         </dl>

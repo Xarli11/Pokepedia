@@ -147,6 +147,40 @@ describe('Pokémon page: factual sections (Fase 2B)', () => {
     expect(html).not.toContain('#999');
   });
 
+  it('UX polish: long regional Pokédex names render complete, not truncated, and the category is contextualized', async () => {
+    // A different id/name than the other Garchomp fixtures in this file: the
+    // fetch layer caches by URL, and reusing one would silently serve a
+    // previous test's response instead of this one's.
+    fixtures = fixturesFor({
+      id: 99445, name: 'garchomp-uxcheck', capture_rate: 45, base_happiness: 70, hatch_counter: 40,
+      gender_rate: 4, growth_rate: 'slow', egg_groups: ['monster', 'dragon'],
+      pokedex_numbers: [
+        { entry_number: 445, pokedex: 'national' },
+        { entry_number: 210, pokedex: 'lumiose-city' },
+        { entry_number: 88, pokedex: 'crown-tundra' },
+      ],
+      genera: [{ genus: 'Pokémon Mach', language: 'es' }, { genus: 'Mach Pokémon', language: 'en' }],
+    });
+    const es = await render('garchomp-uxcheck', 'es');
+    // Full labels present, not cut short (no ellipsis / partial word).
+    expect(es).toContain('Ciudad Luminalia');
+    expect(es).toContain('Nieves de la Corona');
+    expect(es).not.toContain('Ciudad L...');
+    expect(es).not.toContain('Nieves de la C...');
+    // No CSS truncate class on the pokedex-number label anymore.
+    const pokedexSection = es.slice(es.indexOf('Números de Pokédex'), es.indexOf('Números de Pokédex') + 2000);
+    expect(pokedexSection).not.toContain('truncate');
+    // Category is contextualized, not a bare unexplained value.
+    expect(es).toContain('Categoría');
+    expect(es).toMatch(/Categoría:?<\/span>\s*Pokémon Mach/);
+
+    const en = await render('garchomp-uxcheck', 'en');
+    expect(en).toContain('Lumiose');
+    expect(en).toContain('Crown Tundra');
+    expect(en).toContain('Category');
+    expect(en).toMatch(/Category:?<\/span>\s*Mach Pokémon/);
+  });
+
   it('omits the regional dex section entirely when there are no main-series entries', async () => {
     // Different id/name than the earlier fixtures: the fetch layer caches by
     // URL, and reusing one would silently serve a previous test's response.

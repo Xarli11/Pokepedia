@@ -4,13 +4,31 @@ import { getPokemonByGeneration, GENERATIONS } from '../../services/pokeapi';
 import { getSmogonDataBatch } from '../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../utils/pokemon';
 import { pagePath } from '../../utils/seo';
-import catalogManifest from '../../data/generated/manifest.json';
+import { formatTemplate } from '../../utils/homeSearch';
 
 const { lang = 'es' } = Astro.params;
 const url = new URL(Astro.request.url);
 const gen = url.searchParams.get('gen') || 'gen1';
 
 const pokemonList = await getPokemonByGeneration(gen);
+const t = uiTranslations[lang as string] || uiTranslations.es;
+
+// The big search box on this page is a LOCAL filter over the grid below
+// (this generation, or favorites) — never global entity search, which
+// lives only in the header's search modal (Layout.astro). See
+// utils/homeSearch.ts and docs/architecture/home-search-scope.md for why
+// this page used to also show a global-entity dropdown here and no
+// longer does.
+//
+// GENERATIONS' `region` is a single ES/EN-agnostic string (mostly the
+// same word in both languages); Gen 5's "Teselia" is the Spanish name for
+// Unova, so it needs its own English label here.
+const REGION_EN: Partial<Record<string, string>> = { gen5: 'Unova' };
+const resolvedGen = GENERATIONS[gen] ? gen : 'gen1';
+const regionName = gen === 'favorites' ? null : (lang === 'en' ? (REGION_EN[resolvedGen] ?? GENERATIONS[resolvedGen].region) : GENERATIONS[resolvedGen].region);
+const searchPlaceholder = gen === 'favorites'
+    ? t.search_favorites_placeholder
+    : formatTemplate(t.search_local_placeholder, { region: regionName ?? '' });
 
 // B1: enrich with Smogon types + stats in SSR to avoid N client fetches
 const smogonBatch = pokemonList.length > 0 ? await getSmogonDataBatch(pokemonList.map(p => p.name)) : {};
@@ -22,8 +40,6 @@ const enrichedList = pokemonList.map(p => {
         stats: sd?.baseStats || {}
     };
 });
-
-const t = uiTranslations[lang as string] || uiTranslations.es;
 ---
 
 <Layout lang={lang}>
@@ -36,26 +52,21 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         </p>
     </div>
 
-    <!-- Buscador Global Gris Azulado -->
+    <!-- Buscador LOCAL de esta Pokédex (generación actual / favoritos) — no
+         es el buscador global (ese vive en la cabecera, Layout.astro). -->
     <div class="max-w-2xl mx-auto mb-20 relative">
         <div class="relative z-40 group">
             <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
-            <input 
-                type="text" 
-                id="global-search"
-                placeholder={t.search_placeholder} 
+            <input
+                type="text"
+                id="pokedex-search"
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
                 autocomplete="off"
                 class="w-full pl-14 pr-6 py-5 rounded-[2rem] bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white text-lg placeholder-slate-400 focus:outline-none focus:border-emerald-500/50 dark:focus:border-emerald-500/30 shadow-2xl shadow-slate-200/50 dark:shadow-black/40 transition-all duration-300"
             >
-        </div>
-
-        <!-- Resultados Autocomplete -->
-        <div id="search-suggestions" class="hidden absolute top-full left-0 right-0 mt-4 bg-white/95 dark:bg-slate-800/95 rounded-[2rem] border border-slate-100 dark:border-slate-700 shadow-2xl overflow-hidden z-[100] max-h-[450px] overflow-y-auto backdrop-blur-xl transition-all">
-            <div id="suggestions-list" class="divide-y divide-slate-50 dark:divide-slate-700/50">
-                <!-- JS -->
-            </div>
         </div>
 
         <!-- Filtros Avanzados -->
@@ -150,8 +161,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         <div class="inline-flex items-center justify-center w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
             <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         </div>
-        <h3 class="text-2xl font-bold text-slate-800 dark:text-white mb-2">{lang === 'es' ? 'No se encontraron Pokémon' : 'No Pokémon found'}</h3>
-        <p class="text-slate-500 dark:text-slate-400">{lang === 'es' ? 'Intenta buscar en las sugerencias o cambiar de región.' : 'Try searching in suggestions or change region.'}</p>
+        <h3 id="no-results-title" class="text-2xl font-bold text-slate-800 dark:text-white mb-2">{t.no_pokemon_found_title}</h3>
+        <p id="no-results-body" class="text-slate-500 dark:text-slate-400">{t.no_results_type_only}</p>
     </div>
 
     <div id="pokemon-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -208,15 +219,13 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         ))}
     </div>
 
-    <div id="index-data" data-lang={lang} data-gen={gen} data-search-version={catalogManifest.files[`search-index.${lang === 'en' ? 'en' : 'es'}.json` as keyof typeof catalogManifest.files]} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
+    <div id="index-data" data-lang={lang} data-gen={gen} data-region={regionName ?? ''} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
 
     <script>
-        import { trackEvent } from '../../utils/analytics';
         import { fetchPokemonBySlug } from '../../utils/pokeapiClient';
         import { resolveFavorites } from '../../utils/favorites';
         import { canonicalPokemonSlug, pagePath } from '../../utils/seo';
-        import { buildEntityRow, loadSearchIndex, runSearch } from '../../utils/searchUi';
-        import { computeGridVisibility } from '../../utils/homeSearch';
+        import { computeGridVisibility, formatTemplate } from '../../utils/homeSearch';
 
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
@@ -225,33 +234,34 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             dark: '#705746', steel: '#B7B7CE', fairy: '#D685AD'
         };
 
-        let searchTimeout: ReturnType<typeof setTimeout>;
-        let searchSeq = 0;
-        let searchVersion = '';
-
-        function normalize(str: string) {
-            return str.toLowerCase().replace(/-/g, ' ').trim();
-        }
-
         function escHtml(str: string) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
+        // Local filter over the currently rendered grid only — see
+        // utils/homeSearch.ts. No fetch, no PokeAPI, no global search index:
+        // this box never searches outside what's already on the page.
         function applyFilters() {
-            const searchInput = document.getElementById('global-search') as HTMLInputElement;
+            const searchInput = document.getElementById('pokedex-search') as HTMLInputElement;
             const typeFilter = document.getElementById('type-filter') as HTMLSelectElement;
             const sortOrder = document.getElementById('sort-order') as HTMLSelectElement;
             const grid = document.getElementById('pokemon-grid');
-            const noResults = document.getElementById('no-results');
+            const noResultsTitle = document.getElementById('no-results-title');
+            const noResultsBody = document.getElementById('no-results-body');
+            const dataEl = document.getElementById('index-data');
 
-            if (!searchInput || !typeFilter || !sortOrder || !grid) return;
+            if (!searchInput || !typeFilter || !sortOrder || !grid || !dataEl) return;
+
+            const lang = dataEl.dataset.lang || 'es';
+            const region = dataEl.dataset.region || '';
+            const isFavorites = dataEl.dataset.gen === 'favorites';
+            const uiTranslations = JSON.parse(dataEl.dataset.translations || '{}');
+            const t = uiTranslations[lang] || uiTranslations.es;
 
             const selectedType = typeFilter.value;
             const currentSort = sortOrder.value;
             const currentCards = Array.from(document.querySelectorAll<HTMLElement>('.pokemon-card'));
 
-            // The text narrows the grid only if some card matches it (utils/homeSearch.ts);
-            // otherwise it belongs to the multi-entity dropdown alone.
             const gridState = computeGridVisibility(
                 currentCards.map(card => ({
                     name: card.getAttribute('data-name') || '',
@@ -280,10 +290,16 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             if (gridState.showEmpty) {
                 grid.classList.add('hidden');
-                noResults?.classList.remove('hidden');
+                if (noResultsTitle) noResultsTitle.textContent = t.no_pokemon_found_title;
+                if (noResultsBody) {
+                    noResultsBody.textContent = gridState.textApplied
+                        ? formatTemplate(isFavorites ? t.no_results_query_favorites : t.no_results_query_region, { query: searchInput.value.trim(), region })
+                        : t.no_results_type_only;
+                }
+                document.getElementById('no-results')?.classList.remove('hidden');
             } else {
                 grid.classList.remove('hidden');
-                noResults?.classList.add('hidden');
+                document.getElementById('no-results')?.classList.add('hidden');
             }
         }
 
@@ -388,7 +404,6 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const dataEl = document.getElementById('index-data');
             if (!dataEl) return;
             const lang = dataEl.dataset.lang || 'es';
-            searchVersion = dataEl.dataset.searchVersion || '';
             const gen = dataEl.dataset.gen;
             const uiTranslations = JSON.parse(dataEl.dataset.translations || '{}');
             const t = uiTranslations[lang] || uiTranslations.es;
@@ -399,85 +414,17 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 loadFavoritesView(lang, t);
             }
 
-            const searchInput = document.getElementById('global-search') as HTMLInputElement | null;
+            const searchInput = document.getElementById('pokedex-search') as HTMLInputElement | null;
             const typeFilter = document.getElementById('type-filter');
             const sortOrder = document.getElementById('sort-order');
-            const suggestionsContainer = document.getElementById('search-suggestions');
-            const suggestionsList = document.getElementById('suggestions-list');
             const genPills = document.querySelectorAll<HTMLElement>('.gen-pill');
 
-            async function handleSearch() {
-                if (!searchInput || !suggestionsContainer || !suggestionsList) return;
-
-                const query = normalize(searchInput.value);
-                applyFilters();
-                
-                clearTimeout(searchTimeout);
-                if (query.length >= 2) {
-                    searchTimeout = setTimeout(async () => {
-                        const seq = ++searchSeq;
-                        try {
-                            const prepared = await loadSearchIndex(lang, searchVersion);
-                            if (seq !== searchSeq) return;
-                            const matches = runSearch(prepared, searchInput.value, lang);
-                            // Only whether there were results: never the typed text.
-                            trackEvent('global_search', { language: lang, target: matches.length > 0 ? 'results' : 'no_results', source_surface: 'home_search' });
-                            if (matches.length > 0) {
-                                suggestionsList.innerHTML = '';
-                                const ctx = { lang, typeColors: typeColorsClient, typeNames: prepared.typeNames, caption: lang === 'es' ? 'Ver ficha →' : 'View →' };
-                                matches.forEach((m) => suggestionsList.appendChild(buildEntityRow(m, ctx)));
-                                suggestionsContainer.classList.remove('hidden');
-                            } else {
-                                suggestionsContainer.classList.add('hidden');
-                            }
-                        } catch (e) {
-                            suggestionsContainer.classList.add('hidden');
-                        }
-                    }, 120);
-                } else {
-                    suggestionsContainer.classList.add('hidden');
-                }
-            }
-
-            if (searchInput) {
-                searchInput.addEventListener('input', handleSearch);
-                searchInput.addEventListener('focus', () => {
-                    if (normalize(searchInput.value).length >= 2) {
-                        suggestionsContainer?.classList.remove('hidden');
-                    }
-                });
-                searchInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        const suggestionsList = document.getElementById('suggestions-list');
-                        const firstResult = suggestionsList?.querySelector('a');
-                        if (firstResult) {
-                            window.location.href = firstResult.href;
-                        }
-                    }
-                });
-            }
-
+            // Local filter: every keystroke just re-evaluates the grid already
+            // on the page (utils/homeSearch.ts) — no debounce needed, there is
+            // no request to coalesce.
+            if (searchInput) searchInput.addEventListener('input', applyFilters);
             if (typeFilter) typeFilter.addEventListener('change', () => applyFilters());
             if (sortOrder) sortOrder.addEventListener('change', () => applyFilters());
-
-            // Use AbortController so these listeners are cleaned up on next page-load
-            const ac = new AbortController();
-            const { signal } = ac;
-            (window as any)._indexAbortController?.abort();
-            (window as any)._indexAbortController = ac;
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === '/' && document.activeElement?.id !== 'global-search') {
-                    const si = document.getElementById('global-search') as HTMLInputElement;
-                    if (si) { e.preventDefault(); si.focus(); window.scrollTo({ top: (si as HTMLElement).offsetTop - 100, behavior: 'smooth' }); }
-                }
-            }, { signal });
-
-            document.addEventListener('click', (e) => {
-                if (searchInput && suggestionsContainer && !searchInput.contains(e.target as Node) && !suggestionsContainer.contains(e.target as Node)) {
-                    suggestionsContainer.classList.add('hidden');
-                }
-            }, { signal });
 
             genPills.forEach(pill => {
                 pill.onclick = () => {

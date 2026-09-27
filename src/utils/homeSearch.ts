@@ -1,15 +1,18 @@
 // src/utils/homeSearch.ts
 //
-// How the home search text interacts with the Pokédex grid. The search box is
-// Pokepedia's global search (multi-entity dropdown); the grid only shows one
-// generation, so the same text is often not a Pokémon of that grid at all
-// ("terremoto", "piel tosca", "dragón", or "garchomp" while on Kanto).
+// The Pokédex home page's big search box is a LOCAL filter over the
+// currently rendered grid (the selected generation, or favorites) — never
+// global entity search. Global search (Pokémon of any generation, moves,
+// abilities, items, types, generations) lives only in the header's search
+// modal (Layout.astro), which is unchanged.
 //
-// Rule: the text narrows the grid only when at least one card of the grid
-// matches it. Otherwise the text belongs to the dropdown alone and the grid is
-// left as it is (still subject to the type filter), so the page never shows
-// "no Pokémon found" beside a correct "Movimiento · Terremoto". The grid's
-// empty state is reserved for a type filter that leaves nothing.
+// This used to be more permissive: a query that matched nothing in the
+// grid left the grid untouched, so a separate global-entity dropdown on
+// this same input could "own" it instead. That dropdown is gone (Fase 2,
+// UX polish: two search surfaces with different semantics on one page was
+// confusing — "search Garchomp while viewing Kanto" showed a global
+// Garchomp result above a Kanto grid that never changed). Now the query
+// always filters the grid, honestly, including down to zero results.
 
 import { normalizeSearchText } from './searchText';
 
@@ -21,7 +24,7 @@ export interface GridCard {
 
 export interface GridVisibility {
   visible: boolean[];
-  /** True when the text narrowed the grid (some card matched it). */
+  /** True when there was a query to filter by (whether or not it matched anything). */
   textApplied: boolean;
   /** The grid's empty state should show. */
   showEmpty: boolean;
@@ -44,8 +47,12 @@ export function cardMatchesText(card: GridCard, raw: string): boolean {
 export function computeGridVisibility(cards: readonly GridCard[], rawQuery: string, selectedType: string): GridVisibility {
   const hasText = queryKey(rawQuery).text !== '';
   const textMatches = cards.map((c) => cardMatchesText(c, rawQuery));
-  const textApplied = hasText && textMatches.some(Boolean);
-  const visible = cards.map((c, i) => (!textApplied || textMatches[i]) && (selectedType === 'all' || c.types.includes(selectedType)));
-  const showEmpty = !visible.some(Boolean) && (selectedType !== 'all' || textApplied);
-  return { visible, textApplied, showEmpty };
+  const visible = cards.map((c, i) => (!hasText || textMatches[i]) && (selectedType === 'all' || c.types.includes(selectedType)));
+  const showEmpty = !visible.some(Boolean);
+  return { visible, textApplied: hasText, showEmpty };
+}
+
+/** "{query}" / "{region}" substitution for the local-search copy in uiTranslations. Shared by SSR and the client script so the two never drift. */
+export function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_match, key: string) => vars[key] ?? '');
 }
