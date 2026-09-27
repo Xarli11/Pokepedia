@@ -108,17 +108,66 @@ roughly geographic/chronological), never PokeAPI's own array order.
 
 ## 8. Game Context
 
-Not reused here: every field this phase reads (`capture_rate`,
-`gender_rate`, `growth_rate`, `egg_groups`, classification, base stats'
-`effort`) is a species-level invariant — the same for every game it
-appears in, so there is no version to select. `pokedex_numbers` **is**
-version-group-adjacent (a Pokédex belongs to a specific set of games —
-`isle-of-armor` the dex, not just the item), but showing it as plain
-factual data ("appears in the Isle of Armor dex, #123") needs no context
-*switch*: the entry is either present or absent, unconditionally. Wiring
-Game Context into this list (e.g. "hide this dex unless the moves table is
-on Sword/Shield") is left for whenever a real product need for it shows up
-— documented, not built, per this phase's scope.
+**Correction (2026-09-27, before merge):** an earlier draft of this section
+claimed the training/breeding fields are "the same for every game" —
+that is not accurate and has been corrected here.
+
+Not reused in this phase. What `PokemonFacts` actually shows is **the
+single current value PokeAPI exposes today** for `pokemon`/
+`pokemon-species` — a snapshot, not a verified cross-game invariant.
+PokeAPI's species/pokemon resources are not version-grouped for most of
+these fields (there is one `capture_rate`, one `base_happiness`, one
+`growth_rate`, one `egg_groups` list, one set of `stats[].effort` per
+species/variety — not one per game), so there is no alternative value in
+the API to select between even if Game Context were wired in here. That is
+a statement about what PokeAPI's data model gives Pokepedia today, not a
+claim that the real games never changed these numbers.
+
+In fact several of these fields **have** changed across real games and
+generations — documented, not assumed:
+
+- **Base friendship** (`base_happiness`) changed for a number of species
+  starting in Generation VIII.
+- **EV yield** has changed for some species across generations (most
+  visibly around the Gen VI EV-yield rebalances).
+- **Capture rate** has changed for some species between games.
+- **Base experience** has also changed historically for a number of
+  species.
+
+PokeAPI does not expose a per-version-group history for these fields the
+way it does for moves' `past_values` (§10 of a future move-facts phase) —
+today's value is the only one available. Pokepedia's `PokemonFacts`
+therefore documents itself as **"PokeAPI's current value for this
+species"**, not as a fact that is guaranteed identical in every game that
+species appeared in. See the new TODO entry below for what a future,
+properly historical version of this would need.
+
+`pokedex_numbers` **is** version-group-adjacent (a Pokédex belongs to a
+specific set of games — `isle-of-armor` the dex, not just the item), but
+showing it as plain factual data ("appears in the Isle of Armor dex,
+#123") needs no context *switch* today: the entry is either present or
+absent in PokeAPI's response, unconditionally. Wiring Game Context into
+this list (e.g. "hide this dex unless the moves table is on Sword/Shield")
+is left for whenever a real product need for it shows up — documented, not
+built, per this phase's scope.
+
+### Debt: Game Context — historical Pokémon facts
+
+Not started, not scoped for a specific phase. If historical accuracy for
+these fields becomes a real product priority, a future phase would need to
+evaluate, per field, whether it is worth building a versioned dataset for
+it (candidates, not a commitment that all of them need it):
+
+- Base friendship (confirmed Gen VIII+ changes for some species).
+- EV yield (confirmed historical changes for some species).
+- Capture rate (confirmed changes for some species across games).
+- Base experience (confirmed historical changes for some species).
+- Any other field a future audit confirms varies.
+
+Not every candidate necessarily justifies the cost of a generated,
+version-aware dataset — that judgment is for whoever scopes that phase,
+informed by how much each field's variance actually matters to Pokepedia's
+readers vs. the cost of building and maintaining it.
 
 ## 9. Forms/varieties, abilities, evolution — reviewed, not rebuilt
 
@@ -159,20 +208,26 @@ rather than inventing new properties on it.
 
 ## 12. Performance
 
-No new request, no new client bytes: everything renders as server-side
-HTML from data already in hand. Measured (local dev server, 2026-09-27):
+No new request, no new client-side JavaScript, no new dataset shipped to
+the browser: the only addition is more server-rendered HTML (the new
+`<dl>` sections), from data already in hand. That HTML *does* travel to
+the browser — "0 new client bytes" in an earlier draft of this document
+overstated it; the precise claim is 0 new requests and 0 new JS/dataset
+bytes, not 0 new bytes overall. Measured (local dev server, 2026-09-27):
 
-| Pokémon | Notable for | Raw HTML | gzip |
+| Pokémon | Notable for | Raw HTML (before → after) | gzip (before → after) |
 |---|---|---|---|
-| Garchomp | baseline | 443.8 KB | 35.8 KB |
-| Pikachu | many Pokédex entries, evolution | 465.4 KB | 37.2 KB |
-| Eevee | multiple evolutions | 451.2 KB | 36.3 KB |
-| Wormadam | many varieties/forms | 286.3 KB | 32.6 KB |
+| Garchomp | baseline | 406.6 → 443.8 KB (+9.2%) | 34.0 → 35.8 KB (+5.1%) |
+| Pikachu | many Pokédex entries, evolution | 422.7 → 465.4 KB (+10.1%) | 35.5 → 37.2 KB (+4.9%) |
+| Eevee | multiple evolutions | 411.0 → 451.2 KB (+9.8%) | 34.5 → 36.3 KB (+5.2%) |
+| Wormadam | many varieties/forms | 263.2 → 286.3 KB (+8.8%) | 31.3 → 32.6 KB (+4.3%) |
 
-(These numbers include the whole page — moves table, evolution chain,
-etc. — not just the new sections; no separate "before" baseline was
-captured for this exact set since Fase 2A's MovesTable change already
-shipped and altered the same page. New facts add a few `<dl>` rows of
+"Before" is `develop` at the commit this branch forked from (`2423018`,
+post-Fase 2A/Game Context, pre-Fase 2B), measured in an isolated git
+worktree with the same local dev server; "after" is this branch. The
+whole delta is the new Training/Breeding/regional-Pokédex `<dl>` markup —
+no other part of the page changed. These numbers include the whole page
+(moves table, evolution chain, etc.), not just the new sections. New facts add a few `<dl>` rows of
 already-available text — not a meaningfully separable delta.)
 
 ## 13. Fallbacks / data gaps

@@ -245,16 +245,21 @@ remain intentionally version-independent listings.
 
 ## Pokémon factual profile (training, breeding, classification, regional dex)
 
-`src/utils/pokemonFacts.ts` normalizes species-level facts (base
+`src/utils/pokemonFacts.ts` normalizes **PokeAPI's current value** (base
 experience, capture rate, base happiness, growth rate, EV yield, egg
 groups, gender ratio, egg cycles, baby/legendary/mythical) from the
 `pokemon`/`pokemon-species` objects the Pokémon page already fetches — no
-new request. `src/services/pokedexes.ts` is the hand-verified table (all
-35 PokeAPI `pokedex` resources, real ES/EN names, checked live) behind the
-regional Pokédex numbers section; PokeAPI's own `is_main_series` flag
-excludes the Conquest and Champions dexes, not name guessing. Full
-write-up, including the `gender_rate` semantics and what was deliberately
-left out: [`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md).
+new request. Several of these fields have real historical variance across
+games/generations (base friendship, EV yield, capture rate and base
+experience have all changed for some species) that PokeAPI does not
+expose a per-version-group history for; Pokepedia shows today's single
+value, not a claim that it held for every game — see
+[`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md)
+§8 for the historical-facts debt this leaves for a future phase.
+`src/services/pokedexes.ts` is the hand-verified table (all 35 PokeAPI
+`pokedex` resources, real ES/EN names, checked live) behind the regional
+Pokédex numbers section; PokeAPI's own `is_main_series` flag excludes the
+Conquest and Champions dexes, not name guessing.
 
 ## Known incidents (fixed)
 
