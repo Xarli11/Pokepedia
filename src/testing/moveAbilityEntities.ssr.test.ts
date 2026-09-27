@@ -7,6 +7,15 @@ import { SITE_URL } from '../utils/seo';
 // Fase 2C: mechanics, generation link, machines (MT/HM/TR), historical
 // changes and the lightweight relation list on move/ability pages — all
 // from fields already fetched, or the zero-runtime-cost machines dataset.
+//
+// Fase 2D: the move page's learned-by list itself moved off
+// learned_by_pokemon to services/moveLearnsets (offline dataset, opt-in
+// generator — see docs/architecture/move-learnset-relations.md), mocked
+// below since that dataset isn't part of this test run.
+let learnsetRelations: { pokemonId: number; method: string; versionGroup: string; level: number }[] = [];
+vi.mock('../services/moveLearnsets', () => ({
+  getMoveLearnsetRelations: async () => learnsetRelations,
+}));
 
 const API = 'https://pokeapi.co/api/v2';
 const SHOWDOWN = 'https://play.pokemonshowdown.com/data/pokedex.json';
@@ -49,6 +58,7 @@ function moveFixtures(opts: {
 
 let fixtures: Record<string, unknown> = {};
 beforeEach(() => {
+  learnsetRelations = [];
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
     const url = String(input).replace(/\/$/, '');
     const data = fixtures[url];
@@ -139,12 +149,20 @@ describe('Move page mechanics', () => {
     expect(html).toMatch(/MT26/);
   });
 
+  it('a move with no learnset data (yet) renders the "no results" message server-side, not a silent empty grid', async () => {
+    fixtures = moveFixtures({ name: 'nolearners' });
+    learnsetRelations = [];
+    const html = await renderMove('nolearners');
+    const emptyDiv = html.match(/<div id="learnset-empty"[^>]*>([^<]*)<\/div>/);
+    expect(emptyDiv?.[0]).not.toContain('hidden');
+    expect(emptyDiv?.[1]).toContain('No hay Pokémon que aprendan este movimiento');
+  });
+
   it('a move with many learners: counter reports the real total, list uses the lightweight relation component', async () => {
-    const learners = Array.from({ length: 70 }, (_, i) => ({ id: 900 + i, name: `mon${i}` }));
-    fixtures = moveFixtures({ name: 'popularmove', learners });
+    fixtures = moveFixtures({ name: 'popularmove' });
+    learnsetRelations = Array.from({ length: 70 }, (_, i) => ({ pokemonId: 900 + i, method: 'level-up', versionGroup: 'scarlet-violet', level: 10 }));
     const html = await renderMove('popularmove');
     expect(html).toMatch(/>70<\/span>/);
-    expect(html).toContain('Mostrando 60');
     expect(html).not.toMatch(/tier-badge/);
   });
 });

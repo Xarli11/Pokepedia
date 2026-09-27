@@ -10,6 +10,26 @@ import { renderRoute } from '../testing/renderRoute';
 // Phase 3 regression net: crawlable move links in the initial HTML (index and
 // Pokémon MovesTable), move-page metadata, move -> type / learned-by links,
 // and Showdown ability names resolved to real PokeAPI slugs.
+//
+// Fase 2D: the move page's learned-by list now reads services/moveLearnsets
+// (offline learnsets/{move}.json, see docs/architecture/move-learnset-relations.md)
+// instead of PokeAPI's learned_by_pokemon. That dataset is generated
+// separately and opt-in, so it's mocked here rather than depending on it
+// having been generated for this test run.
+vi.mock('../services/moveLearnsets', () => ({
+  getMoveLearnsetRelations: async (move: string) => {
+    if (move !== 'surf') return [];
+    // 50 learners in Scarlet/Violet (the move's most recent, default-eligible
+    // context) plus 20 more that only ever learned it in Red/Blue — an old
+    // context distinct enough from Scarlet/Violet that they never merge into
+    // the same ContextAvailability, so the historical total (70) legitimately
+    // exceeds what's shown for the default context (50).
+    return [
+      ...Array.from({ length: 50 }, (_, i) => ({ pokemonId: i + 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 10 })),
+      ...Array.from({ length: 20 }, (_, i) => ({ pokemonId: 51 + i, method: 'level-up', versionGroup: 'red-blue', level: 10 })),
+    ];
+  },
+}));
 
 const API = 'https://pokeapi.co/api/v2';
 const SHOWDOWN = 'https://play.pokemonshowdown.com/data/pokedex.json';
@@ -272,10 +292,12 @@ describe('move page metadata and entity links (SSR)', () => {
     expect(titleOf(html)).toContain('Shadow-type Physical Move');
   });
 
-  it('learned-by counter reports the real total, not the capped card count', async () => {
+  it('learned-by counter reports the current context, plus the historical total across every game when it differs', async () => {
     const html = await render(MovePage, { lang: 'en', name: 'surf' }, '/en/movimientos/surf/');
-    expect(html).toMatch(/>70<\/span>/);
-    expect(html).toContain('Showing 60');
+    // Default context (Scarlet/Violet, most recent defaultEligible): 50 learners.
+    expect(html).toMatch(/>50<\/span>/);
+    // 20 more Pokémon only ever learned it in Red/Blue: the all-time total is 70.
+    expect(html).toContain('Total historical: 70');
     const hrefs = [...html.matchAll(/href="(\/en\/pokemon\/[^"]*)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(0);
     hrefs.forEach((h) => expect(h).toMatch(/^\/en\/pokemon\/[a-z0-9-]+\/$/));
