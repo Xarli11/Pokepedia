@@ -3,14 +3,20 @@ import Layout from '../../../layouts/Layout.astro';
 import PokemonRelationList from '../../../components/PokemonRelationList.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getMoveDetailByName, getPokemonCards, idFromResourceUrl, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { getLocalizedName, getMoveDetailByName, idFromResourceUrl, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { uiTranslations, formatName, typeTranslations, typeColors } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
 import { buildMoveTitle, resolveMoveDescription, type MoveFacts } from '../../../utils/moveMeta';
 import { buildMoveMechanics, targetLabel, ailmentLabel, movePastValues } from '../../../utils/moveFacts';
 import { getMachinesForMove } from '../../../services/machines';
-import { getItemCatalog } from '../../../services/catalogs';
+import { getItemCatalog, getCatalog } from '../../../services/catalogs';
 import { versionGroupLabel, sortVersionGroups } from '../../../services/versionGroups';
+import { getMoveLearnsetRelations } from '../../../services/moveLearnsets';
+import { availableGameContextsForMove, defaultGameContextForMove, relationsForContext, methodsPresent } from '../../../utils/moveLearnsetFacts';
+import { gameContextLabel } from '../../../services/gameContext';
+import { learnMethodIndex, learnMethodLabel } from '../../../utils/moveLearnMethods';
+import { versionGroupRank } from '../../../services/versionGroups';
+import { jsonForScript } from '../../../utils/movesPayload';
 
 const { lang, name } = Astro.params;
 
@@ -46,12 +52,6 @@ const facts: MoveFacts = {
 const description = resolveMoveDescription(lang as string, facts, moveData.flavor_text_entries);
 const pageTitle = buildMoveTitle(lang as string, facts);
 
-// The list is capped for page weight; the counter reports the real total
-// (learned_by_pokemon), not the number of cards rendered.
-const POKEMON_LIST_LIMIT = 60;
-const totalLearnedBy = moveData.learned_by_pokemon.length;
-const pokemonList = await getPokemonCards(moveData.learned_by_pokemon, POKEMON_LIST_LIMIT);
-
 const t = uiTranslations[lang as string] || uiTranslations.es;
 
 // Mechanics, generation link, historical values and MT/MO/TR availability —
@@ -76,6 +76,83 @@ const machines = machineVersionGroups.map((vg) => {
     };
 });
 const MACHINES_VISIBLE = 8;
+
+// Pokémon ↔ Move relations (who learns this move, how, in which game),
+// inverted offline from PokeAPI's pokemon/{id}.moves — zero extra requests
+// here. See docs/architecture/move-learnset-relations.md.
+const relations = await getMoveLearnsetRelations(moveData.name);
+const availableContexts = availableGameContextsForMove(relations);
+const defaultContext = defaultGameContextForMove(relations);
+const defaultContextAvailability = availableContexts.find((a) => a.context.id === defaultContext.contextId);
+// A Game Context's full revision span (base game + its DLC), not just the
+// latest revision — a Pokémon that only learns the move via an older
+// revision must not disappear just because a newer one is also present.
+const defaultRevisions = defaultContextAvailability?.availableRevisions ?? (defaultContext.revision ? [defaultContext.revision] : []);
+const defaultEntries = relationsForContext(relations, defaultRevisions);
+const availableMethods = methodsPresent(defaultEntries);
+// Honest disclosure (§26): the visible count is Pokémon in the current
+// game context, never conflated with the all-time total across every game.
+const distinctHistoricalCount = new Set(relations.map((r) => r.pokemonId)).size;
+
+// Pokémon id -> {slug, name}: the generated learnset dataset only has ids
+// (compact by design); the already-generated Pokémon catalog resolves them
+// to real links/names with no extra request, built once per relevant id.
+const pokemonCatalogEntries = relations.length > 0 ? [...(await getCatalog('pokemon', lang as string)).values()] : [];
+const pokemonById = new Map(pokemonCatalogEntries.map((e) => [e.id, e]));
+
+// One machine label per context (not per Pokémon — a TM/HM/TR number is a
+// property of the game, not of who learns it), resolved from the same
+// machines dataset as the MT/MO/TR section above, at that context's
+// representative (most recent available) revision.
+const machineLabelByContext = new Map(
+    availableContexts.map((a) => {
+        const itemSlug = machinesByVersionGroup.get(a.latestRevision);
+        const label = itemSlug ? (itemCatalog?.get(itemSlug)?.name ?? itemSlug.toUpperCase()) : t.machines_section;
+        return [a.context.id, label];
+    })
+);
+
+function methodDetail(method: string, level: number, contextId: string): string {
+    if (method === 'level-up' && level > 0) return lang === 'en' ? `Lv. ${level}` : `Nivel ${level}`;
+    if (method === 'machine') return machineLabelByContext.get(contextId) ?? t.machines_section;
+    return learnMethodLabel(method, lang as string);
+}
+
+const defaultRelationEntries = defaultEntries
+    .map((entry) => {
+        const cat = pokemonById.get(entry.pokemonId);
+        if (!cat) return null;
+        return {
+            pokemon: { id: entry.pokemonId, slug: cat.slug, name: cat.name },
+            detail: entry.methods.map((m) => methodDetail(m.method, m.level, defaultContext.contextId)).join(' · '),
+            methods: entry.methods.map((m) => m.method),
+        };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+
+// Compact client payload: every relation this move has (all contexts), so
+// switching context/method needs no request — the same principle
+// MovesTable already established for version groups. [pokemonId,
+// methodIndex, versionGroupIndex, level] reuses the exact shared index
+// tables the generator itself encodes against (LEARN_METHOD_ORDER /
+// VERSION_GROUP_ORDER), so client and server can't drift apart.
+const compactRelations: [number, number, number, number][] = relations.map((r) => [
+    r.pokemonId,
+    learnMethodIndex(r.method),
+    versionGroupRank(r.versionGroup),
+    r.level,
+]);
+const pokemonNamesPayload: Record<string, [string, string]> = {};
+for (const r of relations) {
+    const cat = pokemonById.get(r.pokemonId);
+    if (cat && !pokemonNamesPayload[r.pokemonId]) pokemonNamesPayload[r.pokemonId] = [cat.slug, cat.name];
+}
+const contextsPayload = availableContexts.map((a) => ({
+    id: a.context.id,
+    label: gameContextLabel(a.context.id, lang as string),
+    revisions: a.availableRevisions,
+    machineLabel: machineLabelByContext.get(a.context.id) ?? t.machines_section,
+}));
 
 const categoryColors: Record<string, string> = {
     physical: 'bg-orange-500',
@@ -267,15 +344,152 @@ const breadcrumbItems = [
             </div>
         )}
 
-        <h2 class="text-3xl font-black text-slate-900 dark:text-white mb-10 px-4 flex items-center gap-4">
-            <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
-            {t.pokemon_with_move}
-            <span class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{totalLearnedBy}</span>
-            {totalLearnedBy > pokemonList.length && (
-                <span class="text-xs font-bold text-slate-400 dark:text-slate-600">{lang === 'es' ? `Mostrando ${pokemonList.length}` : `Showing ${pokemonList.length}`}</span>
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-10 px-4">
+            <h2 class="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-4">
+                <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
+                {t.pokemon_with_move}
+                <span id="learnset-count" class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{defaultRelationEntries.length}</span>
+                {distinctHistoricalCount > defaultRelationEntries.length && (
+                    <span class="text-xs font-bold text-slate-400 dark:text-slate-600">{t.learnset_total_historical}: {distinctHistoricalCount}</span>
+                )}
+            </h2>
+            {availableContexts.length > 0 && (
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="relative">
+                        <label for="learnset-context" class="sr-only">{t.game}</label>
+                        <select id="learnset-context" aria-label={t.game} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
+                            {availableContexts.map((a) => (
+                                <option value={a.context.id} selected={a.context.id === defaultContext.contextId}>{gameContextLabel(a.context.id, lang as string)}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {availableMethods.length > 1 && (
+                        <div class="relative">
+                            <label for="learnset-method" class="sr-only">{t.learnset_method_filter}</label>
+                            <select id="learnset-method" aria-label={t.learnset_method_filter} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
+                                <option value="all">{t.learnset_all_methods}</option>
+                                {availableMethods.map((m) => (
+                                    <option value={m}>{learnMethodLabel(m, lang as string)}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                </div>
             )}
-        </h2>
+        </div>
 
-        <PokemonRelationList entries={pokemonList.map((pokemon) => ({ pokemon }))} lang={lang as string} />
+        <div id="learnset-list" class={defaultRelationEntries.length === 0 ? 'hidden' : ''}>
+            <PokemonRelationList entries={defaultRelationEntries} lang={lang as string} />
+        </div>
+        <div id="learnset-empty" class:list={['p-16 text-center text-slate-400 dark:text-slate-600 font-bold tracking-tight', { hidden: defaultRelationEntries.length > 0 }]}>{t.learnset_no_results}</div>
+
+        <script type="application/json" id="learnset-data" is:inline set:html={jsonForScript({
+            contexts: contextsPayload,
+            initialContext: defaultContext.contextId,
+            pokemon: pokemonNamesPayload,
+            relations: compactRelations,
+        })} />
     </div>
+
+    <script>
+    import { pagePath } from '../../../utils/seo';
+    import { relationsForContext, filterByMethod } from '../../../utils/moveLearnsetFacts';
+    import { learnMethodByIndex, learnMethodLabel } from '../../../utils/moveLearnMethods';
+    import { VERSION_GROUP_ORDER } from '../../../services/versionGroups';
+    import { readGameContext, writeGameContext, resolveContextForPokemon } from '../../../utils/gameContextStorage';
+    import { trackEvent } from '../../../utils/analytics';
+
+    interface LearnsetPayload {
+        contexts: { id: string; label: string; revisions: string[]; machineLabel: string }[];
+        initialContext: string;
+        pokemon: Record<string, [string, string]>;
+        relations: [number, number, number, number][];
+    }
+
+    function setupLearnsets() {
+        const dataScript = document.getElementById('learnset-data');
+        if (!dataScript) return;
+        const payload: LearnsetPayload = JSON.parse(dataScript.textContent || '{}');
+        if (!payload.contexts || payload.contexts.length === 0) return;
+
+        const langAttr = document.documentElement.lang || 'es';
+        const relations = payload.relations.map(([pokemonId, methodIdx, vgIdx, level]) => ({
+            pokemonId,
+            method: learnMethodByIndex(methodIdx),
+            versionGroup: VERSION_GROUP_ORDER[vgIdx] ?? '',
+            level,
+        }));
+
+        let storage: Storage | null = null;
+        try { storage = window.localStorage; } catch { storage = null; }
+        const availableIds = payload.contexts.map((c) => c.id);
+        const persisted = storage ? resolveContextForPokemon(readGameContext(storage), availableIds, payload.initialContext) : payload.initialContext;
+        let currentContext = availableIds.includes(persisted) ? persisted : payload.initialContext;
+        let currentMethod = 'all';
+
+        const contextSelect = document.getElementById('learnset-context') as HTMLSelectElement | null;
+        const methodSelect = document.getElementById('learnset-method') as HTMLSelectElement | null;
+        const listEl = document.getElementById('learnset-list');
+        const emptyEl = document.getElementById('learnset-empty');
+        const countEl = document.getElementById('learnset-count');
+        if (contextSelect) contextSelect.value = currentContext;
+
+        function methodDetail(method: string, level: number, machineLabel: string): string {
+            if (method === 'level-up' && level > 0) return langAttr === 'en' ? `Lv. ${level}` : `Nivel ${level}`;
+            if (method === 'machine') return machineLabel;
+            return learnMethodLabel(method, langAttr);
+        }
+
+        function render() {
+            const ctx = payload.contexts.find((c) => c.id === currentContext);
+            if (!ctx || !listEl) return;
+            const entries = filterByMethod(relationsForContext(relations, ctx.revisions), currentMethod);
+            if (countEl) countEl.textContent = String(entries.length);
+
+            if (entries.length === 0) {
+                listEl.classList.add('hidden');
+                emptyEl?.classList.remove('hidden');
+                return;
+            }
+            listEl.classList.remove('hidden');
+            emptyEl?.classList.add('hidden');
+
+            const SPRITE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+            listEl.innerHTML = `<ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 list-none p-0 m-0">${entries.map((e) => {
+                const nameSlug = payload.pokemon[String(e.pokemonId)];
+                if (!nameSlug) return '';
+                const [slug, name] = nameSlug;
+                const detail = e.methods.map((m) => methodDetail(m.method, m.level, ctx.machineLabel)).join(' · ');
+                const href = pagePath(langAttr, 'pokemon', slug);
+                const displayName = name.replace(/-/g, ' ');
+                return `<li><a href="${href}" class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-all no-underline group">` +
+                    `<img src="${SPRITE}/${e.pokemonId}.png" alt="" width="40" height="40" loading="lazy" decoding="async" class="w-10 h-10 object-contain shrink-0 group-hover:scale-110 transition-transform" onerror="this.src='/pokeball.png'; this.classList.add('opacity-20');" />` +
+                    `<span class="min-w-0"><span class="block text-xs font-bold text-slate-700 dark:text-slate-200 capitalize truncate">${displayName}</span>` +
+                    (detail ? `<span class="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">${detail}</span>` : '') +
+                    `</span></a></li>`;
+            }).join('')}</ul>`;
+        }
+
+        contextSelect?.addEventListener('change', (e) => {
+            currentContext = (e.target as HTMLSelectElement).value;
+            currentMethod = 'all';
+            if (methodSelect) methodSelect.value = 'all';
+            if (storage) writeGameContext(storage, currentContext);
+            trackEvent('move_learnset_context_change', { target: currentContext, language: langAttr, source_surface: 'move_learnset' });
+            render();
+        });
+        methodSelect?.addEventListener('change', (e) => {
+            currentMethod = (e.target as HTMLSelectElement).value;
+            trackEvent('move_learnset_method_filter', { target: currentMethod, language: langAttr, source_surface: 'move_learnset' });
+            render();
+        });
+
+        // Only re-render if hydration found a different, available persisted
+        // context than the SSR default — avoids an unnecessary reflow.
+        if (currentContext !== payload.initialContext) render();
+    }
+
+    setupLearnsets();
+    document.addEventListener('astro:after-swap', setupLearnsets);
+    </script>
 </Layout>

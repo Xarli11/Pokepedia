@@ -5,7 +5,7 @@ import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getAbilityDetailByName, getPokemonCards, idFromResourceUrl, GENERATION_ROMAN } from '../../../services/pokeapi';
 import { uiTranslations, formatName } from '../../../utils/pokemon';
-import { pagePath } from '../../../utils/seo';
+import { pagePath, canonicalPokemonSlug } from '../../../utils/seo';
 import { resolveAbilityEffect, abilityHistory } from '../../../utils/abilityFacts';
 import { versionGroupLabel } from '../../../services/versionGroups';
 
@@ -109,7 +109,10 @@ const breadcrumbItems = [
         </h2>
 
         <PokemonRelationList
-            entries={pokemonList.map((pokemon) => ({ pokemon, detail: isHiddenByName.get(pokemon.name) ? t.hidden_ability_tag : undefined }))}
+            entries={pokemonList.map((pokemon) => ({
+                pokemon: { id: pokemon.id, slug: canonicalPokemonSlug(pokemon), name: pokemon.name },
+                detail: isHiddenByName.get(pokemon.name) ? t.hidden_ability_tag : undefined,
+            }))}
             lang={lang as string}
         />
     </div>
