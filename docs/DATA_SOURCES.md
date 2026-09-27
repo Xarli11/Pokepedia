@@ -243,6 +243,19 @@ it: [`docs/architecture/game-context.md`](./architecture/game-context.md).
 locations and regional Pokédexes are not wired to it yet — the catalogs
 remain intentionally version-independent listings.
 
+## Pokémon factual profile (training, breeding, classification, regional dex)
+
+`src/utils/pokemonFacts.ts` normalizes species-level facts (base
+experience, capture rate, base happiness, growth rate, EV yield, egg
+groups, gender ratio, egg cycles, baby/legendary/mythical) from the
+`pokemon`/`pokemon-species` objects the Pokémon page already fetches — no
+new request. `src/services/pokedexes.ts` is the hand-verified table (all
+35 PokeAPI `pokedex` resources, real ES/EN names, checked live) behind the
+regional Pokédex numbers section; PokeAPI's own `is_main_series` flag
+excludes the Conquest and Champions dexes, not name guessing. Full
+write-up, including the `gender_rate` semantics and what was deliberately
+left out: [`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md).
+
 ## Known incidents (fixed)
 
 ### `item + flavor_text + es + x-y`

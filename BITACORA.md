@@ -2,6 +2,59 @@
 
 ---
 
+## 2026-09-27 (Sesión 9 — Fase 2B: ficha Pokémon factual)
+
+**Objetivo:** convertir `/[lang]/pokemon/[name]/` en una ficha enciclopédica
+factual completa (entrenamiento, cría, clasificación, Pokédex regional) sin
+añadir peticiones nuevas a PokeAPI ni tocar el scope competitivo. Rama
+`feature/pokemon-entity-phase2b`, partiendo de `develop` tras mergear la
+PR #14 (Game Context).
+
+**Auditoría previa:** `species`/`detail` ya traían `capture_rate`,
+`base_happiness`, `gender_rate`, `hatch_counter`, `growth_rate`,
+`egg_groups`, `genera`, `pokedex_numbers`, `is_baby/legendary/mythical` y
+`stats[].effort` — ninguno se leía. Cero peticiones nuevas necesarias.
+
+**Cambios realizados:**
+
+### feat(pokemon): capa factual (`src/utils/pokemonFacts.ts`)
+- `buildPokemonFacts(detail, species)` puro, sin idioma: entrenamiento
+  (experiencia base, ratio de captura, amistad base, ritmo de crecimiento,
+  EVs desde `stats[].effort`), cría (grupos huevo, proporción de género,
+  ciclos de huevo), clasificación (bebé/legendario/mítico), Pokédex
+  regional.
+- **Semántica de `gender_rate` verificada, no asumida**: es octavos que son
+  hembra, no un porcentaje directo (-1 sin género, 0 = 100% macho, 8 = 100%
+  hembra, 4 = 50/50). Degrada a "sin género" en vez de `NaN` si el valor
+  falta.
+
+### feat(pokemon): tabla de Pokédex (`src/services/pokedexes.ts`)
+- Las 35 `pokedex` de PokeAPI, verificadas en vivo (nombres ES/EN reales,
+  no inventados) con el flag propio `is_main_series` de PokeAPI —no
+  patrones de nombre— para excluir `conquest-gallery` (Conquest, spin-off)
+  y `champions` (dex de batalla de Pokémon Champions, ya clasificado
+  `battle` en `gameContext.ts`). `original-*`/`updated-*` del mismo región
+  se muestran ambas: son juegos reales distintos, no duplicados.
+
+### refactor(pokemon): plantilla (`src/pages/[lang]/pokemon/[name].astro`)
+- Nuevas secciones semánticas (`<dl>`) Entrenamiento/Cría junto a Números
+  de Pokédex regional; badges Bebé/Legendario/Mítico junto al nombre;
+  género (categoría, p. ej. "Pokémon Mach") bajo el nombre. Sin script
+  cliente nuevo, sin JSON adicional al navegador.
+
+**Verificado en vivo (dev server real, PokeAPI real):** Garchomp,
+Pikachu, Eevee, Wormadam (muchas formas) muestran las tres secciones;
+Zapdos → Legendario; Mew → Mítico; Pichu → Bebé; Ditto → Sin género;
+Vulpix-Alola enlaza correctamente a su forma. ES y EN comprobados.
+
+**Deliberadamente descartado (documentado en `pokemon-entity.md`):**
+`color`/`shape`/`habitat` de la especie (sin tabla de traducción, bajo
+valor); segunda línea "Evoluciona de X" (la cadena evolutiva ya lo
+cubre); título/descripción SEO sin cambios (los nuevos datos son
+profundidad complementaria, no una nueva intención de búsqueda).
+
+---
+
 ## 2026-09-27 (Sesión 8 — Fase 2: base de Game Context)
 
 **Objetivo:** construir la base de Game Context (juego/familia vs revisión
