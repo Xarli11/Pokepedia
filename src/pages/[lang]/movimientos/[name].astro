@@ -9,6 +9,8 @@ import { pagePath } from '../../../utils/seo';
 import { buildMoveTitle, resolveMoveDescription, type MoveFacts } from '../../../utils/moveMeta';
 import { buildMoveMechanics, targetLabel, ailmentLabel, movePastValues } from '../../../utils/moveFacts';
 import { getMachinesForMove } from '../../../services/machines';
+import { getMoveFlags } from '../../../services/moveFlagsData';
+import { moveFlagLabel } from '../../../utils/moveFlags';
 import { getItemCatalog, getCatalog } from '../../../services/catalogs';
 import { versionGroupLabel, sortVersionGroups } from '../../../services/versionGroups';
 import { getMoveLearnsetRelations } from '../../../services/moveLearnsets';
@@ -65,6 +67,11 @@ const moveGenKey = moveGenNumRaw ? `gen${moveGenNumRaw}` : null;
 const moveGenRoman = moveGenKey ? GENERATION_ROMAN[moveGenKey] : null;
 
 const machinesRaw = await getMachinesForMove(moveData.name);
+// Fase 2F: curated factual Showdown flags (contact, sound, punch...) —
+// PokeAPI has no such field. Zero-request generated dataset, same pattern
+// as machines above. See src/utils/moveFlags.ts for the exact set and why
+// it excludes battle-mechanic-interaction flags.
+const moveFlags = await getMoveFlags(moveData.name);
 const itemCatalog = machinesRaw.length > 0 ? await getItemCatalog(lang as string) : null;
 const machineVersionGroups = sortVersionGroups(machinesRaw.map((m) => m.versionGroup)).reverse();
 const machinesByVersionGroup = new Map(machinesRaw.map((m) => [m.versionGroup, m.item]));
@@ -260,6 +267,14 @@ const breadcrumbItems = [
                 </div>
             </div>
         </div>
+
+        {moveFlags.length > 0 && (
+            <div class="flex flex-wrap gap-2 mb-10">
+                {moveFlags.map((f) => (
+                    <span class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700">{moveFlagLabel(f, lang as string)}</span>
+                ))}
+            </div>
+        )}
 
         {(mechanics.ailment || mechanics.drain || mechanics.recoil || mechanics.healing || mechanics.critRate || mechanics.flinchChance || mechanics.minHits || mechanics.minTurns || mechanics.statChanges.length > 0) && (
             <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-16">

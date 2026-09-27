@@ -149,6 +149,18 @@ describe('Move page mechanics', () => {
     expect(html).toMatch(/MT26/);
   });
 
+  it('Fase 2F: real generated move-flags dataset — Tackle shows Contacto + Bloqueable con Protección, Earthquake shows only Bloqueable con Protección', async () => {
+    fixtures = moveFixtures({ name: 'tackle' });
+    const tackle = await renderMove('tackle');
+    expect(tackle).toContain('Contacto');
+    expect(tackle).toContain('Bloqueable con Protección');
+
+    fixtures = moveFixtures({ name: 'earthquake', type: 'ground' });
+    const eq = await renderMove('earthquake');
+    expect(eq).not.toContain('Contacto');
+    expect(eq).toContain('Bloqueable con Protección');
+  });
+
   it('a move with no learnset data (yet) renders the "no results" message server-side, not a silent empty grid', async () => {
     fixtures = moveFixtures({ name: 'nolearners' });
     learnsetRelations = [];
