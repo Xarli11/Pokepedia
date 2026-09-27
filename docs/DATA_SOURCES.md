@@ -230,14 +230,18 @@ kind, id, name; at most 5 results per kind and 12 in total. Text is normalized
 person opened, never typed text; legacy Pokémon-only entries are still read.
 Analytics only records `results` / `no_results`.
 
-## Future: Game Context and the entity graph (not implemented)
+## Game Context
 
-Designed for, not built. `MovesTable`'s single `initialVersion` and the
-`{type, slug}` identity used by search rows and history are the two seams. A
-Game Context would supply a version group that the learnset, machines,
-locations and regional dex read, and relations that depend on a version
-(learns, availableIn) must carry it. The catalogs are intentionally
-version-independent listings; version-dependent data is not put in them.
+`src/services/gameContext.ts` groups PokeAPI version groups into game
+families ("Scarlet / Violet" as one selectable context, not three: base
+game + Teal Mask + Indigo Disk), on top of the `VERSION_GROUPS` chronology
+table above (unchanged). Full write-up, including the DLC/revision
+grouping table, the default-context policy, persistence
+(`src/utils/gameContextStorage.ts`) and the live-data investigation behind
+it: [`docs/architecture/game-context.md`](./architecture/game-context.md).
+`MovesTable` is its first consumer. Learn methods, machines (MT/TR/MO),
+locations and regional Pokédexes are not wired to it yet — the catalogs
+remain intentionally version-independent listings.
 
 ## Known incidents (fixed)
 
