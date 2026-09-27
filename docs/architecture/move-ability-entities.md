@@ -56,18 +56,34 @@ has to know the sign convention.
 **Contest data**: not read. Low priority, as scoped, and no clear
 encyclopedic value beyond what's already shown was found to justify it.
 
-## 3. Move flags (contact, Protect, sound, punch, bite, ...) — investigated, not built
+## 3. Move flags (contact, Protect, sound, punch, bite, ...) — built in Fase 2F
 
-PokeAPI's `move.meta` does **not** expose these at all — verified against
-a real move (Earthquake's `meta` object has no flags field of any kind).
-Pokémon Showdown's `movedex` does have a `flags` object for exactly this
-(`{contact: 1, protect: 1, mirror: 1, ...}`), and this project already
-integrates Showdown for Pokémon base stats/abilities/tier
-(`src/services/smogon.ts`, `pokedex.json`) — but not for moves. Wiring in
-Showdown's `moves.json` is a new data source: its own fetch/cache
-integration, its own flag-name normalization, and no established
-ES/EN label set for each flag to reuse. Judged out of scope for this
-phase; tracked as debt (TODO.md) rather than half-built.
+Originally investigated and deliberately not built in this phase (see
+below for the reasoning at the time); **implemented in Fase 2F**
+(2026-09-28) once it was scoped as its own small, offline, generated
+dataset rather than a live integration. PokeAPI's `move.meta` still
+exposes none of these at all (verified against Earthquake's `meta`
+object). Showdown's `moves.json` has a real `flags` object per move (37
+distinct flag names total, verified live); a curated factual subset
+(contact, protect, sound, powder, punch, bite, pulse, bullet, dance,
+slicing, wind — excluding battle-mechanic-interaction flags like mirror/
+metronome/snatch/futuremove, which would have turned this into
+competitive analysis) is fetched once (single `moves.json` request, not
+per-move) by `scripts/generate-catalogs.ts`'s move-flags builder, matched
+to PokeAPI moves by id (Showdown's own `num` field equals PokeAPI's move
+id — verified live), and written to `src/data/generated/move-flags.json`
+(711 of 937 moves have at least one factual flag, 12.8 KB, deterministic).
+Runtime: `src/services/moveFlagsData.ts`, zero PokeAPI/Showdown requests.
+Labels centralized in `src/utils/moveFlags.ts`. See
+`docs/architecture/move-learnset-relations.md`'s §2 for why "one small
+combined file" (not per-move files like `learnsets/`) was the right
+choice here: the dataset is tiny even before any splitting.
+
+The original blocker (a "new data source... its own fetch/cache
+integration") turned out smaller than expected in practice: Showdown's
+move data needed exactly the same one-time, offline, generated-dataset
+treatment `machines.json` already used for MT/HM/TR — not a live
+integration at all.
 
 ## 4. `target` labels
 

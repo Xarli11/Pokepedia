@@ -134,13 +134,28 @@ generations — documented, not assumed:
 - **Base experience** has also changed historically for a number of
   species.
 
-PokeAPI does not expose a per-version-group history for these fields the
-way it does for moves' `past_values` (§10 of a future move-facts phase) —
-today's value is the only one available. Pokepedia's `PokemonFacts`
-therefore documents itself as **"PokeAPI's current value for this
-species"**, not as a fact that is guaranteed identical in every game that
-species appeared in. See the new TODO entry below for what a future,
-properly historical version of this would need.
+**Update, Fase 2F (2026-09-28) — audited one field at a time, live, before
+assuming any of these could or couldn't be done:**
+
+- **EV yield (and base stats): real history exists.** `pokemon.past_stats`
+  is a genuine, generation-scoped field PokeAPI already exposes — the
+  same mechanism as moves' `past_values`, just discovered here rather than
+  assumed absent. Verified live: Bulbasaur's Gen I entry lists its single
+  unified `special` stat (base 65) from before the physical/special
+  split, `effort` included. Implemented: `pastStatChanges()`
+  (`utils/pokemonFacts.ts`), rendered as a "Cambios históricos" section on
+  the Pokémon page, same heading/style as the move page's own historical
+  changes. No historical value is invented — only what PokeAPI's
+  `past_stats` actually lists, only the stats that differed.
+- **Base friendship, capture rate, base experience: confirmed, still no
+  historical source.** Re-verified live 2026-09-28 against
+  `pokemon-species` (`base_happiness`, `capture_rate` are flat scalars,
+  no `past_*` sibling field anywhere in the schema) and `pokemon`
+  (`base_experience` likewise — the resource's `past_*` fields are only
+  `past_abilities`, `past_stats`, `past_types`). Showdown's own data is
+  current-generation only, not a multi-generation history either. These
+  three remain **documented current-value-only facts**, not reconstructed
+  by rule — this is a real, evidence-based limitation, not a shortcut.
 
 `pokedex_numbers` **is** version-group-adjacent (a Pokédex belongs to a
 specific set of games — `isle-of-armor` the dex, not just the item), but
@@ -171,12 +186,23 @@ readers vs. the cost of building and maintaining it.
 
 ## 9. Forms/varieties, abilities, evolution — reviewed, not rebuilt
 
-- **Varieties**: unchanged. Already links every non-default variety to its
-  own page with sprite + name; no reclassification (Mega/Gigantamax/
-  regional) was added — PokeAPI does not cleanly expose that as a field on
-  `varieties`, and building a manual classification table for it was
-  judged out of scope for this phase (flagged as future debt if a real
-  need appears).
+- **Varieties**: unchanged, re-audited in Fase 2F (2026-09-28). The earlier
+  claim here — "PokeAPI does not cleanly expose [Mega/Gigamax/regional] as
+  a field on `varieties`" — was imprecise and is corrected: it isn't on
+  `varieties` itself, but the separate `pokemon-form` resource each
+  variety points to *does* have real, structured fields for exactly this
+  (`is_mega: boolean`, `is_battle_only: boolean`, `form_name: 'gmax'` for
+  Gigamax forms — verified live against Venusaur-Gmax and a Sandshrew
+  regional form; `form_names` even has real `es` translations, unlike
+  location-area/encounter-method, see §Encounters below). Classifying a
+  variety this way needs one additional `pokemon-form` fetch per variety
+  not currently made (today's suffix-parsed label, e.g. "(Mega)"/
+  "(Gigamax)" from the Pokémon's own name string, already covers the
+  common cases reasonably well in practice). Still judged out of scope for
+  Fase 2F specifically for that reason — a handful of new requests per
+  page that has varieties — not because the data doesn't exist; flagged
+  as future debt if the name-suffix approach is ever found wrong for a
+  real species.
 - **Abilities**: unchanged. Already uses `is_hidden` and never labels a
   normal slot "primary" when there are two.
 - **Evolution**: unchanged (`EvolutionChain` works and is out of this
@@ -184,7 +210,49 @@ readers vs. the cost of building and maintaining it.
   rendered — the chain component already shows the full lineage; a
   standalone "Evolves from X" line was judged redundant.
 
-## 10. Internal linking
+## 10. Encounters / locations / real availability — investigated, deferred (Fase 2F)
+
+The single largest remaining factual gap ("where/how can this Pokémon
+actually be obtained") was investigated in depth before deciding not to
+build it, rather than skipped on assumption. Evidence, all gathered live
+2026-09-28:
+
+- **`/pokemon/{id}/encounters` size is wildly variable and can be large**:
+  6.5 KB (Bulbasaur) up to 957 KB (Magikarp — fished almost everywhere).
+  An offline dataset built the same way as `learnsets/` (Fase 2D) would
+  require fetching this for all ~1351 Pokémon — likely tens of MB raw
+  before any compaction, an order of magnitude past `learnsets/` itself
+  (which was already the most expensive dataset in this project).
+- **No Spanish translations exist for the two resources this data is
+  built from**: `location-area` (checked 5 samples across the full range,
+  1539 total resources) and `encounter-method` (all 66) both came back
+  `en`/`de`/`fr` only, zero `es` entries — some `location-area` resources
+  have no `names` in any language at all. Building this feature would
+  mean either showing raw English location names on the Spanish site
+  (violates this project's own "no invented/missing translations" rule)
+  or hand-translating over a thousand location names, which is not
+  realistic.
+- **Different granularity than everything else Game Context touches**:
+  encounters are keyed by PokeAPI `version` (e.g. `diamond` and `pearl`
+  separately), not `version_group` — a new `version -> version_group`
+  mapping would be needed before any of this could plug into the existing
+  `services/gameContext.ts` model at all.
+- A narrower "real availability" idea (just a games list, no location/
+  method detail, sidestepping the translation problem) was considered and
+  rejected too: it would still require the same full per-Pokémon
+  encounters fetch to derive, for a payoff — a list of games — that
+  `MovesTable`'s own Game Context selector already visually conveys via
+  its options (the exact duplication Fase 2E's own audit already
+  cautioned against for a dedicated "Available in: ..." section).
+
+**Decision: deferred, not built, for a future Fase 2F/2G if ever
+prioritized** — not for lack of trying, but because every version of this
+(full detail or a stripped-down one) fails on either dataset size,
+missing translations, or duplicating an existing UI, and none of that
+changes without new data appearing upstream. See `TODO.md`'s "Deferred by
+evidence" section for what would need to change before revisiting this.
+
+## 11. Internal linking
 
 Types, abilities, moves (via `MovesTable`), generation and forms/varieties
 were already real links before this phase and are unchanged. Egg groups
@@ -193,7 +261,7 @@ or `/ritmo-crecimiento/{x}/` page, and inventing one for a handful of
 enum values was judged not worth the crawl budget. Regional Pokédex
 entries are plain text for the same reason (no per-pokedex page exists).
 
-## 11. SEO
+## 12. SEO
 
 Unchanged: canonical, hreflang, trailing slash, breadcrumbs (`Breadcrumbs`
 already emits a valid `BreadcrumbList`), sitemap, slugs. Title/description
@@ -206,7 +274,7 @@ regression risk. No new Schema.org type was introduced (no Pokémon-specific
 schema.org type exists); the existing `BreadcrumbList` was left as-is
 rather than inventing new properties on it.
 
-## 12. Performance
+## 13. Performance
 
 No new request, no new client-side JavaScript, no new dataset shipped to
 the browser: the only addition is more server-rendered HTML (the new
@@ -230,7 +298,7 @@ no other part of the page changed. These numbers include the whole page
 (moves table, evolution chain, etc.), not just the new sections. New facts add a few `<dl>` rows of
 already-available text — not a meaningfully separable delta.)
 
-## 13. Fallbacks / data gaps
+## 14. Fallbacks / data gaps
 
 Every optional field is *omitted* when PokeAPI has it as `null`
 (`base_happiness`, `hatch_counter` for several Legendaries) — never
@@ -240,7 +308,7 @@ field with no usable data simply does not appear. `growthRateLabel` /
 value (should PokeAPI ever add one), the same defensive pattern
 `versionGroupLabel` already uses.
 
-## 14. How to add a new fact
+## 15. How to add a new fact
 
 1. Confirm the field exists on `pokemon`/`pokemon-species` and that
    Pokepedia already fetches that object for this page (check

@@ -2,6 +2,74 @@
 
 ---
 
+## 2026-09-28 (Sesión 15 — Fase 2F: cierre de Phase 2, enciclopedia factual)
+
+**Objetivo:** cerrar Phase 2 definitivamente sobre
+`feature/phase2-final-factual-encyclopedia` (partiendo de `develop` con
+2D y 2E ya mergeadas, PRs #18 y #19). Auditar TODO lo pendiente
+razonablemente ligado a Phase 2 e implementar lo viable en la misma fase,
+sin abrir 2G/2H por cada detalle, pero sin convertir esto en "todo el
+TODO del repositorio".
+
+**Auditoría en vivo antes de implementar nada** (evidencia real, no
+suposiciones):
+
+- `/pokemon/{id}/encounters`: 6.5 KB (Bulbasaur) a ~957 KB (Magikarp).
+  `location-area` (1539 recursos, 5 muestras) y `encounter-method` (66,
+  todos) sin ninguna traducción `es`. Encuentros indexados por `version`,
+  no `version_group`. **Decisión: diferir con evidencia**, no implementar
+  — ni siquiera una versión reducida de "disponibilidad" (duplicaría el
+  selector de `MovesTable`).
+- `pokemon.past_stats`: descubierto real y viable en vivo (Bulbasaur Gen I,
+  stat `special` unificada, con `effort`). `base_happiness`/
+  `capture_rate`/`base_experience`: re-confirmado que NO tienen ningún
+  campo `past_*` en el schema. **Decisión: implementar EV yield/stats,
+  diferir el resto con evidencia.**
+- Showdown `moves.json`: 490 KB, 954 movimientos, 37 flags distintos,
+  `num` = id de PokeAPI (verificado: Tackle #33, Earthquake #89 coinciden).
+  **Decisión: implementar** un subconjunto factual curado de 11 flags
+  (excluyendo los de mecánica de combate/competitivos).
+- `item.game_indices`: ya descargado en cada detalle de objeto.
+  **Decisión: implementar** `Item --introducedIn--> Generation`.
+- `pokemon-form` (Mega/Gigamax/regional): datos reales y estructurados
+  (`is_mega`, `form_name: 'gmax'`, `form_names` con `es`), pero requieren
+  una petición extra por variedad no hecha hoy. **Decisión: diferir con
+  evidencia**, mantener el etiquetado actual por sufijo de nombre.
+- `data:catalogs:check` en CI: necesita red hacia PokeAPI en cada run.
+  **Decisión: no añadir**, documentado.
+- Objetos ↔ tipos: los objetos no tienen campo `type` estructurado.
+  **Decisión: no crear relación artificial.**
+
+**Implementado:**
+1. `src/utils/pokemonFacts.ts` (`pastStatChanges`) + sección "Cambios
+   históricos" en la ficha Pokémon.
+2. `scripts/generate-catalogs.ts` (`buildMoveFlags`) →
+   `src/data/generated/move-flags.json` (711/937 movimientos, 12.8 KB,
+   determinista verificado con dos ejecuciones), `src/utils/moveFlags.ts`,
+   `src/services/moveFlagsData.ts`, badges en la ficha de movimiento.
+3. `ItemEntry.introducedGeneration` (catálogo + ficha de objeto), desde
+   `game_indices` ya descargado. Catálogos de objetos regenerados (ES/EN,
+   2222 objetos reales), determinismo verificado.
+4. Deuda técnica: 16 ficheros de test movidos de `src/pages/` a
+   `src/testing/` (Astro los empaquetaba como rutas reales +
+   `test.*.mjs` de ~654 KB). Confirmado con `npm run build`: 0 ficheros
+   `*test*` en `dist/`.
+
+**Validación live** (dev server, datos reales): Bulbasaur → "Generación I
+y anteriores: Especial 65"; Tackle → Contacto + Bloqueable con
+Protección; Earthquake → solo Bloqueable con Protección (sin Contacto);
+Master Ball → "Generación I". ES y EN verificados. `fetch-budget.ssr.test.ts`
+confirma 0 peticiones PokeAPI nuevas.
+
+**TODO.md reestructurado** en tres secciones: Phase 2 completed / Deferred
+by evidence / Future product features — permite decir honestamente que
+Phase 2 está cerrada.
+
+**Próximos pasos:** validación final completa, commits de documentación,
+sin PR hasta nueva instrucción.
+
+---
+
 ## 2026-09-27 (Sesión 14 — Fase 2E: Pokédex regional contextualizada por Game Context)
 
 **Objetivo:** implementar la Fase 2E sobre `feature/game-context-regional-dex-phase2e`
