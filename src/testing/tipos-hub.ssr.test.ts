@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import TiposHubPage from './[lang]/tipos/index.astro';
+import TiposHubPage from '../pages/[lang]/tipos/index.astro';
 import { SITE_URL } from '../utils/seo';
 import { typeColors } from '../utils/pokemon';
 

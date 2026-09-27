@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSitemapXml } from './sitemap.xml';
+import { buildSitemapXml } from '../pages/sitemap.xml';
 
 describe('buildSitemapXml', () => {
   it('includes the Sources & Methodology page for both locales', () => {
@@ -80,7 +80,7 @@ function stubUpstream(failing?: string) {
 
 async function freshSitemap() {
   vi.resetModules();
-  const mod = await import('./sitemap.xml');
+  const mod = await import('../pages/sitemap.xml');
   const { onRequest } = await import('../middleware');
   const run = () =>
     onRequest(

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import PokemonPage from './[lang]/pokemon/[name].astro';
-import MovePage from './[lang]/movimientos/[name].astro';
-import ItemPage from './[lang]/objetos/[name].astro';
-import TipoPage from './[lang]/tipo/[type].astro';
-import { renderRoute } from '../testing/renderRoute';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
+import MovePage from '../pages/[lang]/movimientos/[name].astro';
+import ItemPage from '../pages/[lang]/objetos/[name].astro';
+import TipoPage from '../pages/[lang]/tipo/[type].astro';
+import { renderRoute } from './renderRoute';
 
 // 404 means "the entity this URL names doesn't exist" — nothing else. Here
 // the primary entity always exists and a related resource is missing (PokeAPI

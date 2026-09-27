@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import TipoPage from './[lang]/tipo/[type].astro';
+import TipoPage from '../pages/[lang]/tipo/[type].astro';
 import { SITE_URL } from '../utils/seo';
 
 // SSR regression coverage for the type landing pages (Sprint 3, Fase 4):

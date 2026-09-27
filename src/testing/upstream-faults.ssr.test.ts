@@ -84,8 +84,8 @@ async function render(file: string, pattern: string, params: Record<string, stri
   const { renderRoute } = await import('../testing/renderRoute');
   return renderRoute(Page, { routePattern: pattern, params, path });
 }
-const pokemonPage = () => render('./[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'feraligatr' }, '/es/pokemon/feraligatr/');
-const movePage = () => render('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
+const pokemonPage = () => render('../pages/[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'feraligatr' }, '/es/pokemon/feraligatr/');
+const movePage = () => render('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
 
 function expect503(r: Response) {
   expect(r.status).toBe(503);
@@ -166,12 +166,12 @@ describe.each(FAULTS)('upstream fault: $name', (f) => {
 
 describe('primary entity that does not exist', () => {
   it('unknown Pokémon slug -> 404 (not 503)', async () => {
-    const r = await render('./[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'not-a-pokemon' }, '/es/pokemon/not-a-pokemon/');
+    const r = await render('../pages/[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'not-a-pokemon' }, '/es/pokemon/not-a-pokemon/');
     expect(r.status).toBe(404);
   });
 
   it('unknown move slug -> 404 (not 503)', async () => {
-    const r = await render('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'not-a-move' }, '/es/movimientos/not-a-move/');
+    const r = await render('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'not-a-move' }, '/es/movimientos/not-a-move/');
     expect(r.status).toBe(404);
   });
 });

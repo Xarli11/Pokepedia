@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import HomePage from './[lang]/index.astro';
-import PokemonPage from './[lang]/pokemon/[name].astro';
-import MovePage from './[lang]/movimientos/[name].astro';
-import AbilityPage from './[lang]/habilidades/[name].astro';
-import ItemPage from './[lang]/objetos/[name].astro';
-import MovesIndexPage from './[lang]/movimientos/index.astro';
-import AbilitiesIndexPage from './[lang]/habilidades/index.astro';
-import ItemsIndexPage from './[lang]/objetos/index.astro';
+import HomePage from '../pages/[lang]/index.astro';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
+import MovePage from '../pages/[lang]/movimientos/[name].astro';
+import AbilityPage from '../pages/[lang]/habilidades/[name].astro';
+import ItemPage from '../pages/[lang]/objetos/[name].astro';
+import MovesIndexPage from '../pages/[lang]/movimientos/index.astro';
+import AbilitiesIndexPage from '../pages/[lang]/habilidades/index.astro';
+import ItemsIndexPage from '../pages/[lang]/objetos/index.astro';
 import { SITE_URL } from '../utils/seo';
-import { renderRoute } from '../testing/renderRoute';
+import { renderRoute } from './renderRoute';
 
 // Anti-regression for the trailing-slash URL convention: every internal page
 // link rendered server-side must be the canonical form (`/es/pokemon/x/`),

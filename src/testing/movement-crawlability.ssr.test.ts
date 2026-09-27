@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import PokemonPage from './[lang]/pokemon/[name].astro';
-import MovePage from './[lang]/movimientos/[name].astro';
-import MovesIndexPage from './[lang]/movimientos/index.astro';
-import AbilityPage from './[lang]/habilidades/[name].astro';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
+import MovePage from '../pages/[lang]/movimientos/[name].astro';
+import MovesIndexPage from '../pages/[lang]/movimientos/index.astro';
+import AbilityPage from '../pages/[lang]/habilidades/[name].astro';
 import { SITE_URL } from '../utils/seo';
-import { renderRoute } from '../testing/renderRoute';
+import { renderRoute } from './renderRoute';
 
 // Phase 3 regression net: crawlable move links in the initial HTML (index and
 // Pokémon MovesTable), move-page metadata, move -> type / learned-by links,
@@ -253,7 +253,7 @@ describe('move crawlability (SSR)', () => {
 
   it('move page client script rebuilds the method selector on every Game Context change (regression: Outrage Scarlet/Violet -> Platinum, Tutor never appeared)', async () => {
     const { readFile } = await import('node:fs/promises');
-    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../pages/[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
     const script = source.slice(source.indexOf('<script>\n    import'));
     // The options are rebuilt from that context's own relations, never
     // reused from whatever the SSR default context happened to have.
@@ -276,7 +276,7 @@ describe('move crawlability (SSR)', () => {
 
   it('move page client script shows "Total histórico" only with no method filter active, and recomputes it per context', async () => {
     const { readFile } = await import('node:fs/promises');
-    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const source = await readFile(new URL('../pages/[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
     const script = source.slice(source.indexOf('<script>\n    import'));
     expect(script).toMatch(/historicalEl\?\.classList\.toggle\('hidden', !\(currentMethod === 'all' && historicalCount > ctxEntries\.length\)\)/);
     // Computed once, from every relation the move has (any context, any

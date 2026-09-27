@@ -99,7 +99,7 @@ afterEach(() => {
 describe('fetch budgets (SSR)', () => {
   it('move page, warm isolate: 30 learners from the offline dataset cost 0 pokemon/{id} requests, and all 30 are linked', async () => {
     stub();
-    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true);
+    const res = await page('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true);
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     const html = await res.text();
@@ -110,7 +110,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('move page: the learned-by list is the lightweight PokemonRelationList, not tier-badged PokemonCard (Fase 2C: no competitive content on entity pages)', async () => {
     stub();
-    const raw = await (await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true)).text();
+    const raw = await (await page('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true)).text();
     const html = raw.replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ''); // dev-only attributes
     expect(html).not.toMatch(/tier-badge/);
     expect(html).not.toMatch(/data-tier-for="/);
@@ -119,7 +119,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('move page, COLD isolate: still 0 pokemon/{id} requests and never touches Showdown (nothing left that needs either)', async () => {
     stub();
-    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
+    const res = await page('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
     expect(res.status).toBe(200);
     expect(calls).not.toContain(DEX_URL);
     expect(cardFetches()).toEqual([]);
@@ -127,7 +127,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('move page with Showdown DOWN still renders all 30 learners (the list never depended on it)', async () => {
     stub({ dex: false });
-    const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
+    const res = await page('../pages/[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     expect(new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/[a-z0-9-]+\/)"/g)].map((m) => m[1])).size).toBe(30);
@@ -135,7 +135,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('item page, warm isolate: held-by (limit 15) costs 0 pokemon/{id} requests', async () => {
     stub();
-    const res = await page('./[lang]/objetos/[name].astro', '/[lang]/objetos/[name]', { lang: 'es', name: 'mystic-water' }, '/es/objetos/mystic-water/', true);
+    const res = await page('../pages/[lang]/objetos/[name].astro', '/[lang]/objetos/[name]', { lang: 'es', name: 'mystic-water' }, '/es/objetos/mystic-water/', true);
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     const links = new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1]));
@@ -144,7 +144,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('Pokémon page: prev/next come from the species list (no pokemon/{id} fetch for them), no URL is requested twice', async () => {
     stub();
-    const res = await page('./[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
+    const res = await page('../pages/[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]); // the page itself is fetched by slug, so no numeric pokemon/{id} at all
     expect(calls.filter((u) => u === `${API}/pokemon/9` || u === `${API}/pokemon/11`)).toEqual([]);
@@ -156,7 +156,7 @@ describe('fetch budgets (SSR)', () => {
 
   it('Pokémon page: the Showdown dataset is requested once per render', async () => {
     stub();
-    await page('./[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
+    await page('../pages/[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
     expect(calls.filter((u) => u === DEX_URL)).toHaveLength(1);
   });
 
@@ -165,7 +165,7 @@ describe('fetch budgets (SSR)', () => {
     const saved = ROUTES['/pokemon-species?limit=100000'];
     delete ROUTES['/pokemon-species?limit=100000'];
     try {
-      const res = await page('./[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
+      const res = await page('../pages/[lang]/pokemon/[name].astro', '/[lang]/pokemon/[name]', { lang: 'es', name: 'mon10' }, '/es/pokemon/mon10/');
       expect(res.status).toBe(200);
       expect(await res.text()).not.toContain('href="/es/pokemon/mon9/"');
     } finally {

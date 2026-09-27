@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import GeneracionPage from './[lang]/generacion/[gen].astro';
+import GeneracionPage from '../pages/[lang]/generacion/[gen].astro';
 import { SITE_URL } from '../utils/seo';
-import { renderRoute } from '../testing/renderRoute';
+import { renderRoute } from './renderRoute';
 
 // SSR regression coverage for the generation landing pages (Sprint 3, Fase
 // 5): this is the first real crawlable route for "Pokémon de primera

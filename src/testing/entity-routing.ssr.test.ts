@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import PokemonPage from './[lang]/pokemon/[name].astro';
-import MovePage from './[lang]/movimientos/[name].astro';
-import AbilityPage from './[lang]/habilidades/[name].astro';
-import ItemPage from './[lang]/objetos/[name].astro';
-import TipoPage from './[lang]/tipo/[type].astro';
-import GeneracionPage from './[lang]/generacion/[gen].astro';
-import { renderRoute } from '../testing/renderRoute';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
+import MovePage from '../pages/[lang]/movimientos/[name].astro';
+import AbilityPage from '../pages/[lang]/habilidades/[name].astro';
+import ItemPage from '../pages/[lang]/objetos/[name].astro';
+import TipoPage from '../pages/[lang]/tipo/[type].astro';
+import GeneracionPage from '../pages/[lang]/generacion/[gen].astro';
+import { renderRoute } from './renderRoute';
 
 // Entity routing + HTTP semantics, rendered through src/middleware.ts like
 // production:

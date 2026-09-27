@@ -41,7 +41,7 @@ describe('index pages: crawlable and light (SSR)', () => {
 
   for (const lang of ['es', 'en']) {
     it(`/${lang}/objetos/: one real anchor per item, no per-card payload`, async () => {
-      const html = await render('./[lang]/objetos/index.astro', lang, `/${lang}/objetos/`);
+      const html = await render('../pages/[lang]/objetos/index.astro', lang, `/${lang}/objetos/`);
       const hrefs = [...html.matchAll(new RegExp(`<a href="(/${lang}/objetos/[a-z0-9-]+/)"`, 'g'))].map((m) => m[1]);
       expect(new Set(hrefs).size).toBe(N_ITEMS);
       expect(hrefs).toHaveLength(N_ITEMS);
@@ -59,7 +59,7 @@ describe('index pages: crawlable and light (SSR)', () => {
     });
 
     it(`/${lang}/movimientos/: one real anchor per move, no per-row payload`, async () => {
-      const html = await render('./[lang]/movimientos/index.astro', lang, `/${lang}/movimientos/`);
+      const html = await render('../pages/[lang]/movimientos/index.astro', lang, `/${lang}/movimientos/`);
       const hrefs = [...html.matchAll(new RegExp(`<a href="(/${lang}/movimientos/[a-z0-9-]+/)"`, 'g'))].map((m) => m[1]);
       expect(new Set(hrefs).size).toBe(N_MOVES);
       expect(html).not.toContain('onclick=');

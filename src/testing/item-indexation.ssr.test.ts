@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import ItemPage from './[lang]/objetos/[name].astro';
+import ItemPage from '../pages/[lang]/objetos/[name].astro';
 import { SITE_URL } from '../utils/seo';
-import { renderRoute } from '../testing/renderRoute';
+import { renderRoute } from './renderRoute';
 
 // Phase 4: item pages — robots by policy, canonical, localized factual meta,
 // machine -> move (latest version group), placeholders never shown, and the
@@ -288,7 +288,7 @@ describe('machine items -> moves (SSR)', () => {
   it('costs one machine + one move request, as before (bounded)', async () => {
     // pokeapi.ts caches per module instance: load fresh ones so the calls are observable.
     vi.resetModules();
-    const Fresh = (await import('./[lang]/objetos/[name].astro')).default;
+    const Fresh = (await import('../pages/[lang]/objetos/[name].astro')).default;
     const { renderRoute: freshRender } = await import('../testing/renderRoute');
     await freshRender(Fresh, { routePattern: '/[lang]/objetos/[name]', params: { lang: 'es', name: 'tm26' }, path: '/es/objetos/tm26/' });
     const machineCalls = fetchCalls.filter((u) => u.includes('/machine/') || u.includes('/move/'));
@@ -296,7 +296,7 @@ describe('machine items -> moves (SSR)', () => {
   });
 
   it('the linked move page answers 200', async () => {
-    const MovePage = (await import('./[lang]/movimientos/[name].astro')).default;
+    const MovePage = (await import('../pages/[lang]/movimientos/[name].astro')).default;
     const response = await renderRoute(MovePage, {
       routePattern: '/[lang]/movimientos/[name]',
       params: { lang: 'es', name: 'energy-ball' },
@@ -312,7 +312,7 @@ describe('items index (SSR)', () => {
 
   async function renderIndex(lang: string) {
     vi.resetModules(); // fresh pokeapi.ts cache, so the list requests are observable
-    const Index = (await import('./[lang]/objetos/index.astro')).default;
+    const Index = (await import('../pages/[lang]/objetos/index.astro')).default;
     const container = await AstroContainer.create();
     return container.renderToString(Index, { params: { lang }, request: new Request(`${SITE_URL}/${lang}/objetos/`) });
   }
