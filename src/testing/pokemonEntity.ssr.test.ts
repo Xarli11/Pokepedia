@@ -26,6 +26,8 @@ function fixturesFor(opts: {
    * pre-2E fixture in this file, which never exercised Game Context: no
    * available context means the regional dex section stays unfiltered). */
   moveVersionGroups?: string[];
+  /** Fase 2F: real PokeAPI past_stats shape (generation url + changed stats only). */
+  past_stats?: { generation_url: string; stats: { base_stat: number; effort: number; stat: string }[] }[];
 }) {
   const detail = {
     id: opts.id, name: opts.name, height: 10, weight: 100,
@@ -33,6 +35,10 @@ function fixturesFor(opts: {
     species: { name: opts.name, url: `${API}/pokemon-species/${opts.id}/` },
     types: [{ slot: 1, type: { name: 'normal' } }],
     stats: baseStats(opts.effort),
+    past_stats: (opts.past_stats ?? []).map((p) => ({
+      generation: { name: '', url: p.generation_url },
+      stats: p.stats.map((s) => ({ base_stat: s.base_stat, effort: s.effort, stat: { name: s.stat } })),
+    })),
     abilities: [],
     moves: (opts.moveVersionGroups ?? []).map((vg) => ({
       move: { name: 'tackle', url: `${API}/move/tackle/` },
@@ -322,5 +328,46 @@ describe('Pokémon page: regional Pokédex contextualized by Game Context (Fase 
     expect(script).toMatch(/dt\.textContent = pokedexLabel\(/);
     expect(script).toMatch(/dd\.textContent = `#/);
     expect(script).toMatch(/listEl\.replaceChildren\(\.\.\.filtered\.map\(buildRow\)\)/);
+  });
+});
+
+// Fase 2F: real historical stat/EV-yield changes from PokeAPI's own
+// past_stats (Bulbasaur's actual data, verified live 2026-09-28 — Gen I's
+// unified `special` stat, 65 base, before the physical/special split).
+describe('Pokémon page: historical stat/EV-yield changes (Fase 2F)', () => {
+  it('renders "Generación I y anteriores: Especial 65" from real past_stats, ES and EN', async () => {
+    fixtures = fixturesFor({
+      id: 1, name: 'bulbasaur-stathistory', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 1, growth_rate: 'medium-slow', egg_groups: ['monster', 'plant'],
+      past_stats: [{ generation_url: 'https://pokeapi.co/api/v2/generation/1/', stats: [{ base_stat: 65, effort: 0, stat: 'special' }] }],
+    });
+    const es = await render('bulbasaur-stathistory', 'es');
+    expect(es).toContain('Cambios históricos');
+    expect(es).toContain('Generación I y anteriores');
+    expect(es).toContain('Especial 65');
+
+    const en = await render('bulbasaur-stathistory', 'en');
+    expect(en).toContain('Historical changes');
+    expect(en).toContain('Generation I and earlier');
+    expect(en).toContain('Special 65');
+  });
+
+  it('a changed EV yield in an older generation is shown alongside the stat value', async () => {
+    fixtures = fixturesFor({
+      id: 2, name: 'evyieldhistory', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 1, growth_rate: 'medium-slow', egg_groups: ['monster'],
+      past_stats: [{ generation_url: 'https://pokeapi.co/api/v2/generation/4/', stats: [{ base_stat: 45, effort: 1, stat: 'speed' }] }],
+    });
+    const html = await render('evyieldhistory', 'es');
+    expect(html).toContain('Velocidad 45 (1 EV)');
+  });
+
+  it('no past_stats -> no historical changes section (never an empty card)', async () => {
+    fixtures = fixturesFor({
+      id: 3, name: 'nostathistory', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 1, growth_rate: 'medium-slow', egg_groups: ['monster'],
+    });
+    const html = await render('nostathistory', 'es');
+    expect(html).not.toContain('Cambios históricos');
   });
 });

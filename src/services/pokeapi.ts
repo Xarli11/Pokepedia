@@ -44,6 +44,24 @@ export interface PokemonDetail {
             name: string;
         };
     }[];
+    /**
+     * Real, PokeAPI-sourced historical stat changes: only the stats that
+     * actually differed in an older generation are listed per entry (e.g.
+     * Gen I's single unified `special` stat before the physical/special
+     * split) — never every stat repeated unchanged. See
+     * `utils/pokemonFacts.ts`'s `pastStatChanges` and
+     * `docs/architecture/pokemon-entity.md` §8 for why this exists and
+     * `base_happiness`/`capture_rate`/`base_experience` don't: this is the
+     * one factual field PokeAPI actually versions per generation.
+     */
+    past_stats?: {
+        generation: { name: string; url: string };
+        stats: {
+            base_stat: number;
+            effort: number;
+            stat: { name: string };
+        }[];
+    }[];
     base_experience?: number | null;
     abilities: {
         ability: {
