@@ -11,6 +11,21 @@
 // expandMoves() — the SAME function the server uses for its rows, so the
 // SSR table and the client table cannot drift apart.
 
+/**
+ * Every distinct version group name in a Pokémon's own `moves[]` — the raw
+ * material `services/gameContext.ts`'s `availableContextsForPokemon` /
+ * `defaultGameContextForPokemon` reduce into Game Contexts. Extracted here
+ * (Fase 2E) so the Pokémon page and `MovesTable` derive it identically
+ * instead of each re-deriving the same one-line flatMap: the page computes
+ * Game Context once and passes it down, this is just the shared first
+ * step, never the context algorithm itself (that stays in gameContext.ts).
+ */
+export function versionGroupsFromMoveDetails(
+  moves: readonly { version_group_details?: readonly { version_group: { name: string } }[] }[]
+): string[] {
+  return moves.flatMap((m) => (m.version_group_details ?? []).map((d) => d.version_group.name));
+}
+
 export interface RawMoveEntry {
     slug: string;
     /** Last path segment of the PokeAPI move URL (numeric id, in practice). */

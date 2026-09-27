@@ -139,3 +139,37 @@ describe('MovesTable SSR', () => {
     expect(html).not.toContain('data-move-priority-url');
   });
 });
+
+// Fase 2E: MovesTable becomes the page's single Game Context computation
+// when the caller (the Pokémon page) already did it, and broadcasts every
+// resolved context (SSR default, localStorage restore, manual change) so
+// other page sections (the regional Pokédex) can react without a second
+// selector or a second copy of the resolution algorithm.
+describe('MovesTable: precomputed Game Context props + broadcast (Fase 2E)', () => {
+  it('accepts caller-provided availableContexts/defaultContext and renders them as-is, instead of recomputing from moves', async () => {
+    const moves = [{ move: { name: 'tackle', url: 'https://pokeapi.co/api/v2/move/1/' }, version_group_details: [{ level_learned_at: 1, move_learn_method: { name: 'level-up' }, version_group: { name: 'red-blue' } }] }];
+    // Deliberately inconsistent with `moves` (which only has red-blue): if
+    // this renders sword-shield anyway, the props were actually used, not
+    // silently recomputed and overridden.
+    const availableContexts = [{ context: { id: 'sword-shield', kind: 'main-series' as const, revisions: ['sword-shield'], defaultEligible: true }, availableRevisions: ['sword-shield'], latestRevision: 'sword-shield' }];
+    const defaultContext = { contextId: 'sword-shield', revision: 'sword-shield' };
+    const html = await (await AstroContainer.create()).renderToString(MovesTable, { props: { moves, lang: 'es', availableContexts, defaultContext } });
+    expect(html).toContain('data-initial-context="sword-shield"');
+    expect(html).not.toContain('value="red-blue"');
+  });
+
+  it('client script broadcasts pokepedia:game-context-change on the initial resolve AND on every manual change, never only one', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('./MovesTable.astro', import.meta.url), 'utf8');
+    const script = source.slice(source.indexOf('<script>\n    import'));
+    expect(script).toMatch(/function broadcastGameContext\(\)/);
+    expect(script).toMatch(/new CustomEvent\('pokepedia:game-context-change', \{ detail: \{ contextId: currentContext \} \}\)/);
+    // Called once up front (covers both the SSR default and a persisted
+    // context already restored above it in the same function)...
+    const initialCallSite = script.slice(0, script.indexOf('setupMovesTable();'));
+    expect(initialCallSite.match(/broadcastGameContext\(\);/g)?.length).toBeGreaterThanOrEqual(2); // definition-adjacent call + the change handler
+    // ...and again inside the manual version-select change handler.
+    const changeHandler = script.slice(script.indexOf("versionFilter?.addEventListener('change'"), script.indexOf('renderMoves();\n            prefetch();\n        });'));
+    expect(changeHandler).toMatch(/broadcastGameContext\(\);/);
+  });
+});

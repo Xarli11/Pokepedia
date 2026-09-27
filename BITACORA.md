@@ -2,6 +2,78 @@
 
 ---
 
+## 2026-09-27 (Sesión 14 — Fase 2E: Pokédex regional contextualizada por Game Context)
+
+**Objetivo:** implementar la Fase 2E sobre `feature/game-context-regional-dex-phase2e`
+(partiendo de `develop` ya con la Fase 2D mergeada, PR #18): la sección de
+Pokédex regional de la ficha Pokémon se filtra por el Game Context activo,
+reutilizando el selector ya existente de `MovesTable`, sin crear un
+segundo control ni una segunda implementación del algoritmo de Game
+Context.
+
+**Auditoría previa a implementar** (obligatoria antes de tocar código):
+verificados en vivo los 35 `/pokedex/{name}` reales. Solo dos dexes
+devuelven `version_groups: []`: `national` (decisión explícita: `global:
+true`, es el índice cruzado por definición) y `conquest-gallery` (`global:
+false` — ya excluido de la Pokédex regional antes de que el filtro por
+contexto se ejecute nunca, por `isMainSeriesPokedex`). Las otras 33 dexes
+tienen al menos un version group real — no queda ningún caso vacío sin
+decidir.
+
+**Implementado:**
+- `src/services/pokedexes.ts`: `PokedexMeta` gana `versionGroups`/`global`
+  (dato hand-verified, mismo rigor que el resto de la tabla).
+- `src/utils/pokemonFacts.ts`: `regionalDexEntriesForContext` (función
+  pura, mismo estilo que `relationsForContext` de Fase 2D). Un dex sin
+  metadata en la tabla nunca se oculta (fail-open, igual que `pokedexLabel`
+  con un nombre desconocido).
+- `src/utils/movesPayload.ts`: `versionGroupsFromMoveDetails` extraído para
+  que la página y `MovesTable` deriven la lista cruda de version groups de
+  forma idéntica (nunca dos copias del algoritmo de Game Context en sí,
+  que sigue viviendo solo en `gameContext.ts`).
+- `src/components/MovesTable.astro`: acepta `availableContexts`/
+  `defaultContext` opcionales (calculados por la página); si no se pasan,
+  los sigue calculando internamente (tests existentes sin cambios). Su
+  script cliente emite `pokepedia:game-context-change` en cada resolución
+  de contexto (inicial + restaurado desde `localStorage`, y en cada cambio
+  manual).
+- `src/pages/[lang]/pokemon/[name].astro`: calcula Game Context una única
+  vez, lo pasa a `MovesTable`, renderiza la Pokédex regional ya filtrada
+  en SSR, y tiene su propio script que escucha el evento — pero resuelve
+  su estado inicial de forma **independiente** (misma función pura
+  `resolveContextForPokemon`, misma clave de `localStorage`), evitando una
+  condición de carrera con el script de `MovesTable` (los módulos se
+  ejecutan en orden de documento; el de `MovesTable` va antes y emite de
+  forma síncrona, así que un listener registrado después ya habría perdido
+  ese primer evento si dependiera de él).
+- "Total histórico" reutiliza exactamente la semántica corregida en Fase
+  2D: siempre presente en el DOM, nunca omitido condicionalmente en SSR.
+
+**Validación manual con datos reales** (Pikachu, elegido tras inspeccionar
+en vivo `pokemon-species/25`, con entradas en prácticamente todos los
+Game Context): por defecto (Escarlata/Púrpura) muestra Nacional + Paldea +
+Kitakami (3 de 20 históricas); simulada la lógica pura contra Espada/
+Escudo → Galar + Isla de la Armadura (confirma en datos reales que el
+plegado de DLC también aplica a Pokédex regional, no solo a movimientos);
+Let's Go Pikachu/Eevee → Let's Go Kanto; Leyendas: Arceus → Hisui. ES y EN
+verificados. Confirmado con `fetch-budget.ssr.test.ts` que no se añadió
+ninguna petición PokeAPI nueva.
+
+**Verde:** `npm test` (861 pasan, 2 skipped, 0 fallos — +22 sobre el
+estado post-2D), `npm run check` (0 errores), `npm run build`.
+
+**Fuera de alcance, documentado como deuda futura (posible Fase 2F, no
+iniciada):** localizaciones/encuentros (`/pokemon/{id}/encounters`,
+traducciones de `location-area`, mapeo `version` → Game Context). Se deja
+constancia explícita de que Game Context (derivado de
+`pokemon.moves[].version_group_details`) no equivale a disponibilidad o
+capturabilidad real por juego.
+
+**Próximos pasos:** revisión, sin PR abierta ni merge (instrucción
+explícita de esta fase).
+
+---
+
 ## 2026-09-27 (Sesión 13 — Fase 2D: correcciones post-review + Cloudflare Preview)
 
 **Objetivo:** cerrar los hallazgos de una revisión externa de la PR #18 +

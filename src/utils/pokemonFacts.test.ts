@@ -5,6 +5,7 @@ import {
   growthRateLabel,
   eggGroupLabel,
   regionalDexEntries,
+  regionalDexEntriesForContext,
   buildPokemonFacts,
   localizedGenus,
 } from './pokemonFacts';
@@ -98,6 +99,62 @@ describe('regionalDexEntries', () => {
 
   it('empty when there are no pokedex numbers', () => {
     expect(regionalDexEntries([])).toEqual([]);
+  });
+});
+
+// Fase 2E: regional Pokédex numbers filtered by Game Context. Real dexes
+// used below (verified live against PokeAPI 2026-09-27, see pokedexes.ts):
+// paldea -> ['scarlet-violet'], kitakami -> ['scarlet-violet', 'the-teal-mask'],
+// galar -> ['sword-shield'], national -> [] (global).
+describe('regionalDexEntriesForContext', () => {
+  it('a dex whose version group is in the context revisions is kept', () => {
+    const entries = [{ pokedex: 'paldea', entryNumber: 1 }];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet'])).toEqual(entries);
+  });
+
+  it('a dex with no overlap with the context revisions is dropped', () => {
+    const entries = [{ pokedex: 'galar', entryNumber: 1 }];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet'])).toEqual([]);
+  });
+
+  it('a context with multiple revisions (base game + DLC) matches a dex tied to either', () => {
+    // kitakami's numbers are Teal Mask DLC-only; the context's revisions
+    // still include it (Scarlet/Violet's whole revision span, Fase 2 policy).
+    const entries = [
+      { pokedex: 'paldea', entryNumber: 1 },
+      { pokedex: 'kitakami', entryNumber: 2 },
+      { pokedex: 'galar', entryNumber: 3 },
+    ];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet', 'the-teal-mask']).map((e) => e.pokedex)).toEqual(['paldea', 'kitakami']);
+  });
+
+  it('an explicitly global dex (national) is always kept, any context', () => {
+    const entries = [{ pokedex: 'national', entryNumber: 25 }, { pokedex: 'galar', entryNumber: 55 }];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet'])).toEqual([{ pokedex: 'national', entryNumber: 25 }]);
+    expect(regionalDexEntriesForContext(entries, ['sword-shield'])).toEqual([{ pokedex: 'national', entryNumber: 25 }, { pokedex: 'galar', entryNumber: 55 }]);
+  });
+
+  it('an unrecognized dex name is kept (fail open: never hide real data for a gap in the metadata table)', () => {
+    const entries = [{ pokedex: 'some-future-dex-not-yet-in-our-table', entryNumber: 9 }];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet'])).toEqual(entries);
+  });
+
+  it('order is preserved from the input, never re-sorted', () => {
+    const entries = [
+      { pokedex: 'kitakami', entryNumber: 2 },
+      { pokedex: 'national', entryNumber: 1 },
+      { pokedex: 'paldea', entryNumber: 3 },
+    ];
+    expect(regionalDexEntriesForContext(entries, ['scarlet-violet', 'the-teal-mask']).map((e) => e.pokedex)).toEqual(['kitakami', 'national', 'paldea']);
+  });
+
+  it('empty revisions: only the global dex survives', () => {
+    const entries = [{ pokedex: 'national', entryNumber: 1 }, { pokedex: 'paldea', entryNumber: 2 }];
+    expect(regionalDexEntriesForContext(entries, [])).toEqual([{ pokedex: 'national', entryNumber: 1 }]);
+  });
+
+  it('empty entries: empty result regardless of revisions', () => {
+    expect(regionalDexEntriesForContext([], ['scarlet-violet'])).toEqual([]);
   });
 });
 

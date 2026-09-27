@@ -21,6 +21,11 @@ function fixturesFor(opts: {
   growth_rate: string; egg_groups: string[]; pokedex_numbers?: { entry_number: number; pokedex: string }[];
   is_baby?: boolean; is_legendary?: boolean; is_mythical?: boolean;
   genera?: { genus: string; language: string }[];
+  /** Fase 2E: version groups this Pokémon has moves data for — the raw
+   * material Game Context is derived from. Empty by default (matches every
+   * pre-2E fixture in this file, which never exercised Game Context: no
+   * available context means the regional dex section stays unfiltered). */
+  moveVersionGroups?: string[];
 }) {
   const detail = {
     id: opts.id, name: opts.name, height: 10, weight: 100,
@@ -28,7 +33,11 @@ function fixturesFor(opts: {
     species: { name: opts.name, url: `${API}/pokemon-species/${opts.id}/` },
     types: [{ slot: 1, type: { name: 'normal' } }],
     stats: baseStats(opts.effort),
-    abilities: [], moves: [],
+    abilities: [],
+    moves: (opts.moveVersionGroups ?? []).map((vg) => ({
+      move: { name: 'tackle', url: `${API}/move/tackle/` },
+      version_group_details: [{ level_learned_at: 1, move_learn_method: { name: 'level-up' }, version_group: { name: vg } }],
+    })),
     sprites: { front_default: 'https://x/y.png', other: { 'official-artwork': { front_default: 'https://x/y.png' } } },
   };
   const species = {
@@ -191,5 +200,127 @@ describe('Pokémon page: factual sections (Fase 2B)', () => {
     });
     const html = await render('squirtle', 'es');
     expect(html).not.toContain('Números de Pokédex');
+  });
+});
+
+// Fase 2E: regional Pokédex numbers filtered by the page's Game Context.
+// Real dexes (verified live against PokeAPI, see pokedexes.ts): paldea ->
+// scarlet-violet, kitakami -> scarlet-violet + the-teal-mask, galar ->
+// sword-shield, national -> global.
+describe('Pokémon page: regional Pokédex contextualized by Game Context (Fase 2E)', () => {
+  it('SSR shows only the default Game Context\'s dex numbers, plus the global one, and reports the historical total', async () => {
+    fixtures = fixturesFor({
+      id: 99001, name: 'contextmon', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 4, growth_rate: 'medium', egg_groups: ['monster'],
+      pokedex_numbers: [
+        { entry_number: 1, pokedex: 'national' },
+        { entry_number: 2, pokedex: 'galar' },
+        { entry_number: 3, pokedex: 'paldea' },
+      ],
+      // Scarlet/Violet is the most recent -> the SSR default context.
+      moveVersionGroups: ['sword-shield', 'scarlet-violet'],
+    });
+    const html = await render('contextmon', 'es');
+    // Default context (Scarlet/Violet): Paldea + the global National dex —
+    // Galar (Sword/Shield-only) is not shown by default.
+    expect(html).toContain('Paldea');
+    expect(html).toContain('Nacional');
+    expect(html).not.toContain('Galar');
+    // 2 shown (Paldea + National) vs. 3 historical: the indicator is visible.
+    const historicalSpan = html.match(/<span id="regional-dex-historical"[^>]*>([^<]*)<\/span>/);
+    expect(historicalSpan?.[0]).not.toMatch(/\bhidden\b/);
+    expect(historicalSpan?.[1]).toContain('3');
+  });
+
+  it('a DLC revision (Kitakami/Teal Mask) is included in its base context, not lost', async () => {
+    fixtures = fixturesFor({
+      id: 99002, name: 'dlcmon', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 4, growth_rate: 'medium', egg_groups: ['monster'],
+      pokedex_numbers: [{ entry_number: 1, pokedex: 'national' }, { entry_number: 2, pokedex: 'kitakami' }],
+      moveVersionGroups: ['scarlet-violet', 'the-teal-mask'],
+    });
+    const html = await render('dlcmon', 'es');
+    expect(html).toContain('Kitakami');
+  });
+
+  it('"Total histórico" is present but hidden when the default context already shows every entry', async () => {
+    fixtures = fixturesFor({
+      id: 99003, name: 'nohiddendiff', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 4, growth_rate: 'medium', egg_groups: ['monster'],
+      pokedex_numbers: [{ entry_number: 1, pokedex: 'national' }, { entry_number: 2, pokedex: 'paldea' }],
+      moveVersionGroups: ['scarlet-violet'],
+    });
+    const html = await render('nohiddendiff', 'es');
+    const historicalSpan = html.match(/<span id="regional-dex-historical"[^>]*>/);
+    expect(historicalSpan?.[0]).toMatch(/\bhidden\b/);
+  });
+
+  it('no available Game Context (no move version-group data): every historical entry shows, unfiltered', async () => {
+    fixtures = fixturesFor({
+      id: 99004, name: 'nocontextmon', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 4, growth_rate: 'medium', egg_groups: ['monster'],
+      pokedex_numbers: [{ entry_number: 1, pokedex: 'national' }, { entry_number: 2, pokedex: 'galar' }],
+      moveVersionGroups: [],
+    });
+    const html = await render('nocontextmon', 'es');
+    expect(html).toContain('Nacional');
+    expect(html).toContain('Galar');
+  });
+
+  it('EN: labels and "Total historical" render in English', async () => {
+    fixtures = fixturesFor({
+      id: 99005, name: 'englishmon', capture_rate: 45, base_happiness: 70, hatch_counter: 20,
+      gender_rate: 4, growth_rate: 'medium', egg_groups: ['monster'],
+      pokedex_numbers: [
+        { entry_number: 1, pokedex: 'national' },
+        { entry_number: 2, pokedex: 'galar' },
+        { entry_number: 3, pokedex: 'paldea' },
+      ],
+      moveVersionGroups: ['sword-shield', 'scarlet-violet'],
+    });
+    const html = await render('englishmon', 'en');
+    expect(html).toContain('Paldea');
+    expect(html).toContain('National');
+    expect(html).not.toContain('Galar');
+    expect(html).toContain('Total historical');
+  });
+
+  it('client script: rebuilds the regional dex list from the same pure filter used server-side, and never a second Game Context selector', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
+    expect(script).toMatch(/import \{ regionalDexEntriesForContext[^}]*\} from '..\/..\/..\/utils\/pokemonFacts'/);
+    expect(script).toMatch(/document\.addEventListener\('pokepedia:game-context-change', onGameContextChange, \{ signal \}\)/);
+    // No <select> is created by this script — it only ever reads
+    // MovesTable's broadcast / localStorage, never renders its own control.
+    expect(script).not.toMatch(/createElement\('select'\)/);
+    expect(script).not.toContain('<select');
+  });
+
+  it('client script: one AbortController per setup run, aborted before the next — no listener accumulation across astro:after-swap', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
+    // The controller lives above setupRegionalDex (module scope for this
+    // script), so a second run can abort the previous one before creating
+    // its own — never a fresh, unrelated controller with no memory of it.
+    expect(script).toMatch(/let regionalDexAbort: AbortController \| null = null;\s*\n\s*\n\s*function setupRegionalDex\(\)/);
+    const setupBody = script.slice(script.indexOf('function setupRegionalDex()'), script.indexOf('setupRegionalDex();\n    document.addEventListener'));
+    expect(setupBody.indexOf('regionalDexAbort?.abort();')).toBeGreaterThanOrEqual(0);
+    expect(setupBody.indexOf('regionalDexAbort = new AbortController();')).toBeGreaterThan(setupBody.indexOf('regionalDexAbort?.abort();'));
+    // The listener is registered with that same run's signal, not bare —
+    // aborting the controller is what actually removes it.
+    expect(setupBody).toMatch(/addEventListener\('pokepedia:game-context-change', onGameContextChange, \{ signal \}\)/);
+  });
+
+  it('client script: never builds regional dex rows via innerHTML — DOM APIs (createElement/textContent) only', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('../pages/[lang]/pokemon/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.lastIndexOf('<script>\n    // Fase 2E'));
+    expect(script).not.toMatch(/listEl\.innerHTML/);
+    expect(script).toMatch(/document\.createElement\('div'\)/);
+    expect(script).toMatch(/dt\.textContent = pokedexLabel\(/);
+    expect(script).toMatch(/dd\.textContent = `#/);
+    expect(script).toMatch(/listEl\.replaceChildren\(\.\.\.filtered\.map\(buildRow\)\)/);
   });
 });
