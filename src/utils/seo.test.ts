@@ -46,12 +46,12 @@ describe('buildPageTitle', () => {
   });
 
   it('falls back to a localized default title when none is given', () => {
-    expect(buildPageTitle(undefined, 'es')).toBe('La Enciclopedia Pokémon Técnica Definitiva | Pokepedia.app');
-    expect(buildPageTitle('', 'en')).toBe('The Ultimate Technical Pokémon Encyclopedia | Pokepedia.app');
+    expect(buildPageTitle(undefined, 'es')).toBe('La Enciclopedia Pokémon | Pokepedia.app');
+    expect(buildPageTitle('', 'en')).toBe('The Pokémon Encyclopedia | Pokepedia.app');
   });
 
   it('defaults to Spanish for an unknown/missing lang', () => {
-    expect(buildPageTitle(undefined, 'fr')).toContain('La Enciclopedia Pokémon Técnica Definitiva');
+    expect(buildPageTitle(undefined, 'fr')).toContain('La Enciclopedia Pokémon');
   });
 });
 

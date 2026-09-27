@@ -4,6 +4,7 @@ import { getPokemonByGeneration, GENERATIONS } from '../../services/pokeapi';
 import { getSmogonDataBatch } from '../../services/smogon';
 import { uiTranslations, typeTranslations, typeColors } from '../../utils/pokemon';
 import { pagePath } from '../../utils/seo';
+import catalogManifest from '../../data/generated/manifest.json';
 
 const { lang = 'es' } = Astro.params;
 const url = new URL(Astro.request.url);
@@ -207,13 +208,15 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         ))}
     </div>
 
-    <div id="index-data" data-lang={lang} data-gen={gen} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
+    <div id="index-data" data-lang={lang} data-gen={gen} data-search-version={catalogManifest.files[`search-index.${lang === 'en' ? 'en' : 'es'}.json` as keyof typeof catalogManifest.files]} data-translations={JSON.stringify(uiTranslations)} class="hidden"></div>
 
     <script>
         import { trackEvent } from '../../utils/analytics';
         import { fetchPokemonBySlug } from '../../utils/pokeapiClient';
         import { resolveFavorites } from '../../utils/favorites';
         import { canonicalPokemonSlug, pagePath } from '../../utils/seo';
+        import { buildEntityRow, loadSearchIndex, runSearch } from '../../utils/searchUi';
+        import { computeGridVisibility } from '../../utils/homeSearch';
 
         const typeColorsClient: Record<string, string> = {
             normal: '#A8A77A', fire: '#EE8130', water: '#6390F0', electric: '#F7D02C', grass: '#7AC74C',
@@ -223,6 +226,8 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
         };
 
         let searchTimeout: ReturnType<typeof setTimeout>;
+        let searchSeq = 0;
+        let searchVersion = '';
 
         function normalize(str: string) {
             return str.toLowerCase().replace(/-/g, ' ').trim();
@@ -241,24 +246,22 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
 
             if (!searchInput || !typeFilter || !sortOrder || !grid) return;
 
-            const query = normalize(searchInput.value);
             const selectedType = typeFilter.value;
             const currentSort = sortOrder.value;
             const currentCards = Array.from(document.querySelectorAll<HTMLElement>('.pokemon-card'));
 
-            let visibleCount = 0;
-            currentCards.forEach(card => {
-                const name = normalize(card.getAttribute('data-name') || '');
-                const id = card.getAttribute('data-id') || '';
-                const types = (card.getAttribute('data-types') || '').split(',');
-
-                const matchesSearch = query === '' || name.includes(query) || id.includes(query);
-                const matchesType = selectedType === 'all' || types.includes(selectedType);
-
-                const isVisible = matchesSearch && matchesType;
-                card.style.display = isVisible ? 'flex' : 'none';
-                if (isVisible) visibleCount++;
-            });
+            // The text narrows the grid only if some card matches it (utils/homeSearch.ts);
+            // otherwise it belongs to the multi-entity dropdown alone.
+            const gridState = computeGridVisibility(
+                currentCards.map(card => ({
+                    name: card.getAttribute('data-name') || '',
+                    id: card.getAttribute('data-id') || '',
+                    types: (card.getAttribute('data-types') || '').split(','),
+                })),
+                searchInput.value,
+                selectedType
+            );
+            currentCards.forEach((card, i) => { card.style.display = gridState.visible[i] ? 'flex' : 'none'; });
 
             const sortedCards = currentCards.sort((a, b) => {
                 const getStat = (card: HTMLElement, stat: string) => parseInt(card.dataset[stat] || '0');
@@ -275,7 +278,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             });
             sortedCards.forEach(card => grid.appendChild(card));
 
-            if (visibleCount === 0 && (query.length > 0 || selectedType !== 'all')) {
+            if (gridState.showEmpty) {
                 grid.classList.add('hidden');
                 noResults?.classList.remove('hidden');
             } else {
@@ -385,6 +388,7 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
             const dataEl = document.getElementById('index-data');
             if (!dataEl) return;
             const lang = dataEl.dataset.lang || 'es';
+            searchVersion = dataEl.dataset.searchVersion || '';
             const gen = dataEl.dataset.gen;
             const uiTranslations = JSON.parse(dataEl.dataset.translations || '{}');
             const t = uiTranslations[lang] || uiTranslations.es;
@@ -411,66 +415,25 @@ const t = uiTranslations[lang as string] || uiTranslations.es;
                 clearTimeout(searchTimeout);
                 if (query.length >= 2) {
                     searchTimeout = setTimeout(async () => {
-                        suggestionsContainer.classList.remove('hidden');
-                        suggestionsList.innerHTML = Array(3).fill(0).map(() => `
-                            <div class="flex items-center gap-5 px-6 py-4 animate-pulse">
-                                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-2xl"></div>
-                                <div class="flex flex-col gap-2">
-                                    <div class="w-10 h-2 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                                    <div class="w-24 h-4 bg-slate-100 dark:bg-slate-700 rounded"></div>
-                                </div>
-                            </div>
-                        `).join('');
-
+                        const seq = ++searchSeq;
                         try {
-                            const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
-                            const matches = await res.json();
+                            const prepared = await loadSearchIndex(lang, searchVersion);
+                            if (seq !== searchSeq) return;
+                            const matches = runSearch(prepared, searchInput.value, lang);
+                            // Only whether there were results: never the typed text.
                             trackEvent('global_search', { language: lang, target: matches.length > 0 ? 'results' : 'no_results', source_surface: 'home_search' });
-
                             if (matches.length > 0) {
-                                // A1: build suggestion items with DOM (no innerHTML with API data)
                                 suggestionsList.innerHTML = '';
-                                matches.forEach((p: any) => {
-                                    const spriteUrl = p.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-                                    const isVariety = p.id > 10000;
-                                    const a = document.createElement('a');
-                                    a.href = pagePath(lang, 'pokemon', p.name);
-                                    a.className = 'flex items-center gap-5 px-6 py-4 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors group';
-                                    const img = document.createElement('img');
-                                    img.src = spriteUrl;
-                                    img.alt = p.name;
-                                    img.className = 'w-10 h-10 object-contain image-render-pixel';
-                                    img.loading = 'lazy';
-                                    img.onerror = function() { (this as HTMLImageElement).src = '/pokeball.png'; (this as HTMLImageElement).classList.add('opacity-20'); };
-                                    const imgWrap = document.createElement('div');
-                                    imgWrap.className = 'w-12 h-12 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex items-center justify-center p-1 border border-slate-100 dark:border-slate-700/50 group-hover:bg-white dark:group-hover:bg-slate-800 transition-colors shadow-sm';
-                                    imgWrap.appendChild(img);
-                                    const textWrap = document.createElement('div');
-                                    textWrap.className = 'flex flex-col';
-                                    const idSpan = document.createElement('span');
-                                    idSpan.className = 'text-[10px] font-black text-slate-300 dark:text-slate-600';
-                                    idSpan.textContent = isVariety ? (t.special_form || 'SPECIAL') : '#' + String(p.id).padStart(4, '0');
-                                    const nameSpan = document.createElement('span');
-                                    nameSpan.className = 'text-slate-700 dark:text-slate-200 font-bold capitalize group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors';
-                                    nameSpan.textContent = p.name.replace(/-/g, ' ');
-                                    textWrap.appendChild(idSpan);
-                                    textWrap.appendChild(nameSpan);
-                                    const arrow = document.createElement('span');
-                                    arrow.className = 'ml-auto text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0';
-                                    arrow.textContent = lang === 'es' ? 'Ver Ficha →' : 'View Info →';
-                                    a.appendChild(imgWrap);
-                                    a.appendChild(textWrap);
-                                    a.appendChild(arrow);
-                                    suggestionsList.appendChild(a);
-                                });
+                                const ctx = { lang, typeColors: typeColorsClient, typeNames: prepared.typeNames, caption: lang === 'es' ? 'Ver ficha →' : 'View →' };
+                                matches.forEach((m) => suggestionsList.appendChild(buildEntityRow(m, ctx)));
+                                suggestionsContainer.classList.remove('hidden');
                             } else {
                                 suggestionsContainer.classList.add('hidden');
                             }
                         } catch (e) {
-                            console.error('Error fetching suggestions:', e);
                             suggestionsContainer.classList.add('hidden');
                         }
-                    }, 300);
+                    }, 120);
                 } else {
                     suggestionsContainer.classList.add('hidden');
                 }

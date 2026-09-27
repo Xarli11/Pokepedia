@@ -2,13 +2,13 @@
 import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
-import CompetitiveSets from '../../../components/CompetitiveSets.astro';
+import SmogonTier from '../../../components/SmogonTier.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
-import { getShowdownPokemon, getSmogonSets, type SmogonSet } from '../../../services/smogon';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
-import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
+import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
 
 const { lang = 'es', name: rawName } = Astro.params;
@@ -112,13 +112,6 @@ try {
     }
 } catch (e) {}
 
-// 1b. Sets competitivos de Smogon (optional). Needs the tier, so it starts as
-// soon as Showdown resolves and overlaps the ability lookups below.
-let smogonSets: SmogonSet[] | null = null;
-const smogonPromise: Promise<SmogonSet[] | null> = showdownData
-    ? getSmogonSets(detail.name, showdownData.tier || 'Untiered').catch(() => null)
-    : Promise.resolve(null);
-
 // 2. Fallback de especie (para Movimientos que Showdown no detalla para Megas)
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
@@ -154,32 +147,7 @@ try {
         }
     }));
 } catch (e) {}
-[evolutionChain, varieties, smogonSets] = await Promise.all([evolutionPromise, varietiesPromise, smogonPromise]);
-
-// 4. Traducir smogonSets al idioma actual
-if (smogonSets && smogonSets.length > 0 && lang === 'es') {
-    try {
-        const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const abilityMap: Record<string, string> = {};
-        (abilitiesWithTranslation as any[]).forEach(a => { abilityMap[a.ability.name] = a.displayName; });
-
-        const uniqueMoveSlugs = [...new Set(smogonSets.flatMap(s => s.moves).map(toSlug))];
-        const uniqueItemSlugs = [...new Set(smogonSets.map(s => s.item).filter(Boolean).map(i => toSlug(i as string)))];
-
-        const [moveNames, itemNames] = await Promise.all([
-            getLocalizedNames(uniqueMoveSlugs, 'move', lang as string),
-            getLocalizedNames(uniqueItemSlugs, 'item', lang as string),
-        ]);
-
-        smogonSets = smogonSets.map(set => ({
-            ...set,
-            moves: set.moves.map(m => moveNames[toSlug(m)] || m),
-            ability: set.ability ? (abilityMap[toSlug(set.ability)] || set.ability) : null,
-            item: set.item ? (itemNames[toSlug(set.item)] || set.item) : null,
-            nature: set.nature ? (natureTranslations[set.nature] || set.nature) : null,
-        }));
-    } catch (e) {}
-}
+[evolutionChain, varieties] = await Promise.all([evolutionPromise, varietiesPromise]);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = species ? (getLocalizedName(species.names, lang as string) || species.name) : detail.name;
@@ -241,11 +209,11 @@ const points = statsValues.map((stat: number, i: number) => {
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es'
-    ? `${localizedName}: Stats, Debilidades y Estrategia`
-    : `${localizedName}: Stats, Weaknesses & Strategy`;
+    ? `${localizedName}: Stats, Movimientos y Habilidades`
+    : `${localizedName}: Stats, Moves & Abilities`;
 const seoDescription = lang === 'es'
-    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`
-    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses and competitive strategies.`;
+    ? `Ficha de ${localizedName}: tipos, estadísticas base (${totalStats}), habilidades, evolución y movimientos que aprende.`
+    : `${localizedName} profile: types, base stats (${totalStats}), abilities, evolution and the moves it learns.`;
 
 // Type theming
 const primaryType = detail.types[0]?.type.name || 'normal';
@@ -383,7 +351,7 @@ const breadcrumbItems = [
                         </a>
                     )}
                     <a href={buildPokeTypesUrl(detail.types, detail.name)} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="pokemon_detail" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
-                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
+                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_types_on_poketypes}</span>
                     </a>
                 </div>
                 <h2 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h2>
@@ -444,7 +412,7 @@ const breadcrumbItems = [
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} smogonSets={smogonSets} />
+        <SmogonTier pokemonName={detail.name} lang={lang as string} tier={showdownData?.tier || null} />
         <MovesTable moves={detail.moves} lang={lang as string} />
     </div>
 
@@ -466,12 +434,15 @@ const breadcrumbItems = [
         document.addEventListener('astro:after-swap', initShiny);
     </script>
 
-    <script is:inline define:vars={{ _pokemonName: canonicalSlug, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+    <script is:inline define:vars={{ _pokemonSlug: canonicalSlug, _pokemonId: pokemonId, _pokemonLabel: localizedName }}>
+        // Recent-search history (same shape as utils/searchHistory.ts; legacy
+        // { name, id, sprite } entries are still understood there).
         (function() {
             try {
-                const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
-                const filtered = history.filter(h => h.name !== _pokemonName);
-                filtered.unshift({ name: _pokemonName, id: _pokemonId, sprite: _pokemonSprite });
+                const raw = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                const history = Array.isArray(raw) ? raw : [];
+                const filtered = history.filter(h => h && !((h.type === 'pokemon' && h.slug === _pokemonSlug) || (h.type === undefined && h.name === _pokemonSlug)));
+                filtered.unshift({ type: 'pokemon', slug: _pokemonSlug, name: _pokemonLabel, id: _pokemonId });
                 localStorage.setItem('pokepedia_history', JSON.stringify(filtered.slice(0, 8)));
             } catch {}
         })();

@@ -1,12 +1,12 @@
 # 🐉 Pokepedia Research Lab
 
-**Pokepedia** no es solo una enciclopedia Pokémon; es una terminal de datos de alto rendimiento diseñada para investigadores, entrenadores competitivos y entusiastas de la saga. Bajo una estética de "Laboratorio de Investigación", el proyecto ofrece una experiencia técnica, limpia y extremadamente fluida.
+**Pokepedia** es la enciclopedia Pokémon: Pokémon, movimientos, habilidades, objetos, evoluciones, formas, generaciones y datos de juego, conectados y fáciles de consultar. Forma parte de un ecosistema de tres productos: **Pokepedia** (conocimiento), **PokeTypes** (tipos: debilidades, resistencias, cobertura) y **PokeStudio** (equipos, sets, estrategia y cálculo). Bajo una estética de "Laboratorio de Investigación", ofrece una experiencia técnica, limpia y extremadamente fluida.
 
 ![Estado del Proyecto](https://img.shields.io/badge/ESTADO_DEX-ACTIVO-emerald?style=for-the-badge)
 ![Tecnología](https://img.shields.io/badge/CORE-ASTRO_SSR-slate?style=for-the-badge)
 
 ## 🧬 Filosofía del Proyecto
-El objetivo principal de Pokepedia es democratizar el acceso a los datos técnicos de los 1025 Pokémon conocidos, eliminando el ruido visual de las wikis convencionales y priorizando la **precisión técnica** y la **velocidad de consulta**. Cada ficha está diseñada para responder preguntas críticas en segundos: *¿Qué stats tiene? ¿En qué tier de Smogon está? ¿Qué movimientos aprende?*
+El objetivo principal de Pokepedia es democratizar el acceso a los datos técnicos de los 1025 Pokémon conocidos, eliminando el ruido visual de las wikis convencionales y priorizando la **precisión técnica** y la **velocidad de consulta**. Cada ficha responde en segundos: *¿Qué es? ¿Qué stats y habilidades tiene? ¿Qué movimientos aprende (en el juego más reciente por defecto)? ¿Cómo evoluciona? ¿En qué generación apareció?*
 
 ## 💎 Identidad Visual "Research Lab"
 Hemos desarrollado una interfaz **Premium Dark** basada en una paleta de grises azulados (`slate`) y verdes esmeralda (`emerald`). 
@@ -17,14 +17,15 @@ Hemos desarrollado una interfaz **Premium Dark** basada en una paleta de grises 
 ## 🛰️ Módulos de Investigación
 
 ### 📋 Pokédex de Nueva Generación
-Un motor de búsqueda global capaz de indexar no solo especies base, sino también **Megas, Formas Gigamax y Variantes Regionales**. El sistema de autocompletado visual permite identificar al Pokémon por su icono antes de terminar de escribir.
+Un buscador global multi-entidad (Pokémon —con Megas, Gigamax y variantes regionales—, movimientos, habilidades, objetos, tipos y generaciones) sobre un índice compacto por idioma, sin una petición por pulsación.
 
-### ⚔️ Integración Competitiva (Smogon)
-Sincronización en tiempo real con los metadatos de **Pokémon Showdown**. Cada ficha muestra automáticamente la Tier actual (OU, UU, Uber, etc.), permitiendo a los jugadores entender la posición de un Pokémon en el metajuego actual.
+### 🏷️ Dato de referencia: tier de Smogon
+Cada ficha muestra, atribuido y sin dominar la página, el tier de Smogon (datos públicos de Pokémon Showdown). Los sets y la estrategia competitiva viven en PokeStudio.
 
 ### 📦 Base de Datos de Objetos y Movimientos
 *   **Objetos**: Clasificación inteligente por "Super-categorías" (Bayas, Medicinas, Combate) que agrupa los datos fragmentados de la API en filtros útiles para el usuario.
-*   **Movimientos**: Tabla técnica detallada con filtrado por tipos, potencias y categorías (Físico/Especial/Estado).
+*   **Movimientos**: Tabla técnica con tipo, categoría, potencia, precisión, PP y prioridad, ya en el HTML del servidor.
+*   **Catálogos generados**: `npm run data:catalogs` genera los datasets ES/EN (`src/data/generated/`) desde PokeAPI; ver `docs/DATA_SOURCES.md`.
 
 ### 🧬 Evolución Recursiva Avanzada
 Un motor lógico capaz de renderizar cadenas evolutivas complejas, manejando múltiples ramificaciones (como Eevee) y condiciones especiales de evolución (objetos, niveles, etc.).

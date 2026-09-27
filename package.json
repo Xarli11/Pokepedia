@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "data:audit": "tsx scripts/data-audit.ts",
-    "data:items-seo": "tsx scripts/item-seo-manifest.ts"
+    "data:items-seo": "tsx scripts/item-seo-manifest.ts",
+    "data:catalogs": "tsx scripts/generate-catalogs.ts",
+    "data:catalogs:check": "tsx scripts/generate-catalogs.ts --check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
