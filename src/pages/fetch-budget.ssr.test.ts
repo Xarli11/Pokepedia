@@ -4,6 +4,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // (Measured before, cold: Pokémon 11-28 requests incl. two ~280 KB
 // pokemon/{id} for prev/next; move/ability pages 41 requests / 7-12 MB for
 // the Pokémon cards; item held-by 16 requests / 4 MB.)
+//
+// Fase 2D moved the move page's learned-by list off PokeAPI entirely (see
+// docs/architecture/move-learnset-relations.md): it now reads the offline
+// learnsets/{move}.json dataset + the already-generated Pokémon catalog,
+// never a pokemon/{id} fetch and never Showdown, warm or cold isolate
+// alike. services/moveLearnsets is mocked here — not the generated file
+// itself — because the real dataset is an opt-in, separately-run generator
+// output (scripts/generate-catalogs.ts --only=move-learnsets) this test
+// suite doesn't depend on.
+vi.mock('../services/moveLearnsets', () => ({
+  getMoveLearnsetRelations: async (move: string) =>
+    move === 'surf'
+      ? Array.from({ length: 30 }, (_, i) => ({ pokemonId: i + 1, method: 'machine', versionGroup: 'red-blue', level: 0 }))
+      : [],
+}));
 
 const API = 'https://pokeapi.co/api/v2';
 const DEX_URL = 'https://play.pokemonshowdown.com/data/pokedex.json';
@@ -82,15 +97,15 @@ afterEach(() => {
 });
 
 describe('fetch budgets (SSR)', () => {
-  it('move page, warm isolate: 30 learned-by cards cost 0 pokemon/{id} requests, and all 30 are linked', async () => {
+  it('move page, warm isolate: 30 learners from the offline dataset cost 0 pokemon/{id} requests, and all 30 are linked', async () => {
     stub();
     const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/', true);
     expect(res.status).toBe(200);
     expect(cardFetches()).toEqual([]);
     const html = await res.text();
-    const links = new Set([...html.matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1]));
+    const links = new Set([...html.matchAll(/href="(\/es\/pokemon\/[a-z0-9-]+\/)"/g)].map((m) => m[1]));
     expect(links.size).toBe(30);
-    expect(calls.filter((u) => !u.includes('/pokemon/'))).toHaveLength(3); // pokedex (warm-up), move, species list
+    expect(calls.filter((u) => !u.includes('/pokemon/'))).toHaveLength(2); // pokedex (warm-up, unused by this page), move
   });
 
   it('move page: the learned-by list is the lightweight PokemonRelationList, not tier-badged PokemonCard (Fase 2C: no competitive content on entity pages)', async () => {
@@ -99,25 +114,23 @@ describe('fetch budgets (SSR)', () => {
     const html = raw.replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ''); // dev-only attributes
     expect(html).not.toMatch(/tier-badge/);
     expect(html).not.toMatch(/data-tier-for="/);
-    expect(html.match(/href="\/es\/pokemon\/mon\d+\/"/g)).toHaveLength(30);
+    expect(html.match(/href="\/es\/pokemon\/[a-z0-9-]+\/"/g)?.length).toBeGreaterThanOrEqual(30);
   });
 
-  it('move page, COLD isolate: does not wait on Showdown — same PokeAPI cards as before', async () => {
+  it('move page, COLD isolate: still 0 pokemon/{id} requests and never touches Showdown (nothing left that needs either)', async () => {
     stub();
-    for (const h of HOLDERS) ROUTES[`/pokemon/${h.url.split('/').slice(-2)[0]}`] ??= pokemon(Number(h.url.split('/').slice(-2)[0]), h.name);
     const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
     expect(res.status).toBe(200);
     expect(calls).not.toContain(DEX_URL);
-    expect(cardFetches()).toHaveLength(30);
+    expect(cardFetches()).toEqual([]);
   });
 
-  it('move page with Showdown DOWN still renders the cards (per-Pokémon fallback, as before)', async () => {
+  it('move page with Showdown DOWN still renders all 30 learners (the list never depended on it)', async () => {
     stub({ dex: false });
-    for (const h of HOLDERS) ROUTES[`/pokemon/${h.url.split('/').slice(-2)[0]}`] ??= pokemon(Number(h.url.split('/').slice(-2)[0]), h.name);
     const res = await page('./[lang]/movimientos/[name].astro', '/[lang]/movimientos/[name]', { lang: 'es', name: 'surf' }, '/es/movimientos/surf/');
     expect(res.status).toBe(200);
-    expect(cardFetches().length).toBe(30);
-    expect(new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/mon\d+\/)"/g)].map((m) => m[1])).size).toBe(30);
+    expect(cardFetches()).toEqual([]);
+    expect(new Set([...(await res.text()).matchAll(/href="(\/es\/pokemon\/[a-z0-9-]+\/)"/g)].map((m) => m[1])).size).toBe(30);
   });
 
   it('item page, warm isolate: held-by (limit 15) costs 0 pokemon/{id} requests', async () => {

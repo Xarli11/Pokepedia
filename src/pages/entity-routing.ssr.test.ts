@@ -81,7 +81,11 @@ const ROUTES: Record<string, unknown> = {
   '/item/offline-item': new TypeError('fetch failed'),
   '/type/fire': 504,
   // Unexpected internal error: a 200 payload the page can't handle (bug path)
-  '/move/broken-move': { id: 1, name: 'broken-move', names: [], type: { name: 'water' }, damage_class: { name: 'special' } },
+  // damage_class deliberately missing: the page reads moveData.damage_class.name
+  // unconditionally (Fase 2D made every *other* field optional-chained/defensive,
+  // this is the one still-guaranteed crash point left to prove real bugs still
+  // propagate as 500s rather than being swallowed into 404/503/302/200).
+  '/move/broken-move': { id: 1, name: 'broken-move', names: [], type: { name: 'water' } },
 };
 
 beforeEach(() => {

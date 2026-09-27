@@ -10,6 +10,26 @@ import { renderRoute } from '../testing/renderRoute';
 // Phase 3 regression net: crawlable move links in the initial HTML (index and
 // Pokémon MovesTable), move-page metadata, move -> type / learned-by links,
 // and Showdown ability names resolved to real PokeAPI slugs.
+//
+// Fase 2D: the move page's learned-by list now reads services/moveLearnsets
+// (offline learnsets/{move}.json, see docs/architecture/move-learnset-relations.md)
+// instead of PokeAPI's learned_by_pokemon. That dataset is generated
+// separately and opt-in, so it's mocked here rather than depending on it
+// having been generated for this test run.
+vi.mock('../services/moveLearnsets', () => ({
+  getMoveLearnsetRelations: async (move: string) => {
+    if (move !== 'surf') return [];
+    // 50 learners in Scarlet/Violet (the move's most recent, default-eligible
+    // context) plus 20 more that only ever learned it in Red/Blue — an old
+    // context distinct enough from Scarlet/Violet that they never merge into
+    // the same ContextAvailability, so the historical total (70) legitimately
+    // exceeds what's shown for the default context (50).
+    return [
+      ...Array.from({ length: 50 }, (_, i) => ({ pokemonId: i + 1, method: 'level-up', versionGroup: 'scarlet-violet', level: 10 })),
+      ...Array.from({ length: 20 }, (_, i) => ({ pokemonId: 51 + i, method: 'level-up', versionGroup: 'red-blue', level: 10 })),
+    ];
+  },
+}));
 
 const API = 'https://pokeapi.co/api/v2';
 const SHOWDOWN = 'https://play.pokemonshowdown.com/data/pokedex.json';
@@ -230,6 +250,39 @@ describe('move crawlability (SSR)', () => {
     // The name cell is no longer a bare text cell that hydration flattens.
     expect(script).not.toMatch(/<td[^>]*data-move-url/);
   });
+
+  it('move page client script rebuilds the method selector on every Game Context change (regression: Outrage Scarlet/Violet -> Platinum, Tutor never appeared)', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.indexOf('<script>\n    import'));
+    // The options are rebuilt from that context's own relations, never
+    // reused from whatever the SSR default context happened to have.
+    expect(script).toMatch(/function updateMethodControl\(ctxEntries[^)]*\)\s*\{[\s\S]*?methodsPresent\(ctxEntries\)/);
+    expect(script).toMatch(/methodSelect\.innerHTML = allOptionHtml \+ methods\.map/);
+    // The wrapper hides for a single-method context and un-hides for a
+    // multi-method one, never a fixed state computed once from the SSR
+    // default (§C/§D of the bug report).
+    expect(script).toMatch(/methodWrapperEl\?\.classList\.toggle\('hidden', methods\.length <= 1\)/);
+    // The filter resets to "all" on every context switch — a method valid
+    // in the previous context may not exist (or mean something else) here.
+    expect(script).toMatch(/function updateMethodControl[\s\S]*?currentMethod = 'all';\s*\n\s*\}/);
+    // Both the context <select>'s change handler and the persisted-context
+    // hydration path call it before ever calling render() for that context.
+    const contextChangeHandler = script.slice(script.indexOf("contextSelect?.addEventListener('change'"));
+    expect(contextChangeHandler.slice(0, contextChangeHandler.indexOf('render();'))).toMatch(/updateMethodControl\(/);
+    const hydrationRestore = script.slice(script.indexOf('if (currentContext !== payload.initialContext)'));
+    expect(hydrationRestore.slice(0, hydrationRestore.indexOf('render();'))).toMatch(/updateMethodControl\(/);
+  });
+
+  it('move page client script shows "Total histórico" only with no method filter active, and recomputes it per context', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const source = await readFile(new URL('./[lang]/movimientos/[name].astro', import.meta.url), 'utf8');
+    const script = source.slice(source.indexOf('<script>\n    import'));
+    expect(script).toMatch(/historicalEl\?\.classList\.toggle\('hidden', !\(currentMethod === 'all' && historicalCount > ctxEntries\.length\)\)/);
+    // Computed once, from every relation the move has (any context, any
+    // method) — never scoped to the currently selected context/method.
+    expect(script).toMatch(/const historicalCount = new Set\(relations\.map\(\(r\) => r\.pokemonId\)\)\.size;/);
+  });
 });
 
 describe('move page metadata and entity links (SSR)', () => {
@@ -272,10 +325,12 @@ describe('move page metadata and entity links (SSR)', () => {
     expect(titleOf(html)).toContain('Shadow-type Physical Move');
   });
 
-  it('learned-by counter reports the real total, not the capped card count', async () => {
+  it('learned-by counter reports the current context, plus the historical total across every game when it differs', async () => {
     const html = await render(MovePage, { lang: 'en', name: 'surf' }, '/en/movimientos/surf/');
-    expect(html).toMatch(/>70<\/span>/);
-    expect(html).toContain('Showing 60');
+    // Default context (Scarlet/Violet, most recent defaultEligible): 50 learners.
+    expect(html).toMatch(/>50<\/span>/);
+    // 20 more Pokémon only ever learned it in Red/Blue: the all-time total is 70.
+    expect(html).toContain('Total historical: 70');
     const hrefs = [...html.matchAll(/href="(\/en\/pokemon\/[^"]*)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(0);
     hrefs.forEach((h) => expect(h).toMatch(/^\/en\/pokemon\/[a-z0-9-]+\/$/));

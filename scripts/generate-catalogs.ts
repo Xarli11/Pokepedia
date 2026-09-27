@@ -8,12 +8,28 @@
 //   search-index.{es,en}.json (derived from the above, no extra requests)
 //   machines.json (move -> [item, version group] pairs, language-independent:
 //     labels are joined at runtime from items.{lang}.json / versionGroups.ts)
+//   learnsets/{move}.json + learnsets/manifest.json (move -> Pokémon learnset
+//     relations, inverted offline from pokemon/{id}.moves — opt-in, see below)
 //   manifest.json (counts, content hashes, generation date)
 //
-//   npm run data:catalogs                  -> fetch everything and rewrite the files
-//   npm run data:catalogs -- --check       -> no writes: validate the committed files
-//                                             and compare them with PokeAPI's live lists
+//   npm run data:catalogs                  -> fetch everything (except
+//                                             move-learnsets, see below) and
+//                                             rewrite the files
+//   npm run data:catalogs -- --check       -> no writes: full re-fetch + compare for
+//                                             moves/abilities/items/pokemon; machines
+//                                             and learnsets get a lightweight count-only
+//                                             staleness check instead (see `check()`
+//                                             below) — it does NOT re-fetch and diff
+//                                             machines' 2372 rows or learnsets' 638k+
+//                                             relations one by one. A real
+//                                             `--only=move-learnsets` run is the only
+//                                             way to confirm the relations themselves
+//                                             haven't changed.
 //   npm run data:catalogs -- --only=moves,abilities
+//   npm run data:catalogs -- --only=move-learnsets   -> NOT in the default set:
+//                                             ~1351 full pokemon/{id} fetches,
+//                                             much slower than everything else
+//                                             here combined. Run explicitly.
 //   npm run data:catalogs -- --cache-dir=.cache/pokeapi   (reuse raw responses)
 //
 // Runs on demand, never at request time: ~4.5k requests (one per entity) at a
@@ -25,7 +41,7 @@
 // Source and process: docs/DATA_SOURCES.md ("Generated catalogs").
 
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import {
   CATALOG_LANGS,
@@ -51,7 +67,10 @@ import {
   type RawSpecies,
 } from '../src/data/catalogs/build';
 import { buildSearchIndex, validateSearchIndex } from '../src/data/catalogs/searchIndex';
+import { computeStaleLearnsetFiles, pruneManifestHashes } from '../src/data/catalogs/learnsetPruning';
 import { isRealItem } from '../src/utils/pokemon';
+import { LEARN_METHOD_ORDER, learnMethodIndex } from '../src/utils/moveLearnMethods';
+import { VERSION_GROUP_ORDER, versionGroupRank } from '../src/services/versionGroups';
 
 const API = 'https://pokeapi.co/api/v2';
 const OUT_DIR = new URL('../src/data/generated/', import.meta.url);
@@ -176,6 +195,14 @@ async function check() {
     const machinesFile = JSON.parse(await readFile(new URL('machines.json', OUT_DIR), 'utf8'));
     if (machinesFile.apiCount !== liveMachineCount) fail(`machines: apiCount ${machinesFile.apiCount} vs live ${liveMachineCount}`);
   }
+  if (existsSync(new URL('learnsets/manifest.json', OUT_DIR))) {
+    // Lightweight: the pokemon list count only, not a full re-fetch of
+    // ~1351 full pokemon/{id} objects (that's what --only=move-learnsets
+    // is for). Detects "PokeAPI added/removed a Pokémon" staleness, not
+    // "a Pokémon's learnset itself changed" — the latter needs a real run.
+    const learnsetManifest = JSON.parse(await readFile(new URL('learnsets/manifest.json', OUT_DIR), 'utf8'));
+    if (learnsetManifest.apiCount !== variants.apiCount) fail(`learnsets: apiCount ${learnsetManifest.apiCount} vs live ${variants.apiCount}`);
+  }
   for (const lang of CATALOG_LANGS) {
     const text = await readFile(new URL(`search-index.${lang}.json`, OUT_DIR), 'utf8');
     validateSearchIndex(JSON.parse(text));
@@ -234,6 +261,96 @@ async function buildMachines(): Promise<{ apiCount: number; count: number; byMov
     resolved++;
   }
   return { apiCount: total, count: resolved, byMove };
+}
+
+interface RawPokemonMoves {
+  id: number;
+  moves: {
+    move: { name: string };
+    version_group_details: { level_learned_at: number; move_learn_method: { name: string }; version_group: { name: string } }[];
+  }[];
+}
+
+/** [methodIndex, versionGroupIndex] or [methodIndex, versionGroupIndex, level] (level only for 'level-up' — every other method is always level 0 in PokeAPI, verified live). */
+type LearnsetRow = [number, number] | [number, number, number];
+
+/**
+ * Move -> Pokémon learnset relations, inverted from PokeAPI's own
+ * Pokémon -> moves direction (`pokemon/{id}.moves`) — the only place this
+ * data exists; there is no `move/{x}/learned-by-detailed` endpoint. Full
+ * detail objects for all ~1351 Pokémon (species + forms) are fetched once
+ * here, offline; a move page's runtime cost is a single small JSON import
+ * (see services/moveLearnsets.ts), never a fetch fan-out.
+ *
+ * One file per move (`learnsets/{move}.json`), not one giant file: measured
+ * against the real generated dataset (2026-09-27) — 638,321 relations
+ * across 833 moves (+ `learnsets/manifest.json`, 834 files total), 7.6 MB
+ * raw / ~0.71 MB gzip *summed across all 833 per-move files* (never loaded
+ * together — see services/moveLearnsets.ts). A single combined file would
+ * gzip smaller than that sum (one shared dictionary instead of 833) but
+ * would cost every move page the parse weight of all 833 moves' data;
+ * per-move files cost a page only its own move — a few KB gzip even for
+ * the busiest one (`rest`: 96.4 KB raw / 6.9 KB gzip for 1275 Pokémon).
+ * Moves nothing learns (some Z-moves/signature moves) get no file.
+ *
+ * A move PokeAPI stops returning relations for (or removes) must not leave
+ * its old `learnsets/{move}.json` behind — `import.meta.glob` would keep
+ * discovering it and serve stale data forever. See the pruning step in
+ * `generate()` below and `src/data/catalogs/learnsetPruning.ts`.
+ */
+async function buildMoveLearnsets(): Promise<{ apiCount: number; files: Record<string, unknown>; moveCount: number; relationCount: number }> {
+  const list = await listResource('pokemon');
+  log(`move-learnsets: fetching ${list.entries.length} pokemon (full detail — this is the slow one)`);
+  let done = 0;
+  const details = await pool(list.entries, async (e) => {
+    const d = await getJson<RawPokemonMoves>(e.url);
+    done++;
+    if (done % 200 === 0) log(`  ${done}/${list.entries.length}`);
+    return d;
+  });
+
+  const byMove = new Map<string, Record<string, LearnsetRow[]>>();
+  let relationCount = 0;
+  for (const p of details) {
+    for (const m of p.moves) {
+      let rows = byMove.get(m.move.name);
+      if (!rows) { rows = {}; byMove.set(m.move.name, rows); }
+      const out: LearnsetRow[] = [];
+      for (const v of m.version_group_details) {
+        const method = v.move_learn_method.name;
+        const mi = learnMethodIndex(method);
+        const vgi = versionGroupRank(v.version_group.name);
+        if (mi < 0) throw new Error(`move-learnsets: unknown learn method "${method}" (${p.id}/${m.move.name}) — add it to LEARN_METHOD_ORDER`);
+        if (vgi < 0) throw new Error(`move-learnsets: unknown version group "${v.version_group.name}" (${p.id}/${m.move.name}) — add it to VERSION_GROUP_ORDER`);
+        if (method === 'level-up') {
+          if (v.level_learned_at < 0) throw new Error(`move-learnsets: negative level (${p.id}/${m.move.name}/${v.version_group.name})`);
+          out.push([mi, vgi, v.level_learned_at]);
+        } else {
+          out.push([mi, vgi]);
+        }
+        relationCount++;
+      }
+      rows[String(p.id)] = out;
+    }
+  }
+
+  const files: Record<string, unknown> = {};
+  const moveNames = [...byMove.keys()].sort();
+  for (const move of moveNames) {
+    files[`learnsets/${move}.json`] = { schema: 1, move, byPokemon: byMove.get(move) };
+  }
+  files['learnsets/manifest.json'] = {
+    schema: 1,
+    source: `${SOURCE} (pokemon/{id}.moves, inverted offline)`,
+    apiCount: list.apiCount,
+    pokemonFetched: details.length,
+    moveCount: moveNames.length,
+    relationCount,
+    methods: LEARN_METHOD_ORDER,
+    versionGroups: VERSION_GROUP_ORDER,
+    moves: moveNames,
+  };
+  return { apiCount: list.apiCount, files, moveCount: moveNames.length, relationCount };
 }
 
 async function generate() {
@@ -296,6 +413,33 @@ async function generate() {
     });
   }
 
+  // Opt-in only (not in the default ONLY set): ~1351 full pokemon/{id}
+  // fetches, much slower than every other kind here. Run explicitly with
+  // `--only=move-learnsets`; never implied by a plain `npm run data:catalogs`.
+  //
+  // Pruning stale files: snapshotted *before* the (slow) fetch, computed
+  // *after* it succeeds, acted on only in the write/delete step at the very
+  // end of this function — never here. If buildMoveLearnsets() throws
+  // (any of its ~1351 fetches ultimately failing), execution never reaches
+  // that step: nothing is written, nothing is deleted, the previously
+  // committed dataset is untouched.
+  let staleLearnsetFiles: string[] = [];
+  if (ONLY.has('move-learnsets')) {
+    const learnsetsDir = new URL('learnsets/', OUT_DIR);
+    const existingLearnsetNames = existsSync(learnsetsDir)
+      ? (await readdir(learnsetsDir)).filter((f) => f.endsWith('.json')).map((f) => `learnsets/${f}`)
+      : [];
+    const learnsets = await buildMoveLearnsets();
+    log(`move-learnsets: ${learnsets.moveCount} moves, ${learnsets.relationCount} relations, ${learnsets.apiCount} pokemon`);
+    counts.learnsetMoves = learnsets.moveCount;
+    counts.learnsetRelations = learnsets.relationCount;
+    await mkdir(learnsetsDir, { recursive: true });
+    for (const [name, data] of Object.entries(learnsets.files)) emit(name, data);
+    // A move PokeAPI no longer returns any relation for gets no file in
+    // `learnsets.files` above; its previous file (if any) is now stale.
+    staleLearnsetFiles = computeStaleLearnsetFiles(existingLearnsetNames, Object.keys(learnsets.files));
+  }
+
   // Derived, offline: the search index is built only from the catalogs above.
   const catalogs = {} as Record<CatalogLang, Record<CatalogKind, CatalogFile>>;
   for (const lang of CATALOG_LANGS) {
@@ -309,7 +453,10 @@ async function generate() {
   }
 
   const previous = existsSync(new URL('manifest.json', OUT_DIR)) ? JSON.parse(await readFile(new URL('manifest.json', OUT_DIR), 'utf8')) : { counts: {}, files: {} };
-  const hashes: Record<string, string> = { ...previous.files };
+  // A pruned learnset's hash must not survive from the previous manifest —
+  // `--check`, or anyone reading manifest.json, would otherwise believe a
+  // deleted file is still part of the dataset.
+  const hashes: Record<string, string> = pruneManifestHashes(previous.files ?? {}, staleLearnsetFiles);
   for (const [name, text] of Object.entries(files)) hashes[name] = sha(text);
   const changed = Object.keys(files).filter((n) => previous.files?.[n] !== hashes[n]);
   const manifest = {
@@ -327,10 +474,18 @@ async function generate() {
   emit('manifest.json', manifest);
 
   await mkdir(OUT_DIR, { recursive: true });
+  let learnsetBytes = 0, learnsetFiles = 0;
   for (const [name, text] of Object.entries(files)) {
     await writeFile(new URL(name, OUT_DIR), text);
+    if (name.startsWith('learnsets/')) { learnsetBytes += text.length; learnsetFiles++; continue; } // one summary line below instead of 800+
     log(`  ${name}: ${(text.length / 1024).toFixed(1)} KB${changed.includes(name) ? '' : ' (unchanged)'}`);
   }
+  if (learnsetFiles) log(`  learnsets/: ${learnsetFiles} files, ${(learnsetBytes / 1024 / 1024).toFixed(2)} MB total`);
+  // Deletion only ever reaches here after every write above has already
+  // succeeded, scoped strictly to names this same run found stale under
+  // learnsets/ — never any other generated dataset.
+  for (const name of staleLearnsetFiles) await unlink(new URL(name, OUT_DIR));
+  if (staleLearnsetFiles.length) log(`  pruned ${staleLearnsetFiles.length} stale learnset file(s): ${staleLearnsetFiles.join(', ')}`);
   log(`done in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 }
 

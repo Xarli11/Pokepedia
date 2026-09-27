@@ -3,17 +3,27 @@
 //
 // A compact list of Pokémon related to a move/ability (learns it, has it),
 // deliberately lighter than PokemonCard: sprite + name + link + the one
-// relation-specific detail (e.g. "Hidden"), no type pills, no tier badge,
-// no per-card 300px reserved layout. Used where the count can be large
-// (a common move/ability can relate to hundreds of Pokémon) and a full
-// PokemonCard grid would be excessive weight for what this list needs to
-// say. Server-rendered, real <a href>s — crawlable without JS.
-import type { PokemonSummary } from '../services/pokeapi';
-import { canonicalPokemonSlug, pagePath } from '../utils/seo';
+// relation-specific detail (e.g. "Hidden", "Nv. 40 · MT26"), no type pills,
+// no tier badge, no per-card 300px reserved layout. Used where the count
+// can be large (a common move/ability can relate to hundreds of Pokémon)
+// and a full PokemonCard grid would be excessive weight for what this list
+// needs to say. Server-rendered, real <a href>s — crawlable without JS.
+//
+// Takes {id, slug, name} directly rather than a full PokemonSummary: the
+// caller already knows the canonical slug (from canonicalPokemonSlug() for
+// a PokeAPI object, or straight from the pokemon catalog for the move
+// learnset relations, which never fetch a full PokemonSummary at all).
+import { pagePath } from '../utils/seo';
+
+export interface RelationPokemon {
+    id: number;
+    slug: string;
+    name: string;
+}
 
 export interface RelationEntry {
-    pokemon: PokemonSummary;
-    /** e.g. "Oculta" / "Hidden", "Nv. 40", "MT". Omitted when there's nothing to add. */
+    pokemon: RelationPokemon;
+    /** e.g. "Oculta" / "Hidden", "Nv. 40", "MT26". Omitted when there's nothing to add. */
     detail?: string;
 }
 
@@ -30,7 +40,7 @@ const SPRITE_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sp
     {entries.map(({ pokemon, detail }) => (
         <li>
             <a
-                href={pagePath(lang, 'pokemon', canonicalPokemonSlug(pokemon))}
+                href={pagePath(lang, 'pokemon', pokemon.slug)}
                 class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/10 transition-all no-underline group"
             >
                 <img
