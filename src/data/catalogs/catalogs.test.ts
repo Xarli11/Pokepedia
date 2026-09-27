@@ -86,6 +86,19 @@ describe('catalog builders (pure)', () => {
     expect(buildItemEntry({ ...item, sprites: { default: null } }, 'es').hasSprite).toBe(false);
   });
 
+  it('items: introducedGeneration is the earliest generation among game_indices, 0 when there are none', () => {
+    const withIndices = {
+      name: 'master-ball', names: [], category: { name: 'standard-balls' },
+      game_indices: [
+        { generation: { name: 'generation-iii' } },
+        { generation: { name: 'generation-i' } },
+        { generation: { name: 'generation-ii' } },
+      ],
+    };
+    expect(buildItemEntry(withIndices, 'es').introducedGeneration).toBe(1);
+    expect(buildItemEntry({ name: 'no-indices', names: [], category: { name: 'other' } }, 'es').introducedGeneration).toBe(0);
+  });
+
   it('Pokémon: species row plus one row per non-default form, named in the page language', () => {
     const rows = buildPokemonEntries({
       id: 6, name: 'charizard', names: [name('Charizard', 'es')], generation: { name: 'generation-i' },

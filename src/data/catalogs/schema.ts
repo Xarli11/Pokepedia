@@ -46,6 +46,8 @@ export interface ItemEntry {
   hasSprite: boolean;
   description: string;
   descriptionLang: TextLang;
+  /** Earliest generation (1-9) among PokeAPI's own game_indices; 0 when the item has none. */
+  introducedGeneration: number;
 }
 
 export interface PokemonEntry {
@@ -68,7 +70,7 @@ export interface EntryByKind {
 export const CATALOG_FIELDS: { [K in CatalogKind]: readonly (keyof EntryByKind[K])[] } = {
   moves: ['slug', 'name', 'type', 'damageClass', 'power', 'accuracy', 'pp', 'priority', 'generation'],
   abilities: ['slug', 'name', 'description', 'descriptionLang', 'generation', 'mainSeries'],
-  items: ['slug', 'name', 'category', 'superCategory', 'hasSprite', 'description', 'descriptionLang'],
+  items: ['slug', 'name', 'category', 'superCategory', 'hasSprite', 'description', 'descriptionLang', 'introducedGeneration'],
   pokemon: ['slug', 'id', 'name', 'generation', 'form'],
 };
 

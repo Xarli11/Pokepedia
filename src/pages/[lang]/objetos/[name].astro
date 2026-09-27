@@ -3,7 +3,8 @@ import Layout from '../../../layouts/Layout.astro';
 import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getLocalizedName, getItemDetail, getMachineMove, getPokemonCards } from '../../../services/pokeapi';
+import { getLocalizedName, getItemDetail, getMachineMove, getPokemonCards, GENERATION_ROMAN } from '../../../services/pokeapi';
+import { generationNumber } from '../../../data/catalogs/build';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory, typeTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
@@ -59,6 +60,15 @@ const showItemTexts = !(isMachine && moveDetail?.versionLabel);
 // Tera Shard -> its type, from the "{type}-tera-shard" name (only for real Pokepedia types).
 const teraType = teraShardType(itemData.name);
 const teraTypeLabel = teraType ? typeTranslations[lang as string]?.[teraType] || null : null;
+
+// Item --introducedIn--> Generation (Fase 2F): earliest generation among
+// PokeAPI's own game_indices (already in `itemData`, zero extra request).
+// 0 means no game_indices at all — the badge is simply omitted, never a guess.
+const introducedGenerations = (itemData.game_indices ?? [])
+    .map((g: { generation?: { name: string } }) => generationNumber(g.generation?.name))
+    .filter((n: number) => n > 0);
+const itemGenNum: number | null = introducedGenerations.length > 0 ? Math.min(...introducedGenerations) : null;
+const itemGenRoman = itemGenNum ? GENERATION_ROMAN[`gen${itemGenNum}`] : null;
 
 const localizedAttributes = (itemData.attributes || []).map((a: any) => i18nItems[a.name]).filter(Boolean) as string[];
 const facts: ItemFacts = {
@@ -131,6 +141,11 @@ const breadcrumbItems = [
                                 <span class="px-4 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-widest rounded-full border border-amber-200 dark:border-amber-800/50">
                                     {itemData.cost} ₽
                                 </span>
+                            )}
+                            {itemGenRoman && itemGenNum && (
+                                <a href={pagePath(lang as string, 'generacion', String(itemGenNum))} class="px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white transition-all no-underline">
+                                    {t.generation_label} {itemGenRoman}
+                                </a>
                             )}
                         </div>
                         <h1 class="text-5xl md:text-7xl font-black text-slate-900 dark:text-white capitalize tracking-tighter mb-2">{localizedName}</h1>
