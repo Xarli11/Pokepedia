@@ -107,12 +107,11 @@ will exercise it for real once Phase 2B reads them.
 
 ## 5. Spin-offs
 
-Colosseum, XD (and, when PokeAPI adds it, Pokémon Champions as a spin-off
-of the *lettered* series rather than a battle game) stay visible and
-selectable — nothing is hidden — but `defaultEligible: false` keeps them
-out of the default-resolution race. A Pokémon whose *only* data is a
-spin-off (e.g. `['colosseum', 'xd']`) still needs a selection, so the
-fallback in §3 step 3 picks the most recent of those.
+Colosseum and XD stay visible and selectable — nothing is hidden — but
+`defaultEligible: false` keeps them out of the default-resolution race,
+same as the `battle` context (Pokémon Champions, §2). A Pokémon whose
+*only* data is a spin-off (e.g. `['colosseum', 'xd']`) still needs a
+selection, so the fallback in §3 step 3 picks the most recent of those.
 
 ## 6. Persistence
 
