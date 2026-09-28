@@ -25,5 +25,5 @@ pnpm-debug.log*
 .idea/
 .vercel
 
-.gemini/
-gha-creds-*.json
+# raw API cache for scripts/generate-catalogs.ts --cache-dir
+.cache/

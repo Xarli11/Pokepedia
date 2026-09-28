@@ -5,12 +5,12 @@ import type { SupportedLang } from '../../seo';
 
 const COPY: Record<SupportedLang, { tagline: string; sub: string }> = {
 	es: {
-		tagline: 'La enciclopedia Pokémon técnica',
-		sub: 'Stats · Movimientos · Habilidades · Estrategia',
+		tagline: 'La enciclopedia Pokémon',
+		sub: 'Pokémon · Movimientos · Habilidades · Objetos',
 	},
 	en: {
-		tagline: 'The Technical Pokémon Encyclopedia',
-		sub: 'Stats · Moves · Abilities · Strategy',
+		tagline: 'The Pokémon Encyclopedia',
+		sub: 'Pokémon · Moves · Abilities · Items',
 	},
 };
 
@@ -23,7 +23,7 @@ export function buildDefaultCard(lang: SupportedLang) {
 			{ position: 'absolute', top: 64, right: 88, display: 'flex', gap: 10 },
 			Chip('GEN IX'),
 			Chip('DATA'),
-			Chip('COMPETITIVE')
+			Chip('POKÉDEX')
 		),
 		h(
 			'div',

@@ -2,6 +2,131 @@
 
 All notable changes to Pokepedia are documented in this file.
 
+## [Unreleased]
+
+## [0.15.0] - 2026-09-28
+
+Closes Phase 2 (the factual encyclopedia): entity relations, Game Context,
+historical facts, move/ability mechanics, generated catalogs and search —
+plus a full mobile-responsive audit and a Spanish-localization fix found
+during final review. See sections below for the detailed, dated log of
+each piece; summarized by area:
+
+### Encyclopedia / entity expansion
+
+- Complete factual Pokémon profiles (base experience, capture rate, base
+  happiness, growth rate, EV yield, egg groups, gender ratio, egg cycles,
+  baby/legendary/mythical classification, regional Pokédex numbers).
+- Move and ability entity enrichment (target, ailment/stat-change effects,
+  drain/recoil/healing/crit/flinch, hit/turn counts, MT/HM/TR availability,
+  historical `past_values`, ability effect vs. flavor text distinction).
+- Full Pokémon ↔ move learnset relations (every Pokémon that learns a
+  move, by method and Game Context), generated offline from PokeAPI.
+- Factual move flags (contact, sound, punch, bite, pulse, bullet, dance,
+  slicing, wind, blocked-by-Protect) from Showdown's dataset.
+- `Item --introducedIn--> Generation` relation from `item.game_indices`.
+- Real historical Pokémon stat / EV-yield facts from PokeAPI's own
+  `pokemon.past_stats` (e.g. Gen I's unified `special` stat).
+
+### Game Context
+
+- Persistent Game Context (`localStorage`), grouping PokeAPI version
+  groups into game families and folding DLC/data revisions (Scarlet/
+  Violet, Sword/Shield, Legends: Z-A) into one selectable context.
+- Game Context-aware move filtering (learnsets, methods) on the move
+  table, shared across the Pokémon page instead of re-derived per section.
+- Regional Pokédex numbers contextualized by Game Context.
+
+### Search / catalogs / data
+
+- Global multi-entity search (Pokémon, moves, abilities, items, types,
+  generations) in ES/EN from one compact, versioned per-language index.
+- Generated, versioned ES/EN catalogs of moves, abilities, items and
+  Pokémon, validated against PokeAPI's own counts.
+- Generated move-learnset dataset (833 moves / 638k relations) and a
+  machines dataset (2372 rows), both zero runtime PokeAPI cost.
+- Generated move-flags dataset from Showdown, zero runtime cost.
+
+### UX / mobile
+
+- Full responsive audit across all 14 public templates and their shared
+  components, at 320/360/375/390/414/430px portrait, two landscape smoke
+  widths and a 1440px desktop regression check — 0 document horizontal
+  overflow across the entire audited matrix (measured with real Chromium,
+  not assumed).
+- Mobile header hardened (compact wordmark, search/theme/language only;
+  random-Pokémon and favorites moved to desktop, already covered by the
+  mobile bottom nav); global search modal's keyboard-shortcut footer no
+  longer clips on narrow screens (desktop-only now); native `<select>`s
+  across the site can no longer size past their container; entity H1s
+  (Pokémon, move, ability, item, and every catalog hub) scale down on
+  mobile instead of a single desktop-sized `text-5xl`+ base; the
+  comparator's stat-total row wraps instead of forcing document width;
+  the evolution chain, `MovesTable` and Pokémon/item cards no longer keep
+  desktop-only padding on mobile; bottom nav and the back-to-top button
+  respect the iPhone home indicator via `env(safe-area-inset-bottom)`.
+
+### Localization
+
+- Spanish item pages (`/es/objetos/*`) no longer show an English effect
+  as the primary visible content (even flagged as "original language")
+  when a real Spanish flavor text or a localized factual summary is
+  available; English is only ever the very last resort, never rendered
+  on `/es/` pages.
+
+### Technical cleanup
+
+- 16 test files moved out of `src/pages/` (Astro was packaging each as a
+  real route plus a shared ~654 KB `test.*.mjs` chunk); a clean build now
+  produces zero `*test*` files under `dist/`.
+- Gemini GitHub Actions automation (6 workflows, 5 slash commands)
+  removed; CI is now only the project's own install/check/test/build and
+  the Cloudflare Pages deploy check.
+- Responsive regression guards added (`src/testing/mobile-overflow-regression.test.ts`).
+- Tests: 863 → 895 passed, 2 skipped, 0 failed.
+
+### Deferred by evidence
+
+Investigated with live evidence, not built — not treated as missing
+features: encounters/locations (large payloads, no Spanish translations
+upstream for the relevant fields, keyed by `version` not `version_group`);
+historical base-happiness/capture-rate/base-experience (no PokeAPI field
+exists for any of the three); structured Mega/Gigamax/regional form
+classification (needs one extra request per variety, not made yet);
+`data:catalogs -- --check` intentionally kept out of CI (would make CI
+depend on live PokeAPI/Showdown network); a future DLC move-data
+re-verification pass. Full write-up in `docs/architecture/*` and `TODO.md`.
+
+### Added
+
+- **Fase 2F — Phase 2 closure (factual encyclopedia)**: audited every remaining Phase 2 candidate (encounters/locations/real availability, historical Pokémon facts, move flags, entity relations, forms/varieties classification) with live evidence before deciding what to build. Implemented: real historical stat/EV-yield changes from PokeAPI's own `pokemon.past_stats` (Gen I's unified `special` stat, etc. — a genuine, generation-scoped history, unlike `base_happiness`/`capture_rate`/`base_experience`, re-verified live to have none), rendered as a "Cambios históricos" section on the Pokémon page; curated factual move flags (contact, sound, punch, bite, pulse, bullet, dance, slicing, wind, blocked-by-Protect) from Showdown's `moves.json` (one request, matched to PokeAPI moves by id, 711 of 937 moves, 12.8 KB, zero runtime cost) — deliberately excluding Showdown's more battle-mechanic flags (mirror, metronome, snatch...) to keep the move page factual, not competitive analysis; an `Item --introducedIn--> Generation` relation from `item.game_indices` (already fetched, zero new requests). Investigated and explicitly deferred with evidence, not built: encounters/locations (payloads up to ~957 KB/Pokémon, zero Spanish translations for `location-area`/`encounter-method` in PokeAPI, encounters keyed by `version` not `version_group`); base-happiness/capture-rate/base-experience history (no PokeAPI field exists at all, re-confirmed live); structured Mega/Gigamax/regional form classification (real data exists on `pokemon-form`, but needs one extra request per variety not currently made); `data:catalogs:check` in CI (would make CI depend on live PokeAPI network, judged too fragile). Also closed: 16 test files that lived under `src/pages/` — Astro packaged every one as a real route plus a shared ~654 KB `test.*.mjs` chunk in the worker — moved to `src/testing/`; a clean build now produces zero `*test*` files under `dist/`. Tests 863 → 876. Full write-up: `docs/architecture/pokemon-entity.md` §8–§10, `docs/architecture/move-ability-entities.md` §3, `TODO.md`'s three-way Phase 2 closure split (completed / deferred by evidence / future product features).
+- **Regional Pokédex numbers contextualized by Game Context**: the Pokémon page's regional Pokédex section now shows only the entries relevant to the selected Game Context (e.g. Pikachu on Sword/Shield shows Galar + the Isle of Armor DLC dex; on Scarlet/Violet, Paldea + Kitakami), plus `national` (the one dex PokeAPI itself has no per-game breakdown for — verified live against all 35 `/pokedex/{name}`, the only other empty case, `conquest-gallery`, was already excluded upstream and is not global). Reuses `MovesTable`'s existing selector — no second Game Context control — via a minimal DOM event (`pokepedia:game-context-change`) it broadcasts on every context resolution (SSR default, `localStorage` restore, manual change); the regional Pokédex section also independently resolves its own initial state from the same persisted value, so there's no load-order race between the two scripts. SSR renders the default context's entries directly (never "show everything, JS narrows it later"). "Total histórico" follows the same always-rendered, client-toggled pattern Fase 2D established for move learnsets. The Pokémon page now computes Game Context once and passes it to `MovesTable`, instead of each section deriving its own. 0 new PokeAPI requests. Deliberately does not claim Game Context availability means the Pokémon is obtainable/catchable in that game — that remains a distinct, unstarted investigation (encounters/locations). Tests 839 → 861. `docs/architecture/game-context.md` §12.
+- Global search over every entity kind: Pokémon (name, Pokédex number, forms), moves, abilities, items, types and generations, in ES and EN, from one compact per-language index (`/search-index/{lang}.json/`, versioned by content hash, fetched once and lazily) instead of a server request per keystroke. Deterministic ranking (`src/utils/search.ts`), accent/case/hyphen-insensitive, each result labelled with its entity kind. The home search uses the same engine; its text narrows the Pokédex grid only when a card of that grid matches, so a move/ability/type query no longer shows "No se encontraron Pokémon" beside a correct result.
+- Search history now stores any entity kind (`{type, slug, name, id}`); legacy Pokémon-only entries are still read. Analytics still records only `results` / `no_results`.
+- Generated, versioned ES/EN catalogs of moves, abilities, items and Pokémon (`src/data/generated/`), built from PokeAPI by `npm run data:catalogs` (validated against the API's `count`, deduplicated, deterministic, fail on truncation) and checked against the live lists with `npm run data:catalogs:check`. Manual corrections go in `src/data/catalogOverrides.json`.
+- `VERSION_GROUPS` metadata (chronology, ES/EN label, `defaultEligible`) and `sortVersionGroups`, `latestVersionGroup`, `defaultVersionGroup`, `versionGroupLabel` in `src/services/versionGroups.ts`; missing groups added (Colosseum, XD, Isle of Armor, Crown Tundra, Champions, Japanese originals). "Latest available" and "default context" are separate policies.
+- `src/utils/ecosystem.ts`: single switch for a future PokeStudio link (none is rendered while it has no public URL).
+- Tests 564 → 670 → 700.
+- `docs/audits/encyclopedia-phase1.md`; `docs/DATA_SOURCES.md` sections on product boundaries, version groups, generated catalogs and the search index.
+- **Move and ability mechanics, machines, relations**: `/movimientos/{slug}/` now shows target, ailment/stat-change effects (with probabilities), drain/recoil/healing/crit/flinch, hit/turn counts, a generation link, MT/HM/TR availability and historical `past_values` — all from fields already fetched or a new zero-runtime-cost generated dataset (`src/data/generated/machines.json`, 2372 rows from PokeAPI's `/machine` resource). `/habilidades/{slug}/` now distinguishes its mechanical effect from in-game flavor text (labelled honestly, PokeAPI's English effect preferred over Spanish flavor rather than silently swapping them), shows `effect_changes` as historical changes, a generation link, and fixes a real bug where the Pokémon-with-ability counter showed the capped card count as the total. Both pages' Pokémon lists now use the new lightweight `PokemonRelationList` instead of the full `PokemonCard` grid — no type pills, no Smogon tier badge (keeping competitive content off these factual pages) — which, despite the cap rising from 40 to 60, made the pages *smaller*: Earthquake 456.6→259.6 KB raw (−43%). Investigated and deliberately not built, documented in `docs/architecture/move-ability-entities.md`: move mechanical flags (contact/Protect/sound/...; PokeAPI doesn't expose them, Showdown does but wasn't integrated) and a per-Pokémon learn-method/level dataset (would need a much larger offline generation pass). Tests 739 → 786.
+- **Pokémon factual profile**: the Pokémon page now shows base experience, capture rate, base happiness, growth rate, EV yield, egg groups, gender ratio, egg cycles, baby/legendary/mythical classification and non-national regional Pokédex numbers — all from `pokemon`/`pokemon-species` fields already fetched, no new PokeAPI request. `src/utils/pokemonFacts.ts` (normalization, `gender_rate`'s eighths-female semantics verified before assuming) and `src/services/pokedexes.ts` (all 35 PokeAPI pokedexes, real ES/EN names, `is_main_series` filters out Conquest/Champions). Tests 706 → 739. `docs/architecture/pokemon-entity.md`.
+- **Move learnset relations**: `/movimientos/{slug}/` now shows every Pokémon that learns the move, by which method (level-up with its level, egg, tutor, MT/MO/TR, and the rarer single-game methods), in which Game Context — inverted offline from PokeAPI's `pokemon/{id}.moves` (there is no per-move endpoint with this detail), since fetching it live would mean ~1351 requests per page. `scripts/generate-catalogs.ts --only=move-learnsets` (opt-in, not part of the default catalog refresh) produced 833 moves / 638,321 relations / 7.6 MB raw (~0.71 MB gzip) across 834 files, one per move, from 1351 Pokémon; run twice back-to-back with byte-identical output (`npm run data:catalogs:check` is a lighter, count-only staleness check for this dataset — see `docs/architecture/move-learnset-relations.md` §2 — a full run is what actually validates the relations). The generator now also prunes any `learnsets/{move}.json` a fresh run no longer produces (and its manifest hash), so a move PokeAPI stops listing relations for can't linger as stale data forever. `src/services/moveLearnsets.ts` reads it at zero runtime PokeAPI cost (`import.meta.glob`); pokemonId → slug/name resolves through the existing Pokémon catalog, also zero extra requests. Context and method switching happen client-side from one compact payload, reusing the Game Context selector and its `localStorage` persistence from Fase 2. The move page's empty state ("no Pokémon learn this move via this method in this game") now server-renders directly instead of only appearing after client JS runs. Fixed two bugs found during PR review + Cloudflare Preview validation: the method filter's options were computed once from the SSR default Game Context and never recomputed on a context switch, so a method that only exists in an older context (e.g. Outrage's Tutor relations, absent from Scarlet/Violet but present in Platinum) could never be selected after switching to that context — the selector now rebuilds its options (in a deterministic, `LEARN_METHOD_ORDER`-based order) and resets to "all" on every context change, hiding itself when the current context has only one method; and "Total histórico" was an SSR-conditional element that couldn't react to a context/method change at all — it's now always present, client-toggled, and shown only with no method filter active (so it never reads as if it were scoped to a filtered method). The generator now also prunes any `learnsets/{move}.json` a fresh run no longer produces, and drops its hash from the manifest, instead of leaving stale files for `import.meta.glob` to keep discovering forever. Tests 805 → 839. `docs/architecture/move-learnset-relations.md`.
+- **Game Context** (`src/services/gameContext.ts`): groups PokeAPI version groups into game families on top of `VERSION_GROUPS` — Scarlet/Violet, Sword/Shield and Legends: Z-A each fold their DLC (Teal Mask/Indigo Disk, Isle of Armor/Crown Tundra, Mega Dimension) into one selectable context instead of three. Classifies each context `main-series` / `spin-off` / `battle` and resolves the default the same way `defaultVersionGroup` already did (most recent main-series context; spin-offs/battle never displace it), now also resolving the most recent *revision* within that context. `src/utils/gameContextStorage.ts` persists the chosen context across Pokémon pages (`localStorage`, resolved client-side after SSR renders the server default). `MovesTable`'s selector now lists Game Contexts, not raw version groups; switching one tracks a `game_context_change` analytics event. Live PokeAPI data checked before implementing: no DLC version group currently appears in any Pokémon's `moves[].version_group_details` (documented in `docs/architecture/game-context.md`).
+
+### Changed
+
+- The Pokémon `MovesTable` opens on the most recent main-series version group the Pokémon has (Garchomp: Scarlet/Violet) instead of the alphabetically last one (`x-y`). Spin-offs and DLC such as Champions stay in the selector but are never the default (unless nothing else exists). Groups are listed newest first and labelled in the page language (they were Spanish-only).
+- Pokepedia is presented as the encyclopedia, not a strategy tool: home tagline and default title/description, Pokémon page title and description (`X: Stats, Movimientos y Habilidades`), JSON-LD, default and type OG cards, sources page. `<meta name="keywords">` removed (no dependency).
+- `CompetitiveSets` (sets, ability blurbs, Smogon strategy link, client `pokedex.json` fallback) became `SmogonTier`: the attributed Smogon tier only, rendered on the server with no client script. The Smogon *sets* request is gone from the Pokémon page.
+- **The Pokédex home search box (`/[lang]/`) is now a local filter, not a second global search.** It previously also showed a multi-entity dropdown from the global search index, disagreeing with the grid below it (e.g. a Garchomp dropdown result while the Kanto grid stayed unfiltered). That dropdown is removed; the box now only filters the currently rendered generation/favorites grid — honestly, including down to zero results — with a region-aware placeholder ("Search Pokémon in Kanto...") and empty state ("No results for 'X' in Kanto."). The header's own global search (`Layout.astro`) is unaffected and remains the only global-entity search surface. This also removes the Fase 1 debt where Enter could navigate to a stale/hidden suggestion link — the mechanism that caused it no longer exists. See `docs/architecture/home-search-scope.md`.
+- Regional Pokédex names on the Pokémon page no longer render visually truncated ("Sinnoh Ori...", "Ciudad L..."); the species category (`genera`, e.g. "Pokémon Mach") is now labelled "Category: ..." instead of shown bare.
+- **Fixed (post-review) an i18n bug the above search change surfaced**: Generation 5's region ("Teselia" in Spanish, "Unova" in English) is now genuinely bilingual — `GENERATIONS.region` in `src/services/pokeapi.ts` is `{es, en}`, read through one `generationRegionLabel(genKey, lang)` function everywhere a region name is shown (home page pills and search placeholder, the generation landing page, the generations hub, the generation OG image, the global search index). Previously a single ES-only string leaked "Teselia" onto English pages in most of those places; a first fix patched only the new search placeholder, missing the pill next to it.
+- `/movimientos/`, `/habilidades/` and `/objetos/` server-render their primary fields (moves: name, type, category, priority, power, accuracy, PP; abilities: name, description; items: name, category, description, sprite presence). No browser request to PokeAPI, no skeletons, no IntersectionObserver; filters and suggestions read the rendered rows and ignore accents; the item category filter works instantly. Initial HTML: moves 0.30 → 0.39 MB, abilities 0.52 → 0.20 MB, items 0.96 → 0.94 MB (gzip 24 → 33, 20 → 23, 64 → 84 KB).
+
+### Not changed
+
+- URLs, `pagePath()`, canonical, hreflang, trailing slash, the sitemap (8436 URLs), the item indexation policy, status codes, error pages.
+
 ## [0.14.0] - 2026-09-26
 
 ### Added

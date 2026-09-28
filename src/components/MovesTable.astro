@@ -1,7 +1,9 @@
 ---
-import { uiTranslations, methodTranslations, versionTranslations } from '../utils/pokemon';
+import { uiTranslations, methodTranslations } from '../utils/pokemon';
+import { sortVersionGroups, versionGroupLabel } from '../services/versionGroups';
+import { availableContextsForPokemon, defaultGameContextForPokemon, gameContextLabel, type ContextAvailability, type DefaultGameContext } from '../services/gameContext';
 import { pagePath } from '../utils/seo';
-import { compactMoves, expandMoves, jsonForScript, resourceRef, type RawMoveEntry } from '../utils/movesPayload';
+import { compactMoves, expandMoves, jsonForScript, resourceRef, versionGroupsFromMoveDetails, type RawMoveEntry } from '../utils/movesPayload';
 
 interface Props {
     moves: {
@@ -20,14 +22,24 @@ interface Props {
         }[];
     }[];
     lang: string;
+    /**
+     * Fase 2E: the page's own single Game Context computation (shared with
+     * other page sections, e.g. the regional Pokédex), so this component
+     * never runs a second, independent one from the same `moves` data.
+     * Optional and self-computed when absent — standalone use (and this
+     * component's own tests) still works exactly as before.
+     */
+    availableContexts?: ContextAvailability[];
+    defaultContext?: DefaultGameContext;
 }
 
-const { moves = [], lang = 'es' } = Astro.props;
+const { moves = [], lang = 'es', availableContexts: availableContextsProp, defaultContext: defaultContextProp } = Astro.props;
 const t = uiTranslations[lang] || uiTranslations.es;
 const mt = methodTranslations[lang] || methodTranslations.es;
 
 const safeMoves = moves || [];
-const versionGroups = [...new Set(safeMoves.flatMap(m => (m.version_group_details || []).map(d => d.version_group.name)))].sort();
+// Oldest → newest by the explicit chronology table (never alphabetical).
+const versionGroups = sortVersionGroups(versionGroupsFromMoveDetails(safeMoves));
 
 // (move, level, method) per version group, deduplicated. Only this — not the
 // processed rows — travels to the browser (see utils/movesPayload.ts).
@@ -49,12 +61,28 @@ for (const m of safeMoves) {
 
 const payload = compactMoves(rawByVersion, {
     method: (m) => mt[m] || m,
-    version: (v) => versionTranslations[v] || v.replace(/-/g, ' '),
+    version: (v) => versionGroupLabel(v, lang),
 });
 
-const initialVersion = versionGroups.length > 0
-    ? (versionGroups.includes('red-blue') ? 'red-blue' : versionGroups[versionGroups.length - 1])
-    : '';
+// Game Context: the selector groups version groups into game families
+// (a DLC/data revision such as The Indigo Disk is folded into its base
+// game, Scarlet/Violet), so the user picks "Scarlet / Violet", never a
+// PokeAPI version-group slug. See services/gameContext.ts for the policy.
+// Computed here only when the page didn't already do it (see Props above).
+const availableContexts = availableContextsProp ?? availableContextsForPokemon(versionGroups);
+const defaultContext = defaultContextProp ?? defaultGameContextForPokemon(versionGroups);
+
+// contextId -> the specific revision to read this Pokémon's data from
+// (its latest available revision within that context).
+const contextRevision: Record<string, string> = Object.fromEntries(
+    availableContexts.map((a) => [a.context.id, a.latestRevision])
+);
+
+const initialContext = defaultContext.contextId;
+// The version group whose data is actually shown: the default context's
+// latest revision (e.g. Scarlet/Violet's latest data may be the Indigo
+// Disk revision, but the visible/selected context stays "Scarlet / Violet").
+const initialVersion = defaultContext.revision;
 
 // Rows for the initially selected version, server-rendered from data already in
 // hand (no per-move fetch) so the Pokémon -> Move relation and the canonical
@@ -69,11 +97,13 @@ const ssrRows = expandMoves(payload, initialVersion)
 
 <div class="moves-container mt-12 bg-white dark:bg-slate-800 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden transition-colors duration-300"
      data-initial-version={initialVersion}
+     data-initial-context={initialContext}
+     data-context-revisions={jsonForScript(contextRevision)}
      data-lang={lang}>
 
     <script type="application/json" id="moves-data" is:inline set:html={jsonForScript(payload)} />
 
-    <div class="p-8 md:p-10 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+    <div class="p-5 sm:p-8 md:p-10 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div>
                 <h3 class="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.moves}</h3>
@@ -98,9 +128,10 @@ const ssrRows = expandMoves(payload, initialVersion)
                 </div>
 
                 <div class="relative">
-                    <select id="versionFilter" class="w-full pl-6 pr-10 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300 appearance-none">
-                        {versionGroups.map(v => (
-                            <option value={v} selected={v === initialVersion}>{versionTranslations[v] || v.replace(/-/g, ' ')}</option>
+                    <label for="versionFilter" class="absolute -top-5 left-1 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.game}</label>
+                    <select id="versionFilter" aria-label={t.game} class="w-full pl-6 pr-10 py-3 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-sm focus:border-emerald-500 dark:focus:border-emerald-500/50 outline-none transition-all cursor-pointer capitalize dark:text-slate-300 appearance-none">
+                        {availableContexts.map(a => (
+                            <option value={a.context.id} selected={a.context.id === initialContext}>{gameContextLabel(a.context.id, lang)}</option>
                         ))}
                     </select>
                     <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -147,6 +178,8 @@ const ssrRows = expandMoves(payload, initialVersion)
 <script>
     import { pagePath } from '../utils/seo';
     import { expandMoves, type CompactMoves, type MoveRowData } from '../utils/movesPayload';
+    import { readGameContext, writeGameContext, resolveContextForPokemon } from '../utils/gameContextStorage';
+    import { trackEvent } from '../utils/analytics';
 
     const moveCache = new Map();
 
@@ -199,6 +232,10 @@ const ssrRows = expandMoves(payload, initialVersion)
         };
 
         const lang = container.dataset.lang || 'es';
+        // contextId -> the version group that represents it for this Pokémon
+        // (see services/gameContext.ts; e.g. 'scarlet-violet' -> 'the-indigo-disk').
+        const contextRevisions: Record<string, string> = JSON.parse(container.dataset.contextRevisions || '{}');
+        let currentContext = container.dataset.initialContext || '';
         let currentVersion = container.dataset.initialVersion || '';
         let prefetchRequestId = 0; // A9: track request ID to cancel stale fetches
 
@@ -206,7 +243,30 @@ const ssrRows = expandMoves(payload, initialVersion)
         const methodFilter = document.getElementById('methodFilter') as HTMLSelectElement;
         const versionFilter = document.getElementById('versionFilter') as HTMLSelectElement;
         const tableBody = document.getElementById('movesTableBody');
+
+        // SSR renders the server-computed default context (localStorage is
+        // client-only). After hydration, switch to the persisted context if
+        // this Pokémon has data for it; otherwise keep the SSR default.
+        let storage: Storage | null = null;
+        try { storage = window.localStorage; } catch { storage = null; }
+        const availableContextIds = Object.keys(contextRevisions);
+        const persistedContext = storage ? resolveContextForPokemon(readGameContext(storage), availableContextIds, currentContext) : currentContext;
+        if (persistedContext !== currentContext && contextRevisions[persistedContext]) {
+            currentContext = persistedContext;
+            currentVersion = contextRevisions[currentContext];
+            if (versionFilter) versionFilter.value = currentContext;
+        }
         const noMoves = document.getElementById('noMoves');
+
+        // Fase 2E: broadcasts the resolved Game Context (SSR default OR the
+        // persisted one just restored above — whichever `currentContext`
+        // ended up being) so other sections of the same page (e.g. the
+        // regional Pokédex) can filter without a second selector or a
+        // second copy of the restore logic above. Not a new state system:
+        // one DOM event, `{ contextId }` only, no payload duplication.
+        function broadcastGameContext() {
+            document.dispatchEvent(new CustomEvent('pokepedia:game-context-change', { detail: { contextId: currentContext } }));
+        }
 
         function renderMoves() {
             if (!tableBody) return;
@@ -304,11 +364,21 @@ const ssrRows = expandMoves(payload, initialVersion)
         searchInput?.addEventListener('input', renderMoves);
         methodFilter?.addEventListener('change', renderMoves);
         versionFilter?.addEventListener('change', (e) => {
-            currentVersion = (e.target as HTMLSelectElement).value;
+            currentContext = (e.target as HTMLSelectElement).value;
+            currentVersion = contextRevisions[currentContext] ?? currentContext;
+            if (storage) writeGameContext(storage, currentContext);
+            trackEvent('game_context_change', { target: currentContext, language: lang, source_surface: 'moves_table' });
+            broadcastGameContext();
             renderMoves();
             prefetch();
         });
 
+        // Broadcast once up front too (SSR default or the just-restored
+        // persisted context — see above): a listener registered before this
+        // point (see the regional Pokédex section, which also resolves its
+        // own initial state independently and does not rely on catching
+        // this exact dispatch — see its script for why) still gets it.
+        broadcastGameContext();
         renderMoves();
         prefetch();
     }

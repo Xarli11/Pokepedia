@@ -2,14 +2,18 @@
 import Layout from '../../../layouts/Layout.astro';
 import MovesTable from '../../../components/MovesTable.astro';
 import EvolutionChain from '../../../components/EvolutionChain.astro';
-import CompetitiveSets from '../../../components/CompetitiveSets.astro';
+import SmogonTier from '../../../components/SmogonTier.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { getPokemonByName, getLocalizedName, getEvolutionChain, getLocalizedNames, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
-import { getShowdownPokemon, getSmogonSets, type SmogonSet } from '../../../services/smogon';
+import { getPokemonByName, getLocalizedName, getEvolutionChain, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
+import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
-import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl, natureTranslations } from '../../../utils/pokemon';
+import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
+import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus, regionalDexEntriesForContext, pastStatChanges } from '../../../utils/pokemonFacts';
+import { pokedexLabel } from '../../../services/pokedexes';
+import { versionGroupsFromMoveDetails, jsonForScript } from '../../../utils/movesPayload';
+import { availableContextsForPokemon, defaultGameContextForPokemon } from '../../../services/gameContext';
 
 const { lang = 'es', name: rawName } = Astro.params;
 const name = (rawName as string || '').toLowerCase();
@@ -112,13 +116,6 @@ try {
     }
 } catch (e) {}
 
-// 1b. Sets competitivos de Smogon (optional). Needs the tier, so it starts as
-// soon as Showdown resolves and overlaps the ability lookups below.
-let smogonSets: SmogonSet[] | null = null;
-const smogonPromise: Promise<SmogonSet[] | null> = showdownData
-    ? getSmogonSets(detail.name, showdownData.tier || 'Untiered').catch(() => null)
-    : Promise.resolve(null);
-
 // 2. Fallback de especie (para Movimientos que Showdown no detalla para Megas)
 if (detail.moves.length === 0 || detail.abilities.length === 0) {
     const baseVariety = species?.varieties?.find((v: any) => v.is_default);
@@ -154,32 +151,7 @@ try {
         }
     }));
 } catch (e) {}
-[evolutionChain, varieties, smogonSets] = await Promise.all([evolutionPromise, varietiesPromise, smogonPromise]);
-
-// 4. Traducir smogonSets al idioma actual
-if (smogonSets && smogonSets.length > 0 && lang === 'es') {
-    try {
-        const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-        const abilityMap: Record<string, string> = {};
-        (abilitiesWithTranslation as any[]).forEach(a => { abilityMap[a.ability.name] = a.displayName; });
-
-        const uniqueMoveSlugs = [...new Set(smogonSets.flatMap(s => s.moves).map(toSlug))];
-        const uniqueItemSlugs = [...new Set(smogonSets.map(s => s.item).filter(Boolean).map(i => toSlug(i as string)))];
-
-        const [moveNames, itemNames] = await Promise.all([
-            getLocalizedNames(uniqueMoveSlugs, 'move', lang as string),
-            getLocalizedNames(uniqueItemSlugs, 'item', lang as string),
-        ]);
-
-        smogonSets = smogonSets.map(set => ({
-            ...set,
-            moves: set.moves.map(m => moveNames[toSlug(m)] || m),
-            ability: set.ability ? (abilityMap[toSlug(set.ability)] || set.ability) : null,
-            item: set.item ? (itemNames[toSlug(set.item)] || set.item) : null,
-            nature: set.nature ? (natureTranslations[set.nature] || set.nature) : null,
-        }));
-    } catch (e) {}
-}
+[evolutionChain, varieties] = await Promise.all([evolutionPromise, varietiesPromise]);
 
 const t = uiTranslations[lang as string] || uiTranslations.es;
 const speciesName = species ? (getLocalizedName(species.names, lang as string) || species.name) : detail.name;
@@ -241,11 +213,11 @@ const points = statsValues.map((stat: number, i: number) => {
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 const gridLevels = [0.25, 0.5, 0.75, 1];
 const seoTitle = lang === 'es'
-    ? `${localizedName}: Stats, Debilidades y Estrategia`
-    : `${localizedName}: Stats, Weaknesses & Strategy`;
+    ? `${localizedName}: Stats, Movimientos y Habilidades`
+    : `${localizedName}: Stats, Moves & Abilities`;
 const seoDescription = lang === 'es'
-    ? `Analiza a ${localizedName}: Stats base (${totalStats}), tipos, debilidades y estrategias competitivas.`
-    : `Analyze ${localizedName}: Base stats (${totalStats}), types, weaknesses and competitive strategies.`;
+    ? `Ficha de ${localizedName}: tipos, estadísticas base (${totalStats}), habilidades, evolución y movimientos que aprende.`
+    : `${localizedName} profile: types, base stats (${totalStats}), abilities, evolution and the moves it learns.`;
 
 // Type theming
 const primaryType = detail.types[0]?.type.name || 'normal';
@@ -276,6 +248,44 @@ const pokemonGenKey = pokemonGenNumRaw ? `gen${pokemonGenNumRaw}` : null;
 const pokemonGenRoman = pokemonGenKey ? GENERATION_ROMAN[pokemonGenKey] : null;
 const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 
+// Factual data (training, breeding, classification, regional Pokédex
+// numbers): normalized once here from `detail`/`species` — both already in
+// hand, no extra request — and rendered as-is by the template. See
+// docs/architecture/pokemon-entity.md.
+const facts = buildPokemonFacts(detail, species);
+const genus = localizedGenus(species?.genera || [], lang as string);
+
+// Fase 2F: real historical stat/EV-yield changes (PokeAPI's past_stats —
+// see utils/pokemonFacts.ts and docs/architecture/pokemon-entity.md §8 for
+// why base_happiness/capture_rate/base_experience have no equivalent and
+// stay as the current-only values shown above). Already in `detail`, no
+// extra request.
+const statHistory = pastStatChanges(detail.past_stats);
+
+// Game Context (Fase 2E): computed once, here, from this Pokémon's own
+// moves — the SAME derivation MovesTable uses internally — and handed
+// down to it as props so the page has exactly one Game Context
+// computation, never two independent ones. The regional Pokédex section
+// below reuses this same result to filter its entries; MovesTable's own
+// <select> stays the only Game Context control on the page (see its
+// client script for the `pokepedia:game-context-change` broadcast this
+// section listens for).
+const pokemonVersionGroups = versionGroupsFromMoveDetails(detail.moves);
+const availableContexts = availableContextsForPokemon(pokemonVersionGroups);
+const defaultContext = defaultGameContextForPokemon(pokemonVersionGroups);
+const defaultContextAvailability = availableContexts.find((a) => a.context.id === defaultContext.contextId);
+const defaultRevisions = defaultContextAvailability?.availableRevisions ?? (defaultContext.revision ? [defaultContext.revision] : []);
+
+// Regional Pokédex numbers, filtered to the default Game Context — SSR is
+// correct from the start, never "show everything, JS narrows it later".
+// No available context at all (no recognized version groups) means there
+// is nothing to filter *by*, not that every entry is out of scope: show
+// every historical entry unfiltered rather than hiding real data.
+const defaultRegionalDex = availableContexts.length > 0
+    ? regionalDexEntriesForContext(facts.regionalDex, defaultRevisions)
+    : facts.regionalDex;
+const regionalDexHistoricalCount = facts.regionalDex.length;
+
 const breadcrumbItems = [
     { label: t.breadcrumb_home, href: pagePath(lang) },
     { label: 'Pokédex', href: pagePath(lang) },
@@ -300,12 +310,20 @@ const breadcrumbItems = [
                     </div>
                     {t.back_to_pokedex}
                 </a>
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4 flex-wrap">
                     <h1 class="text-4xl md:text-5xl font-black text-slate-900 dark:text-white capitalize tracking-tighter">{localizedName}</h1>
                     <button class="fav-btn p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400" data-pokemon={name} onclick="window.toggleFavorite(this.dataset.pokemon)">
                         <svg class="w-6 h-6 heart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"></path></svg>
                     </button>
+                    {facts.classification.isLegendary && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-500/20">{t.legendary_pokemon}</span>}
+                    {facts.classification.isMythical && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-200/60 dark:border-violet-500/20">{t.mythical_pokemon}</span>}
+                    {facts.classification.isBaby && <span class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-500/20">{t.baby_pokemon}</span>}
                 </div>
+                {genus && (
+                    <p class="text-sm font-bold text-slate-400 dark:text-slate-500 -mt-2">
+                        <span class="uppercase tracking-wide text-[11px] text-slate-400/80 dark:text-slate-500/80">{t.category}:</span> {genus}
+                    </p>
+                )}
                 <ReportDataIssue entityType="pokemon" entitySlug={detail.name} lang={lang as string} />
             </div>
 
@@ -383,10 +401,10 @@ const breadcrumbItems = [
                         </a>
                     )}
                     <a href={buildPokeTypesUrl(detail.types, detail.name)} target="_blank" rel="noopener noreferrer" data-track-event="cross_site_click" data-track-target="poketypes" data-source-surface="pokemon_detail" class="group relative inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline">
-                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{lang === 'es' ? 'Análisis de Debilidades' : 'Weakness Analysis'}</span>
+                        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_types_on_poketypes}</span>
                     </a>
                 </div>
-                <h2 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h2>
+                <h2 class="text-3xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4 break-words">{localizedName}</h2>
                 <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">"{description}"</p>
 
                 <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
@@ -427,6 +445,97 @@ const breadcrumbItems = [
                     </div>
                 </div>
 
+                <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-10">
+                    <section>
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.training}</h2>
+                        <dl class="space-y-4 text-sm">
+                            {facts.training.baseExperience != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.base_experience}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.baseExperience}</dd></div>
+                            )}
+                            {facts.training.captureRate != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.capture_rate}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.captureRate}</dd></div>
+                            )}
+                            {facts.training.baseHappiness != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.base_happiness}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.training.baseHappiness}</dd></div>
+                            )}
+                            {facts.training.growthRate && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.growth_rate}</dt><dd class="text-slate-900 dark:text-white font-black capitalize">{growthRateLabel(facts.training.growthRate, lang as string)}</dd></div>
+                            )}
+                            {facts.training.evYield.length > 0 && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.ev_yield}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{facts.training.evYield.map((e) => `${e.amount} ${t[e.stat] || e.stat}`).join(' + ')}</dd></div>
+                            )}
+                        </dl>
+                    </section>
+                    <section>
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.breeding}</h2>
+                        <dl class="space-y-4 text-sm">
+                            {facts.breeding.eggGroups.length > 0 && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.egg_groups}</dt><dd class="text-slate-900 dark:text-white font-black text-right">{facts.breeding.eggGroups.map((g) => eggGroupLabel(g, lang as string)).join(', ')}</dd></div>
+                            )}
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-slate-500 dark:text-slate-400 font-bold">{t.gender_ratio}</dt>
+                                <dd class="text-slate-900 dark:text-white font-black">
+                                    {facts.breeding.gender.genderless
+                                        ? t.genderless
+                                        : `♂ ${facts.breeding.gender.malePercent}% · ♀ ${facts.breeding.gender.femalePercent}%`}
+                                </dd>
+                            </div>
+                            {facts.breeding.hatchCounter != null && (
+                                <div class="flex justify-between gap-4"><dt class="text-slate-500 dark:text-slate-400 font-bold">{t.hatch_cycles}</dt><dd class="text-slate-900 dark:text-white font-black">{facts.breeding.hatchCounter}</dd></div>
+                            )}
+                        </dl>
+                    </section>
+                </div>
+
+                {facts.regionalDex.length > 0 && (
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <div class="flex flex-wrap items-center gap-3 mb-6">
+                            <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest">{t.pokedex_numbers}</h2>
+                            <!--
+                              Always rendered, never SSR-conditional (Fase 2D
+                              lesson, see docs/architecture/game-context.md):
+                              visibility is a `hidden` class the client
+                              toggles on every Game Context change, which an
+                              element omitted from the DOM outright could
+                              never react to. Always means the same thing —
+                              distinct historical Pokédex entries across
+                              every Game Context, never scoped to "this
+                              context's method" (there is no method concept
+                              here, but the honesty principle is the same).
+                            -->
+                            <span id="regional-dex-historical" class:list={['text-xs font-bold text-slate-400 dark:text-slate-600', { hidden: regionalDexHistoricalCount <= defaultRegionalDex.length }]}>{t.learnset_total_historical}: {regionalDexHistoricalCount}</span>
+                        </div>
+                        <dl id="regional-dex-list" class:list={['grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm', { hidden: defaultRegionalDex.length === 0 }]}>
+                            {defaultRegionalDex.map((entry) => (
+                                <div class="flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3">
+                                    <dt class="text-slate-500 dark:text-slate-400 font-bold leading-snug">{pokedexLabel(entry.pokedex, lang as string)}</dt>
+                                    <dd class="text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap">#{String(entry.entryNumber).padStart(3, '0')}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                        <div id="regional-dex-empty" class:list={['p-8 text-center text-slate-400 dark:text-slate-600 font-bold text-sm', { hidden: defaultRegionalDex.length > 0 }]}>{t.regional_dex_no_results}</div>
+                        <script type="application/json" id="regional-dex-data" is:inline set:html={jsonForScript({
+                            entries: facts.regionalDex.map((e) => [e.pokedex, e.entryNumber]),
+                            contexts: availableContexts.map((a) => ({ id: a.context.id, revisions: a.availableRevisions })),
+                            initialContext: defaultContext.contextId,
+                        })} />
+                    </div>
+                )}
+
+                {statHistory.length > 0 && (
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.move_history}</h2>
+                        <ul class="space-y-3 text-sm list-none p-0 m-0">
+                            {statHistory.map((entry) => (
+                                <li class="text-slate-600 dark:text-slate-400">
+                                    <span class="font-black text-slate-900 dark:text-white">{t.generation_label} {GENERATION_ROMAN[`gen${entry.generationId}`] ?? entry.generationId}{lang === 'es' ? ' y anteriores' : ' and earlier'}:</span>{' '}
+                                    {entry.changes.map((c) => `${t[c.statName] || c.statName} ${c.baseStat}${c.effort ? ` (${c.effort} EV)` : ''}`).join(', ')}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 {varieties && varieties.length > 0 && (
                     <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-8">{t.other_forms}</h3>
@@ -444,8 +553,8 @@ const breadcrumbItems = [
         </div>
 
         {evolutionChain && <EvolutionChain chain={evolutionChain} lang={lang as string} />}
-        <CompetitiveSets pokemonName={detail.name} lang={lang as string} showdownData={showdownData} smogonSets={smogonSets} />
-        <MovesTable moves={detail.moves} lang={lang as string} />
+        <SmogonTier pokemonName={detail.name} lang={lang as string} tier={showdownData?.tier || null} />
+        <MovesTable moves={detail.moves} lang={lang as string} availableContexts={availableContexts} defaultContext={defaultContext} />
     </div>
 
     <script is:inline>
@@ -466,12 +575,130 @@ const breadcrumbItems = [
         document.addEventListener('astro:after-swap', initShiny);
     </script>
 
-    <script is:inline define:vars={{ _pokemonName: canonicalSlug, _pokemonId: pokemonId, _pokemonSprite: officialArtwork }}>
+    <script>
+    // Fase 2E: reacts to MovesTable's `pokepedia:game-context-change`
+    // broadcast to filter the regional Pokédex section without a second
+    // Game Context selector, a fetch, or a page navigation — same compact-
+    // payload + pure-filter pattern the move page established in Fase 2D
+    // for learnsets (see docs/architecture/move-learnset-relations.md and
+    // this page's own note in docs/architecture/game-context.md).
+    import { pokedexLabel } from '../../../services/pokedexes';
+    import { regionalDexEntriesForContext, type RegionalDexEntry } from '../../../utils/pokemonFacts';
+    import { readGameContext, resolveContextForPokemon } from '../../../utils/gameContextStorage';
+
+    interface RegionalDexPayload {
+        entries: [string, number][];
+        contexts: { id: string; revisions: string[] }[];
+        initialContext: string;
+    }
+
+    // setupRegionalDex() re-runs on every `astro:after-swap` (client-side
+    // navigation via View Transitions), each time against a freshly-swapped
+    // DOM. Without cleanup, each run's `document.addEventListener` call
+    // would pile up: old listeners closing over DOM nodes that no longer
+    // exist, firing alongside the new one on every future context change.
+    // One AbortController per run, aborted before the next run creates its
+    // own, keeps exactly one listener alive at any time — no global store,
+    // just the same short-lived variable every other client script in this
+    // codebase already keeps at module scope (e.g. MovesTable's `moveCache`).
+    let regionalDexAbort: AbortController | null = null;
+
+    function setupRegionalDex() {
+        regionalDexAbort?.abort();
+        regionalDexAbort = new AbortController();
+        const { signal } = regionalDexAbort;
+
+        const dataScript = document.getElementById('regional-dex-data');
+        if (!dataScript) return;
+        const payload: RegionalDexPayload = JSON.parse(dataScript.textContent || '{}');
+        if (!payload.contexts || payload.contexts.length === 0) return;
+
+        const langAttr = document.documentElement.lang || 'es';
+        const entries: RegionalDexEntry[] = payload.entries.map(([pokedex, entryNumber]) => ({ pokedex, entryNumber }));
+        const historicalCount = entries.length;
+
+        const listEl = document.getElementById('regional-dex-list');
+        const emptyEl = document.getElementById('regional-dex-empty');
+        const historicalEl = document.getElementById('regional-dex-historical');
+        if (!listEl) return;
+
+        // Resolves the SAME initial state MovesTable resolves (persisted
+        // context if this Pokémon has data for it, else the SSR default),
+        // independently, with the exact same pure function and storage key
+        // — this never depends on catching MovesTable's own broadcast for
+        // correctness on load (module scripts execute in document order;
+        // MovesTable's script sits earlier and dispatches synchronously, so
+        // a listener registered here would already be too late for that
+        // first dispatch). The event below is only relied on for a LATER,
+        // live context change — always safe, since by the time a person can
+        // interact with the selector both scripts have long finished
+        // registering their listeners.
+        let storage: Storage | null = null;
+        try { storage = window.localStorage; } catch { storage = null; }
+        const availableIds = payload.contexts.map((c) => c.id);
+        const persisted = storage ? resolveContextForPokemon(readGameContext(storage), availableIds, payload.initialContext) : payload.initialContext;
+        let currentContext = availableIds.includes(persisted) ? persisted : payload.initialContext;
+
+        // DOM APIs, not an HTML string + innerHTML: pokedexLabel() and the
+        // entry number both end up as .textContent, never parsed as markup
+        // — the same escaping guarantee SSR gets from Astro automatically
+        // carries over to this client-side re-render.
+        function buildRow(entry: RegionalDexEntry): HTMLDivElement {
+            const row = document.createElement('div');
+            row.className = 'flex items-start justify-between gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3';
+            const dt = document.createElement('dt');
+            dt.className = 'text-slate-500 dark:text-slate-400 font-bold leading-snug';
+            dt.textContent = pokedexLabel(entry.pokedex, langAttr);
+            const dd = document.createElement('dd');
+            dd.className = 'text-slate-900 dark:text-white font-black shrink-0 whitespace-nowrap';
+            dd.textContent = `#${String(entry.entryNumber).padStart(3, '0')}`;
+            row.append(dt, dd);
+            return row;
+        }
+
+        function render() {
+            if (!listEl) return;
+            const ctx = payload.contexts.find((c) => c.id === currentContext);
+            const filtered = ctx ? regionalDexEntriesForContext(entries, ctx.revisions) : entries;
+            historicalEl?.classList.toggle('hidden', historicalCount <= filtered.length);
+
+            if (filtered.length === 0) {
+                listEl.classList.add('hidden');
+                emptyEl?.classList.remove('hidden');
+                return;
+            }
+            listEl.classList.remove('hidden');
+            emptyEl?.classList.add('hidden');
+            listEl.replaceChildren(...filtered.map(buildRow));
+        }
+
+        function onGameContextChange(e: Event) {
+            const contextId = (e as CustomEvent<{ contextId: string }>).detail?.contextId;
+            if (!contextId || !availableIds.includes(contextId) || contextId === currentContext) return;
+            currentContext = contextId;
+            render();
+        }
+        document.addEventListener('pokepedia:game-context-change', onGameContextChange, { signal });
+
+        // Only re-render if hydration found a different, available persisted
+        // context than the SSR default — avoids an unnecessary reflow (same
+        // pattern as the move page's learnset script, Fase 2D).
+        if (currentContext !== payload.initialContext) render();
+    }
+
+    setupRegionalDex();
+    document.addEventListener('astro:after-swap', setupRegionalDex);
+    </script>
+
+    <script is:inline define:vars={{ _pokemonSlug: canonicalSlug, _pokemonId: pokemonId, _pokemonLabel: localizedName }}>
+        // Recent-search history (same shape as utils/searchHistory.ts; legacy
+        // { name, id, sprite } entries are still understood there).
         (function() {
             try {
-                const history = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
-                const filtered = history.filter(h => h.name !== _pokemonName);
-                filtered.unshift({ name: _pokemonName, id: _pokemonId, sprite: _pokemonSprite });
+                const raw = JSON.parse(localStorage.getItem('pokepedia_history') || '[]');
+                const history = Array.isArray(raw) ? raw : [];
+                const filtered = history.filter(h => h && !((h.type === 'pokemon' && h.slug === _pokemonSlug) || (h.type === undefined && h.name === _pokemonSlug)));
+                filtered.unshift({ type: 'pokemon', slug: _pokemonSlug, name: _pokemonLabel, id: _pokemonId });
                 localStorage.setItem('pokepedia_history', JSON.stringify(filtered.slice(0, 8)));
             } catch {}
         })();

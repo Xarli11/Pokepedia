@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { isSupportedLang } from '../../../../../utils/seo';
-import { getPokemonByGeneration, GENERATIONS, GENERATION_ROMAN } from '../../../../../services/pokeapi';
+import { getPokemonByGeneration, GENERATION_ROMAN, generationRegionLabel } from '../../../../../services/pokeapi';
 import { loadCardFonts } from '../../../../../utils/og/fonts';
 import { renderCardPng } from '../../../../../utils/og/render';
 import { cacheableImageResponse, ogNotFound } from '../../../../../utils/og/http';
@@ -14,7 +14,7 @@ export const GET: APIRoute = async ({ params, request, url }) => {
 	if (!Number.isInteger(genNum) || genNum < 1 || genNum > 9) return ogNotFound();
 
 	const genKey = `gen${genNum}`;
-	const genInfo = GENERATIONS[genKey];
+	const region = generationRegionLabel(genKey, lang);
 	const roman = GENERATION_ROMAN[genKey];
 
 	return cacheableImageResponse(
@@ -23,7 +23,7 @@ export const GET: APIRoute = async ({ params, request, url }) => {
 			// Same source of truth as the generation landing page's SSR count.
 			const [fonts, pokemonList] = await Promise.all([loadCardFonts(url.origin), getPokemonByGeneration(genKey)]);
 
-			const tree = buildGenerationCard({ lang, roman, region: genInfo.region, count: pokemonList.length });
+			const tree = buildGenerationCard({ lang, roman, region, count: pokemonList.length });
 			return renderCardPng(tree, fonts);
 		},
 		async () => {

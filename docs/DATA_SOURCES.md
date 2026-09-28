@@ -38,7 +38,8 @@ selection layer exists specifically so that can't happen again undetected.
 |---|---|---|
 | [PokeAPI](https://pokeapi.co) | Canonical identity for every Pokémon/move/ability/item; base stats/types/abilities; localized names; flavor text; evolution chains; sprites | `src/services/pokeapi.ts` (SSR), a few lazy client `<script>` fetches (see [Client-side fetches](#client-side-fetches)) |
 | [Pokémon Showdown](https://pokemonshowdown.com) (`data/pokedex.json`) | "Current" (post official nerf/buff) types, base stats, and legal ability list, when they differ from PokeAPI's static data; competitive tier | `src/services/smogon.ts` (despite the file name — see below) |
-| [Smogon](https://www.smogon.com) sets data (`pkmn.github.io/smogon/data/sets/*.json`) | Recommended competitive sets (moves/item/ability/nature) per tier/format | `src/services/smogon.ts` |
+| [Smogon](https://www.smogon.com) sets data (`pkmn.github.io/smogon/data/sets/*.json`) | **Not displayed by Pokepedia any more** (sets are PokeStudio's domain, see [Product boundaries](#product-boundaries)). `getSmogonSets()` stays in `smogon.ts` with its tests, unused by any page | `src/services/smogon.ts` |
+| Generated catalogs (`src/data/generated/*.json`) | Compact ES/EN catalogs of moves, abilities, items and Pokémon (species + forms) plus the global-search index, built from PokeAPI by a script. Read by the catalog index pages and the search; never by entity pages | `scripts/generate-catalogs.ts`, `src/services/catalogs.ts`, see [Generated catalogs](#generated-catalogs) |
 | WikiDex (`wikidex.net`) | Spanish species flavor-text fallback, only when PokeAPI has none in Spanish | `getWikiDexFallback()` in `src/services/pokeapi.ts` |
 | Manual patches (`SPANISH_PATCHES` constant) | Hand-written Spanish name/description overrides for a small, fixed list of entries where PokeAPI's Gen 8/9 Spanish data is missing/wrong | `src/services/pokeapi.ts` |
 | Local JSON fixtures (`src/utils/__fixtures__/items/*.json`) | Not a runtime source — frozen real PokeAPI item responses used by `localizedText.test.ts` to pin down the x-y corruption fix. Never imported outside tests. | test-only |
@@ -62,8 +63,7 @@ source. Do not read "Showdown" and "Smogon" as interchangeable.
 | Ability/move/item flavor text | PokeAPI `flavor_text_entries`, highest-ranked known version group for the requested language | next language in the ladder (`requestedLang` -> `en`) | `selectLocalizedFlavor()` (see below) | 24h |
 | Item technical effect | PokeAPI `effect_entries` | next language in the ladder | `selectLocalizedEffect()` | 24h |
 | Species flavor text (Pokémon page) | PokeAPI `flavor_text_entries[lang]` | manual patch (if any) inserted first, then WikiDex if still no Spanish entry exists | `getPokemonByName()` | 24h (WikiDex call itself is not cached — it's a single best-effort request) |
-| Competitive tier | Showdown `pokedex.json` `.tier` | `'Untiered'` | `getPokemonTier()` / inline in the Pokémon page | 24h |
-| Competitive sets | Smogon `sets/{format}.json`, keyed by tier -> format | `null` (section simply doesn't render) | `getSmogonSets()` | 24h |
+| Smogon tier (secondary, attributed fact) | Showdown `pokedex.json` `.tier` | no tier -> the small tier card is not rendered | `SmogonTier.astro` (SSR only, no client script) | 24h |
 | Evolution chain | PokeAPI `evolution-chain/{id}` | `null` | `getEvolutionChain()` | 24h (through `fetchWithCache`) |
 | Sitemap Pokémon/move/ability/item lists | PokeAPI list endpoints | none: every family is required — a failing one makes the sitemap a 503 (never a partial 200) | `getAllPokemonBasic/getAllMoves/getAllAbilities/getAllItems` in `sitemap.xml.ts` | 24h |
 
@@ -96,6 +96,247 @@ Two rules, both evidence-backed rather than assumed:
 
 `src/utils/items.ts` (`selectItemEffect` / `selectItemFlavor`) is the item
 adapter over this engine; item pages use it, not raw `flavor_text_entries`.
+
+## Product boundaries
+
+Pokepedia is the encyclopedia: factual, structured, connected data about
+Pokémon, moves, abilities, items, types, forms, evolutions and generations.
+The other two products of the ecosystem own the rest, and Pokepedia links to
+them instead of duplicating them:
+
+| Product | Owns | In Pokepedia |
+|---|---|---|
+| **PokeTypes** | weaknesses, resistances, immunities, multipliers, coverage | a deep link (`buildPokeTypesUrl`) from Pokémon pages and the comparator. No inline calculator, no iframe |
+| **PokeStudio** | sets, team building, strategy, optimization, damage calculation | nothing yet. `src/utils/ecosystem.ts` holds the single switch (`POKESTUDIO_BASE_URL`, `null`): while there is no public, stable URL no link is rendered; once it is set, the CTA in `SmogonTier.astro` appears |
+
+What stays on a Pokémon page from the competitive side is one attributed
+reference fact: the Smogon tier (from Showdown's `pokedex.json`) with its
+legend. Sets, ability blurbs for competitive use and "strategy" links were
+removed.
+
+## Version groups: chronology, labels and default context
+
+`src/services/versionGroups.ts` (`VERSION_GROUPS`) is the single table: one
+entry per group with its chronological position, ES and EN label and a
+`defaultEligible` flag. The Pokémon `MovesTable` lists **every** group the
+Pokémon has moves in, newest first (it used to sort alphabetically and open on
+`x-y`), labelled in the page language (the old table was Spanish-only).
+
+**"Latest available" and "default context" are different questions.**
+
+- *Latest available* (`latestVersionGroup`) is a fact about the data: the
+  chronologically newest group with data. Text selection uses it.
+- *Default context* (`defaultVersionGroup`) is a product policy: the newest
+  group flagged `defaultEligible`, i.e. a main-series game a player calls "the
+  current game". Spin-offs (Colosseum, XD, **Champions**) and DLC (Isle of
+  Armor, Crown Tundra, Teal Mask, Indigo Disk, Mega Dimension, which share
+  their base game's learnsets) stay selectable and visible but never displace
+  the latest main game. If a Pokémon has no eligible group, the newest
+  available one is used, so something is always selected.
+
+Garchomp has data for Champions (the newest group) and opens on
+Scarlet/Violet. To change what counts as a default, flip `defaultEligible`;
+do not delete groups from the table (unknown groups rank below every known
+one). The initial choice is one value (`initialVersion`) so a future Game
+Context can override it with a remembered selection and reuse
+`VERSION_GROUPS` as its list of contexts (not built).
+
+Non-obvious chronology:
+
+- `red-green-japan`, `blue-japan`: the Japanese originals, older than red-blue.
+- `colosseum`, `xd`: GameCube spin-offs, after firered-leafgreen, before diamond-pearl.
+- `the-isle-of-armor`, `the-crown-tundra`: Sword/Shield DLC (2020), before brilliant-diamond-shining-pearl (2021).
+- `mega-dimension`: Legends Z-A DLC, after legends-za.
+- `champions`: Pokémon Champions (2026), the newest group PokeAPI lists.
+- An unknown group ranks below every known one; it is selectable and is the
+  default only when it is the only group.
+
+## Generated catalogs
+
+Why: the catalog indexes (`/movimientos/`, `/habilidades/`, `/objetos/`) had
+their links in the SSR HTML but every primary field (localized name, type,
+category, power, description...) arrived from one browser request to PokeAPI
+per row. The catalogs move that work to a reproducible script whose output is
+committed, so the fields are in the HTML, the browser makes no PokeAPI
+request, and the same data feeds the global search.
+
+- **Source:** PokeAPI v2 REST (`https://pokeapi.co/api/v2`): the `move`,
+  `ability`, `item`, `pokemon-species` and `pokemon` lists (verified against
+  each list's own `count`) and one detail request per entity.
+- **Process:** `npm run data:catalogs` (~4.5k requests at concurrency 12,
+  about 40 s from scratch; `-- --cache-dir=<dir>` reuses raw
+  responses while iterating; `-- --only=moves,items` limits the kinds).
+- **Output** (`src/data/generated/`, never edited by hand):
+  `moves|abilities|items|pokemon.{es,en}.json`, `search-index.{es,en}.json`,
+  `manifest.json` (counts, per-file content hash, generation date).
+  Header + tuple rows: `{schema, kind, lang, source, apiCount, duplicates,
+  excluded, count, fields, rows}`. Entries follow PokeAPI id order and carry
+  no timestamp, so regenerating against unchanged data rewrites identical
+  bytes (verified).
+- **Fields:** moves: slug, name, type, damageClass, power, accuracy, pp,
+  priority, generation. Abilities: slug, name, description (<= 100 chars, cut
+  at a word with an explicit "…"), descriptionLang, generation, mainSeries.
+  Items: slug, name, category, superCategory, hasSprite, description,
+  descriptionLang. Pokémon: slug, id, name, generation, form (species plus one
+  row per non-default form; the default variety is the species page).
+  Moves have **no description**: no index page shows one and the per-version
+  flavor text is not compact; the move page keeps its own source.
+- **Text selection:** descriptions go through `services/localizedText.ts`
+  (newest known version group, evidence-backed denylist incl. `item + es +
+  x-y`) after item placeholders are dropped; requested language first
+  (flavor, then short effect), English only if the requested language has
+  neither, and `descriptionLang` says which. Names fall back to English, then
+  to the formatted slug. 914 of 2222 items have no usable text in any
+  language (PokeAPI has none): they render without a description, never with
+  a placeholder.
+- **Validation** (`validateCatalog`, run by the script and by tests): schema
+  version, field list, `count == rows`, `rows + duplicates + excluded ==
+  apiCount` (truncation), unique slugs, non-empty names, column counts. Any
+  problem aborts the run before anything is written.
+- **Freshness:** `npm run data:catalogs:check` validates the committed files
+  and compares them with PokeAPI's live lists (count, missing and removed
+  slugs); exit 1 when stale. Not part of `npm test` (network). A move/ability/
+  item PokeAPI lists but the catalog lacks still gets its row and link (name
+  formatted from the slug, empty cells): stale data degrades, never 503s.
+  Re-run when a game adds entities, or when PokeAPI fixes texts.
+- **Overrides:** `src/data/catalogOverrides.json` (`kind -> lang -> slug ->
+  {name|description}`), applied last by the script. Empty today.
+- **Runtime:** `src/services/catalogs.ts` imports each file lazily (own
+  chunk) and memoizes a slug-keyed `Map` per isolate. Entity pages still read
+  PokeAPI (through the selection layer) for their full data; the catalogs are
+  for listings, search and relations.
+- **Size:** moves 58 KB, abilities 37 KB, items 260 KB, Pokémon 47 KB per
+  language; each search index 273 KB (gzip ≈ 73 KB).
+
+## Global search index
+
+`search-index.{lang}.json` is derived offline from the catalogs plus the
+static type and generation tables: one row `[code, slug, name, id, extra,
+aliases?]` per Pokémon (species + forms), move, ability, item, type and
+generation. Aliases are the other language's name when it differs, so
+"earthquake" finds Terremoto on the Spanish site and vice versa; generations
+also carry their region ("sinnoh", "teselia"/"unova"), "gen 4" and
+"generación 4". The browser fetches `/search-index/{lang}.json/?v=<hash>`
+once per language, lazily (on opening the modal or focusing the input), with
+`Cache-Control: public, max-age=31536000, immutable` for the versioned URL.
+
+Ranking (`src/utils/search.ts`, deterministic, no fuzzy matching): exact name
+(100) > exact Pokédex number (95) > name prefix (80) > exact alias (70) >
+alias prefix (60) > a word of the name starts with the query (55) > dex-number
+prefix (45) > contains (40) > every query word present (30); ties by entity
+kind, id, name; at most 5 results per kind and 12 in total. Text is normalized
+(case, accents, hyphens/dots/apostrophes, spaces). Recent history
+(`pokepedia_history`, max 8) stores `{type, slug, name, id}` of entities the
+person opened, never typed text; legacy Pokémon-only entries are still read.
+Analytics only records `results` / `no_results`.
+
+This index and its ranking serve exactly one surface: the header's global
+search modal (`Layout.astro`). The Pokédex home page's own big search box
+(`/[lang]/`) is a **local** filter over the currently rendered
+generation/favorites grid — it does not use this index at all. See
+[`docs/architecture/home-search-scope.md`](./architecture/home-search-scope.md).
+
+## Game Context
+
+`src/services/gameContext.ts` groups PokeAPI version groups into game
+families ("Scarlet / Violet" as one selectable context, not three: base
+game + Teal Mask + Indigo Disk), on top of the `VERSION_GROUPS` chronology
+table above (unchanged). Full write-up, including the DLC/revision
+grouping table, the default-context policy, persistence
+(`src/utils/gameContextStorage.ts`) and the live-data investigation behind
+it: [`docs/architecture/game-context.md`](./architecture/game-context.md).
+`MovesTable` is its first consumer. Learn methods, machines (MT/TR/MO),
+locations and regional Pokédexes are not wired to it yet — the catalogs
+remain intentionally version-independent listings.
+
+## Pokémon factual profile (training, breeding, classification, regional dex)
+
+`src/utils/pokemonFacts.ts` normalizes **PokeAPI's current value** (base
+experience, capture rate, base happiness, growth rate, EV yield, egg
+groups, gender ratio, egg cycles, baby/legendary/mythical) from the
+`pokemon`/`pokemon-species` objects the Pokémon page already fetches — no
+new request. Base friendship, capture rate and base experience have real
+historical variance across games/generations that PokeAPI does not
+expose a per-version-group history for anywhere in its schema (re-verified
+live 2026-09-28); Pokepedia shows today's single value for these three,
+not a claim that it held for every game — see
+[`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md)
+§8 for detail. **EV yield (and base stats) is different**: PokeAPI's
+`pokemon.past_stats` is a real, generation-scoped history (Fase 2F,
+2026-09-28) — the same mechanism moves' `past_values` already used —
+surfaced via `pastStatChanges()` as a "Cambios históricos" section, same
+pattern as the move page's own historical changes.
+
+`src/services/pokedexes.ts` is the hand-verified table (all 35 PokeAPI
+`pokedex` resources, real ES/EN names, checked live) behind the regional
+Pokédex numbers section; PokeAPI's own `is_main_series` flag excludes the
+Conquest and Champions dexes, not name guessing.
+
+**Encounters/locations/real availability were investigated and
+deferred** (Fase 2F, 2026-09-28) — not built, with evidence: `/pokemon/{id}/encounters`
+payloads range up to ~957 KB per Pokémon (Magikarp), `location-area` (1539
+resources) and `encounter-method` (66) have zero Spanish translations in
+PokeAPI at all, and encounters are keyed by `version` rather than
+`version_group`, needing a mapping layer that doesn't exist yet. Full
+write-up: `docs/architecture/pokemon-entity.md` §10.
+
+## Move and ability mechanics, machines, relations
+
+`src/utils/moveFacts.ts` / `src/utils/abilityFacts.ts` normalize
+mechanical facts (target, ailment, drain/recoil/healing/crit/flinch, hit/
+turn counts, stat changes, historical `past_values`/`effect_changes`) from
+`move`/`ability` fields already fetched by the entity pages — no new
+PokeAPI request. `src/data/generated/machines.json` (built by
+`scripts/generate-catalogs.ts --only=machines`, 2372 rows from PokeAPI's
+`/machine` resource, ~63 KB) gives MT/HM/TR availability per move with
+zero runtime PokeAPI calls; its labels are joined from the existing items
+catalog and `versionGroups.ts`, never duplicated. `PokemonRelationList`
+(`src/components/PokemonRelationList.astro`) replaces `PokemonCard` on
+both pages: lighter per row, no competitive tier badge (kept off these
+factual pages), and the ability page's Pokémon counter now reports the
+real total instead of the previously-capped count. Full write-up,
+including what was investigated and deliberately not built at the time
+(a per-Pokémon learn-method/level relation dataset — since built in
+Fase 2D, and move flags — since built in Fase 2F, both below):
+[`docs/architecture/move-ability-entities.md`](./architecture/move-ability-entities.md).
+
+`src/data/generated/move-flags.json` (Fase 2F, built by
+`scripts/generate-catalogs.ts`'s move-flags step, one Showdown `moves.json`
+request, matched to PokeAPI moves by id) gives a curated factual flag set
+per move (contact, sound, punch, blocked-by-Protect, etc. — PokeAPI has
+none of these) with zero runtime requests; `src/utils/moveFlags.ts` has
+the exact set and ES/EN labels, and why the more competitive/mechanic
+Showdown flags were excluded. 711 of 937 moves have at least one, 12.8 KB.
+These are Showdown's **current** properties for each move, not a
+historical or per-Game-Context record — see `src/utils/moveFlags.ts`.
+
+**Item → Generation** (Fase 2F): `introducedGeneration` on the items
+catalog (`ItemEntry`) and computed directly on the item detail page from
+`item.game_indices` — already fetched either way, zero new requests. The
+earliest generation among an item's own game indices; 0 (badge omitted)
+when it has none.
+
+## Move learnset relations (Pokémon ↔ move, method/level/game)
+
+`src/data/generated/learnsets/{move}.json` (built by
+`scripts/generate-catalogs.ts --only=move-learnsets`, opt-in — not part of
+the default `npm run data:catalogs`) inverts every Pokémon's
+`moves[].version_group_details` into a per-move file of
+`{ pokemonId, method, versionGroup, level }` relations. 1351 `pokemon/{id}`
+requests, run once: 833 moves, 638,321 relations, 7.6 MB raw / ~0.71 MB
+gzip total, 834 files (833 moves + `learnsets/manifest.json`). Verified
+deterministic (two consecutive live runs produced byte-identical output).
+`npm run data:catalogs:check` passes against the committed files, but for
+this dataset it is a lightweight, count-only staleness check (committed
+vs. live Pokémon count) — not a full re-fetch-and-diff of the 638,321
+relations; only a real `--only=move-learnsets` run validates the content
+itself. See `docs/architecture/move-learnset-relations.md` §2.
+`services/moveLearnsets.ts`
+reads it at zero runtime PokeAPI cost via `import.meta.glob`; the move
+page (`/movimientos/{slug}/`) shows who learns it, how, and in which
+Game Context, with client-side context/method switching from one compact
+payload. Full write-up:
+[`docs/architecture/move-learnset-relations.md`](./architecture/move-learnset-relations.md).
 
 ## Known incidents (fixed)
 
@@ -182,12 +423,13 @@ with their own (sometimes absent) timeout/cache/cap policy.
 ### Client-side fetches
 
 A few `<script>` blocks fetch PokeAPI (or `/api/suggestions`) directly from
-the browser: `CompetitiveSets.astro`'s lazy ability-name loader,
-`Layout.astro`'s random-Pokémon button, the home page's "load favorites"
-grid (`index.astro`, fetches each favorited Pokémon by name client-side
-from `localStorage`), and the search/filter scripts in
-`objetos|movimientos|habilidades/index.astro`. These are intentionally left
-alone — they run client-side and structurally cannot import a server-only
+the browser: `Layout.astro`'s random-Pokémon button, the home page's "load
+favorites" grid (`index.astro`, fetches each favorited Pokémon by name
+client-side from `localStorage`), and the comparator's selector
+(`/api/suggestions`, Pokémon only). The catalog index pages
+(`objetos|movimientos|habilidades/index.astro`) and the global search no
+longer fetch PokeAPI at all: see [Generated catalogs](#generated-catalogs).
+The remaining ones are intentionally left alone — they run client-side and structurally cannot import a server-only
 service module, and each already keeps its own small per-page `Map` cache
 (or none, when a single one-off fetch doesn't need one). This is a
 different, accepted category from the SSR "fetch sprawl" this sprint
@@ -197,12 +439,25 @@ centralized; don't try to unify the two into one cache.
 
 Any `dict[lang] || dict.es` / `entries.find(lang) || entries.find('en')`
 pattern in this codebase is a **language** fallback (show a different
-language if the requested one is missing) — normal and expected, not an
-error. It is unrelated to the **source-selection** fallback described
-above (which entry, of possibly several in the *same* language, to trust).
-`ProvenancedText.fallbackUsed` only reports the language fallback; when
-`true`, item pages show a small "shown in the original language" note
-(`item_effect_en_fallback`).
+language if the requested one is missing) — normal and expected in most
+places, not an error. It is unrelated to the **source-selection**
+fallback described above (which entry, of possibly several in the *same*
+language, to trust).
+
+**Item effect/flavor text is a deliberate exception** (fixed 2026-09-28,
+post-review of Fase 2F): `selectItemEffect`/`selectItemFlavor` accept a
+`fallbackLangs` argument forwarded straight to
+`selectLocalizedEffect`/`selectLocalizedFlavor`
+(`services/localizedText.ts`) — no second selection policy — and the item
+page passes `[]` for both. A visible "Efecto / Mecánica" card in a
+language the visitor didn't ask for (even labelled "shown in its original
+language") isn't acceptable UX for `/es/objetos/`: the page falls through
+to the real flavor text in the requested language, or the localized
+factual summary, rather than showing English as the main visible text.
+`ProvenancedText.fallbackUsed` still exists and still reports a language
+fallback where one is allowed (every *other* caller of these selectors
+keeps the default `['en']`); it simply can never be `true` for items,
+since this surface's own ladder is one rung long.
 
 ## When a data field can't be resolved at all
 
@@ -213,8 +468,8 @@ section", never a placeholder that looks like real data:
   `selectLocalized*` returns `null` -> the page falls back to a generic
   "not available" string (`item_no_effect_available` etc.), never an
   empty string rendered as if it were content.
-- No Smogon sets for this Pokémon/tier -> the whole "Competitive Sets"
-  block doesn't render.
+- No Showdown tier for this Pokémon -> the small "Smogon tier" card
+  doesn't render (no skeleton).
 - Pokémon can't be resolved at all -> clean redirect to the locale home,
   never a page for the wrong Pokémon.
 

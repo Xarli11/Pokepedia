@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { pagePath } from '../../../utils/seo';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
-import { GENERATIONS, GENERATION_ROMAN, getPokemonByGeneration, getDexRangeFromEntries } from '../../../services/pokeapi';
+import { GENERATIONS, GENERATION_ROMAN, getPokemonByGeneration, getDexRangeFromEntries, generationRegionLabel } from '../../../services/pokeapi';
 import { uiTranslations } from '../../../utils/pokemon';
 
 const { lang = 'es' } = Astro.params;
@@ -16,11 +16,10 @@ const genKeys = Object.keys(GENERATIONS);
 // go stale here.
 const results = await Promise.allSettled(genKeys.map((k) => getPokemonByGeneration(k)));
 const generationCards = genKeys.map((genKey, i) => {
-    const info = GENERATIONS[genKey];
     const result = results[i];
     const list = result.status === 'fulfilled' ? result.value : [];
     const range = list.length > 0 ? getDexRangeFromEntries(list) : { start: 0, end: 0 };
-    return { genKey, genNum: genKey.replace('gen', ''), roman: GENERATION_ROMAN[genKey], region: info.region, count: list.length, range };
+    return { genKey, genNum: genKey.replace('gen', ''), roman: GENERATION_ROMAN[genKey], region: generationRegionLabel(genKey, lang as string), count: list.length, range };
 });
 
 const breadcrumbItems = [
@@ -33,7 +32,7 @@ const breadcrumbItems = [
     <div class="max-w-5xl mx-auto">
         <Breadcrumbs items={breadcrumbItems} />
         <div class="text-center mb-16">
-            <h1 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight">{t.generations}</h1>
+            <h1 class="text-3xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tight break-words">{t.generations}</h1>
             <p class="text-slate-500 dark:text-slate-400 text-lg font-medium italic">{t.generations_hub_desc_seo}</p>
         </div>
 
