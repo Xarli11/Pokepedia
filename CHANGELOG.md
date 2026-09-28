@@ -4,6 +4,99 @@ All notable changes to Pokepedia are documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-28
+
+Closes Phase 2 (the factual encyclopedia): entity relations, Game Context,
+historical facts, move/ability mechanics, generated catalogs and search —
+plus a full mobile-responsive audit and a Spanish-localization fix found
+during final review. See sections below for the detailed, dated log of
+each piece; summarized by area:
+
+### Encyclopedia / entity expansion
+
+- Complete factual Pokémon profiles (base experience, capture rate, base
+  happiness, growth rate, EV yield, egg groups, gender ratio, egg cycles,
+  baby/legendary/mythical classification, regional Pokédex numbers).
+- Move and ability entity enrichment (target, ailment/stat-change effects,
+  drain/recoil/healing/crit/flinch, hit/turn counts, MT/HM/TR availability,
+  historical `past_values`, ability effect vs. flavor text distinction).
+- Full Pokémon ↔ move learnset relations (every Pokémon that learns a
+  move, by method and Game Context), generated offline from PokeAPI.
+- Factual move flags (contact, sound, punch, bite, pulse, bullet, dance,
+  slicing, wind, blocked-by-Protect) from Showdown's dataset.
+- `Item --introducedIn--> Generation` relation from `item.game_indices`.
+- Real historical Pokémon stat / EV-yield facts from PokeAPI's own
+  `pokemon.past_stats` (e.g. Gen I's unified `special` stat).
+
+### Game Context
+
+- Persistent Game Context (`localStorage`), grouping PokeAPI version
+  groups into game families and folding DLC/data revisions (Scarlet/
+  Violet, Sword/Shield, Legends: Z-A) into one selectable context.
+- Game Context-aware move filtering (learnsets, methods) on the move
+  table, shared across the Pokémon page instead of re-derived per section.
+- Regional Pokédex numbers contextualized by Game Context.
+
+### Search / catalogs / data
+
+- Global multi-entity search (Pokémon, moves, abilities, items, types,
+  generations) in ES/EN from one compact, versioned per-language index.
+- Generated, versioned ES/EN catalogs of moves, abilities, items and
+  Pokémon, validated against PokeAPI's own counts.
+- Generated move-learnset dataset (833 moves / 638k relations) and a
+  machines dataset (2372 rows), both zero runtime PokeAPI cost.
+- Generated move-flags dataset from Showdown, zero runtime cost.
+
+### UX / mobile
+
+- Full responsive audit across all 14 public templates and their shared
+  components, at 320/360/375/390/414/430px portrait, two landscape smoke
+  widths and a 1440px desktop regression check — 0 document horizontal
+  overflow across the entire audited matrix (measured with real Chromium,
+  not assumed).
+- Mobile header hardened (compact wordmark, search/theme/language only;
+  random-Pokémon and favorites moved to desktop, already covered by the
+  mobile bottom nav); global search modal's keyboard-shortcut footer no
+  longer clips on narrow screens (desktop-only now); native `<select>`s
+  across the site can no longer size past their container; entity H1s
+  (Pokémon, move, ability, item, and every catalog hub) scale down on
+  mobile instead of a single desktop-sized `text-5xl`+ base; the
+  comparator's stat-total row wraps instead of forcing document width;
+  the evolution chain, `MovesTable` and Pokémon/item cards no longer keep
+  desktop-only padding on mobile; bottom nav and the back-to-top button
+  respect the iPhone home indicator via `env(safe-area-inset-bottom)`.
+
+### Localization
+
+- Spanish item pages (`/es/objetos/*`) no longer show an English effect
+  as the primary visible content (even flagged as "original language")
+  when a real Spanish flavor text or a localized factual summary is
+  available; English is only ever the very last resort, never rendered
+  on `/es/` pages.
+
+### Technical cleanup
+
+- 16 test files moved out of `src/pages/` (Astro was packaging each as a
+  real route plus a shared ~654 KB `test.*.mjs` chunk); a clean build now
+  produces zero `*test*` files under `dist/`.
+- Gemini GitHub Actions automation (6 workflows, 5 slash commands)
+  removed; CI is now only the project's own install/check/test/build and
+  the Cloudflare Pages deploy check.
+- Responsive regression guards added (`src/testing/mobile-overflow-regression.test.ts`).
+- Tests: 863 → 895 passed, 2 skipped, 0 failed.
+
+### Deferred by evidence
+
+Investigated with live evidence, not built — not treated as missing
+features: encounters/locations (large payloads, no Spanish translations
+upstream for the relevant fields, keyed by `version` not `version_group`);
+historical base-happiness/capture-rate/base-experience (no PokeAPI field
+exists for any of the three); structured Mega/Gigamax/regional form
+classification (needs one extra request per variety, not made yet);
+`data:catalogs -- --check` intentionally kept out of CI (would make CI
+depend on live PokeAPI/Showdown network); a future DLC move-data
+re-verification pass. Full write-up in `docs/architecture/*` and `TODO.md`.
+
 ### Added
 
 - **Fase 2F — Phase 2 closure (factual encyclopedia)**: audited every remaining Phase 2 candidate (encounters/locations/real availability, historical Pokémon facts, move flags, entity relations, forms/varieties classification) with live evidence before deciding what to build. Implemented: real historical stat/EV-yield changes from PokeAPI's own `pokemon.past_stats` (Gen I's unified `special` stat, etc. — a genuine, generation-scoped history, unlike `base_happiness`/`capture_rate`/`base_experience`, re-verified live to have none), rendered as a "Cambios históricos" section on the Pokémon page; curated factual move flags (contact, sound, punch, bite, pulse, bullet, dance, slicing, wind, blocked-by-Protect) from Showdown's `moves.json` (one request, matched to PokeAPI moves by id, 711 of 937 moves, 12.8 KB, zero runtime cost) — deliberately excluding Showdown's more battle-mechanic flags (mirror, metronome, snatch...) to keep the move page factual, not competitive analysis; an `Item --introducedIn--> Generation` relation from `item.game_indices` (already fetched, zero new requests). Investigated and explicitly deferred with evidence, not built: encounters/locations (payloads up to ~957 KB/Pokémon, zero Spanish translations for `location-area`/`encounter-method` in PokeAPI, encounters keyed by `version` not `version_group`); base-happiness/capture-rate/base-experience history (no PokeAPI field exists at all, re-confirmed live); structured Mega/Gigamax/regional form classification (real data exists on `pokemon-form`, but needs one extra request per variety not currently made); `data:catalogs:check` in CI (would make CI depend on live PokeAPI network, judged too fragile). Also closed: 16 test files that lived under `src/pages/` — Astro packaged every one as a real route plus a shared ~654 KB `test.*.mjs` chunk in the worker — moved to `src/testing/`; a clean build now produces zero `*test*` files under `dist/`. Tests 863 → 876. Full write-up: `docs/architecture/pokemon-entity.md` §8–§10, `docs/architecture/move-ability-entities.md` §3, `TODO.md`'s three-way Phase 2 closure split (completed / deferred by evidence / future product features).
