@@ -44,7 +44,7 @@ const enrichedList = pokemonList.map(p => {
 
 <Layout lang={lang}>
     <div class="text-center mb-20 max-w-4xl mx-auto mt-12 px-4">
-        <h1 class="text-6xl md:text-8xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter">
+        <h1 class="text-4xl sm:text-5xl md:text-8xl font-black text-slate-900 dark:text-white mb-8 tracking-tighter break-words">
             {t.desc_hero} <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Pokémon</span>
         </h1>
         <p class="text-xl md:text-2xl text-slate-500 dark:text-slate-400 leading-relaxed font-medium max-w-2xl mx-auto">
@@ -71,9 +71,9 @@ const enrichedList = pokemonList.map(p => {
 
         <!-- Filtros Avanzados -->
         <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <select 
+            <select
                 id="type-filter"
-                class="px-6 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none shadow-sm"
+                class="w-full sm:w-auto max-w-full px-6 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none shadow-sm"
             >
                 <option value="all">{t.all_types}</option>
                 {Object.keys(typeTranslations[lang as string]).map(type => (
@@ -81,9 +81,9 @@ const enrichedList = pokemonList.map(p => {
                 ))}
             </select>
 
-            <select 
+            <select
                 id="sort-order"
-                class="px-6 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none shadow-sm"
+                class="w-full sm:w-auto max-w-full px-6 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none shadow-sm"
             >
                 <option value="id-asc">{lang === 'es' ? 'Nº Pokédex (Menor a Mayor)' : 'Pokédex No. (Low to High)'}</option>
                 <option value="id-desc">{lang === 'es' ? 'Nº Pokédex (Mayor a Menor)' : 'Pokédex No. (High to Low)'}</option>
@@ -168,7 +168,7 @@ const enrichedList = pokemonList.map(p => {
     <div id="pokemon-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {enrichedList.map((p) => (
             <div
-                class="group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card"
+                class="group relative bg-white dark:bg-slate-900/80 rounded-[2rem] sm:rounded-[3rem] p-5 sm:p-8 pb-8 sm:pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card"
                 data-name={p.name}
                 data-id={p.id}
                 data-types={p.types.join(',')}
@@ -305,7 +305,7 @@ const enrichedList = pokemonList.map(p => {
 
         function createPokemonCard(p: any, lang: string) {
             const card = document.createElement('div');
-            card.className = "group relative bg-white dark:bg-slate-900/80 rounded-[3rem] p-8 pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card";
+            card.className = "group relative bg-white dark:bg-slate-900/80 rounded-[2rem] sm:rounded-[3rem] p-5 sm:p-8 pb-8 sm:pb-12 border border-slate-200/50 dark:border-slate-800/50 hover:bg-white/80 dark:hover:bg-slate-800/40 hover:backdrop-blur-xl hover:border-emerald-500/50 dark:hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col items-center overflow-hidden pokemon-card";
             card.dataset.name = p.name;
             card.dataset.id = String(p.id);
             const types: string[] = p.types.map((t: any) => t.type.name);
