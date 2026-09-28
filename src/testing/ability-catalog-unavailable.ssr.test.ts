@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import PokemonPage from './[lang]/pokemon/[name].astro';
-import { renderRoute } from '../testing/renderRoute';
+import PokemonPage from '../pages/[lang]/pokemon/[name].astro';
+import { renderRoute } from './renderRoute';
 
 // Own file on purpose: pokeapi.ts caches responses per module instance, and
 // the sibling movement-crawlability test caches a *successful* ability catalog.

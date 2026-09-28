@@ -191,15 +191,19 @@ if (Astro.locals.cacheControl) {
             class="sticky top-0 z-50 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800"
             transition:persist
         >
-            <div class="container mx-auto px-4 py-3 flex items-center justify-between">
-                <!-- Logo Edition -->
-                <a href={pagePath(lang)} class="flex items-center gap-2 md:gap-4 group no-underline">
-                    <div class="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center shrink-0">
+            <div class="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+                <!-- Logo Edition: deliberately more compact below `sm` — the
+                     mobile header is logo + search + theme + language only
+                     (see the two hidden md:flex controls below), so the
+                     wordmark itself must never need more width than the
+                     smallest supported viewport (320px) has left over. -->
+                <a href={pagePath(lang)} class="flex items-center gap-1.5 sm:gap-2 md:gap-4 group no-underline min-w-0">
+                    <div class="relative w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center shrink-0">
                         <!-- Hexágono de Fondo -->
                         <div class="absolute inset-0 bg-slate-900 dark:bg-emerald-500/10 border-2 border-emerald-500 rounded-xl rotate-45 group-hover:rotate-90 transition-all duration-700 shadow-[0_0_15px_rgba(16,185,129,0.2)]"></div>
-                        
+
                         <!-- Poké-Core SVG -->
-                        <svg class="relative w-5 h-5 md:w-6 md:h-6 text-emerald-500 dark:text-emerald-400 z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <svg class="relative w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-emerald-500 dark:text-emerald-400 z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M2 12h20"/>
                             <circle cx="12" cy="12" r="3" fill="currentColor"/>
@@ -207,10 +211,10 @@ if (Astro.locals.cacheControl) {
                         </svg>
                     </div>
 
-                    <div class="flex flex-col">
+                    <div class="flex flex-col min-w-0">
                         <div class="flex items-baseline gap-0.5">
-                            <span class="text-2xl md:text-3xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
-                            <span class="text-2xl md:text-3xl font-thin tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
+                            <span class="text-lg sm:text-2xl md:text-3xl font-[1000] tracking-tighter text-slate-900 dark:text-white uppercase leading-none">POKE</span>
+                            <span class="text-lg sm:text-2xl md:text-3xl font-thin tracking-tight sm:tracking-widest text-emerald-500 uppercase leading-none">pedia</span>
                         </div>
                         <div class="hidden sm:flex items-center gap-2 mt-1.5">
                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -220,8 +224,8 @@ if (Astro.locals.cacheControl) {
                         </div>
                     </div>
                 </a>
-                
-                <div class="flex items-center gap-3 md:gap-6">
+
+                <div class="flex items-center gap-2 md:gap-6 shrink-0">
                     <nav class="hidden md:flex gap-8 text-sm font-bold text-slate-600 dark:text-slate-400">
                         <a href={pagePath(lang)} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">Pokedex</a>
                         <a href={pagePath(lang, 'movimientos')} class="hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors">
@@ -239,7 +243,7 @@ if (Astro.locals.cacheControl) {
                         <!-- Buscador Global -->
                         <button 
                             id="global-search-trigger"
-                            class="flex items-center gap-3 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group border border-transparent hover:border-emerald-400/30"
+                            class="flex items-center justify-center gap-3 min-h-10 min-w-10 px-3 py-1.5 md:min-h-0 md:min-w-0 md:px-4 md:py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group border border-transparent hover:border-emerald-400/30"
                             title={lang === 'es' ? 'Buscar ( / )' : 'Search ( / )'}
                         >
                             <svg class="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -267,10 +271,12 @@ if (Astro.locals.cacheControl) {
                             </div>
                         </button>
 
-                        <!-- Pokémon Aleatorio -->
-                        <button 
+                        <!-- Pokémon Aleatorio: desktop only. Hidden on mobile — a deliberately
+                             smaller header there (search, theme, language only); the bottom
+                             navigation is the mobile nav surface, not this header. -->
+                        <button
                             id="random-pokemon-btn"
-                            class="h-8 w-8 md:h-9 md:w-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group shrink-0"
+                            class="hidden md:flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-500 hover:text-white transition-all group shrink-0"
                             title={lang === 'es' ? 'Pokémon Aleatorio' : 'Random Pokémon'}
                         >
                             <svg class="w-4 h-4 md:w-5 md:h-5 group-hover:rotate-180 transition-transform duration-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -278,10 +284,12 @@ if (Astro.locals.cacheControl) {
                             </svg>
                         </button>
 
-                        <!-- Favoritos -->
-                        <a 
+                        <!-- Favoritos: desktop only — the mobile bottom nav already has its
+                             own favorites entry, so this would be a redundant, overflow-
+                             causing duplicate on small viewports. -->
+                        <a
                             href={`${pagePath(lang)}?gen=favorites`}
-                            class="h-8 w-8 md:h-9 md:w-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-500 hover:text-white transition-all group shrink-0"
+                            class="hidden md:flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-500 hover:text-white transition-all group shrink-0"
                             title={uiTranslations[lang]?.favorites || uiTranslations.es.favorites}
                         >
                             <svg class="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
@@ -301,8 +309,9 @@ if (Astro.locals.cacheControl) {
 		    <slot />
         </main>
 
-        <nav 
+        <nav
             class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl shadow-black/20 px-6 py-3 flex items-center justify-between"
+            style="bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))"
             transition:persist
         >
             <a href={pagePath(lang)} class={`flex flex-col items-center gap-1 group ${currentPath === pagePath(lang) || (currentPath === '/' && lang === 'es') ? 'text-emerald-500' : 'text-slate-400'}`}>
@@ -368,7 +377,7 @@ if (Astro.locals.cacheControl) {
                 <div id="global-search-results" class="max-h-[500px] overflow-y-auto divide-y divide-slate-50 dark:divide-slate-800/50">
                     <!-- JS Results -->
                 </div>
-                <div class="px-10 py-6 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <div class="hidden sm:flex px-10 py-6 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800 justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-400">
                     <div class="flex gap-8">
                         <span class="flex items-center gap-3"><kbd class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">↵</kbd> {lang === 'es' ? 'Seleccionar' : 'Select'}</span>
                         <span class="flex items-center gap-3"><kbd class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">↑↓</kbd> {lang === 'es' ? 'Navegar' : 'Navigate'}</span>
@@ -387,6 +396,17 @@ if (Astro.locals.cacheControl) {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"></path>
             </svg>
         </button>
+
+        <style>
+            /* iPhone home-indicator clearance for the two mobile-only fixed
+               elements, progressive (env() falls back to 0px on browsers
+               without safe-area support — see Tailwind classes for the
+               non-safe-area base offset each of these matches). */
+            #back-to-top { bottom: calc(7rem + env(safe-area-inset-bottom, 0px)); }
+            @media (min-width: 640px) {
+                #back-to-top { bottom: calc(2rem + env(safe-area-inset-bottom, 0px)); }
+            }
+        </style>
 
         <footer class="mt-8 pb-32 md:pb-12 px-4">
             <div class="container mx-auto">

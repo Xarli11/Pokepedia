@@ -6,6 +6,7 @@ import {
   eggGroupLabel,
   regionalDexEntries,
   regionalDexEntriesForContext,
+  pastStatChanges,
   buildPokemonFacts,
   localizedGenus,
 } from './pokemonFacts';
@@ -155,6 +156,40 @@ describe('regionalDexEntriesForContext', () => {
 
   it('empty entries: empty result regardless of revisions', () => {
     expect(regionalDexEntriesForContext([], ['scarlet-violet'])).toEqual([]);
+  });
+});
+
+// Fase 2F: real historical stat/EV-yield changes (Bulbasaur's actual
+// PokeAPI past_stats, verified live 2026-09-28 — Gen I's unified `special`
+// stat before the physical/special split).
+describe('pastStatChanges', () => {
+  it('resolves the generation id from its resource URL + only the changed stats, in PokeAPI order', () => {
+    const raw = [
+      { generation: { url: 'https://pokeapi.co/api/v2/generation/1/' }, stats: [{ base_stat: 65, effort: 0, stat: { name: 'special' } }] },
+    ];
+    expect(pastStatChanges(raw)).toEqual([
+      { generationId: 1, changes: [{ statName: 'special', baseStat: 65, effort: 0 }] },
+    ]);
+  });
+
+  it('a generation entry can list several changed stats', () => {
+    const raw = [
+      {
+        generation: { url: 'https://pokeapi.co/api/v2/generation/4/' },
+        stats: [
+          { base_stat: 45, effort: 1, stat: { name: 'speed' } },
+          { base_stat: 50, effort: 0, stat: { name: 'attack' } },
+        ],
+      },
+    ];
+    const result = pastStatChanges(raw);
+    expect(result[0].generationId).toBe(4);
+    expect(result[0].changes).toHaveLength(2);
+  });
+
+  it('undefined/empty past_stats -> empty result, never throws', () => {
+    expect(pastStatChanges(undefined)).toEqual([]);
+    expect(pastStatChanges([])).toEqual([]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { OG_CACHE_CONTROL, OG_FALLBACK_CACHE_CONTROL } from '../../utils/og/http';
+import { OG_CACHE_CONTROL, OG_FALLBACK_CACHE_CONTROL } from '../utils/og/http';
 
 // vitest.config.ts deliberately doesn't load @astrojs/cloudflare (avoids a
 // ~10s KV/platform-proxy teardown hang), so the `.wasm?module` specifier
@@ -9,23 +9,23 @@ import { OG_CACHE_CONTROL, OG_FALLBACK_CACHE_CONTROL } from '../../utils/og/http
 // equivalent real WebAssembly.Module built from the same .wasm file via
 // Node's own fs + WebAssembly APIs — the render pipeline still exercises
 // genuine resvg-wasm rasterization, just via a Node-native module load.
-vi.mock('../../utils/og/resvg-wasm-module', () => {
-	const wasmPath = fileURLToPath(new URL('../../../node_modules/@resvg/resvg-wasm/index_bg.wasm', import.meta.url));
+vi.mock('../utils/og/resvg-wasm-module', () => {
+	const wasmPath = fileURLToPath(new URL('../../node_modules/@resvg/resvg-wasm/index_bg.wasm', import.meta.url));
 	return { default: new WebAssembly.Module(readFileSync(wasmPath)) };
 });
 
 // Same reasoning as the resvg mock above — see wasm-workers-patch.ts, which
 // this test suite also exercises for real (the patched WebAssembly.instantiate
 // stays installed in this Node process, so it must resolve to a real module too).
-vi.mock('../../utils/og/yoga-wasm-module', () => {
-	const wasmPath = fileURLToPath(new URL('../../../node_modules/satori/yoga.wasm', import.meta.url));
+vi.mock('../utils/og/yoga-wasm-module', () => {
+	const wasmPath = fileURLToPath(new URL('../../node_modules/satori/yoga.wasm', import.meta.url));
 	return { default: new WebAssembly.Module(readFileSync(wasmPath)) };
 });
 
-const { GET: defaultGet } = await import('./v1/[lang]/default.png');
-const { GET: pokemonGet } = await import('./v1/[lang]/pokemon/[name].png');
-const { GET: typeGet } = await import('./v1/[lang]/type/[type].png');
-const { GET: generationGet } = await import('./v1/[lang]/generation/[gen].png');
+const { GET: defaultGet } = await import('../pages/og/v1/[lang]/default.png');
+const { GET: pokemonGet } = await import('../pages/og/v1/[lang]/pokemon/[name].png');
+const { GET: typeGet } = await import('../pages/og/v1/[lang]/type/[type].png');
+const { GET: generationGet } = await import('../pages/og/v1/[lang]/generation/[gen].png');
 
 // Full end-to-end coverage of the OG image endpoints (Satori render +
 // resvg-wasm rasterization) with only network boundaries mocked — PokeAPI
@@ -35,7 +35,7 @@ const { GET: generationGet } = await import('./v1/[lang]/generation/[gen].png');
 // production; `fetchWithCache`'s module-level cache means each test that
 // hits PokeAPI uses a slug/id not reused by other test files.
 
-const FONTS_DIR = fileURLToPath(new URL('../../../public/fonts/og/', import.meta.url));
+const FONTS_DIR = fileURLToPath(new URL('../../public/fonts/og/', import.meta.url));
 
 function fontArrayBuffer(fileName: string): ArrayBuffer {
 	const buf = readFileSync(`${FONTS_DIR}${fileName}`);

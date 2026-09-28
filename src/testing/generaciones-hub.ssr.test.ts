@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import GeneracionesHubPage from './[lang]/generaciones/index.astro';
+import GeneracionesHubPage from '../pages/[lang]/generaciones/index.astro';
 import { SITE_URL } from '../utils/seo';
 import { GENERATIONS } from '../services/pokeapi';
 

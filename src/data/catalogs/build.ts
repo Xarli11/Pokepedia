@@ -111,6 +111,8 @@ export interface RawItem {
   sprites?: { default?: string | null };
   flavor_text_entries?: FlavorEntry[];
   effect_entries?: EffectEntry[];
+  /** Per-game internal index; the only place PokeAPI records which generations an item exists in. */
+  game_indices?: { generation: { name: string } }[];
 }
 
 export interface RawSpecies {
@@ -147,6 +149,22 @@ export function buildAbilityEntry(raw: RawAbility, lang: CatalogLang): AbilityEn
   };
 }
 
+/**
+ * Item --introducedIn--> Generation: the earliest generation among
+ * `game_indices` (PokeAPI's own per-game internal-index list — the only
+ * field that records which games/generations an item exists in). 0 means
+ * "no game_indices at all" (a small number of items, e.g. some Let's
+ * Go-exclusive ones) — never a guess, callers simply omit the badge for
+ * those. The single implementation of this fact: `buildItemEntry` below
+ * (the generator) and the item detail page (via `utils/itemMeta.ts`'s
+ * re-export, never this module directly — see that file) both call this
+ * same function rather than each computing it their own way.
+ */
+export function itemIntroducedGeneration(gameIndices: readonly { generation: { name?: string } }[] | undefined): number {
+  const generations = (gameIndices ?? []).map((g) => generationNumber(g.generation?.name)).filter((n) => n > 0);
+  return generations.length > 0 ? Math.min(...generations) : 0;
+}
+
 export function buildItemEntry(raw: RawItem, lang: CatalogLang): ItemEntry {
   const category = raw.category?.name ?? 'other';
   const description = pickDescription({ flavor: raw.flavor_text_entries, effect: raw.effect_entries, entityType: 'item' }, lang);
@@ -158,6 +176,7 @@ export function buildItemEntry(raw: RawItem, lang: CatalogLang): ItemEntry {
     hasSprite: Boolean(raw.sprites?.default),
     description: description?.text ?? '',
     descriptionLang: (description?.lang ?? '') as TextLang,
+    introducedGeneration: itemIntroducedGeneration(raw.game_indices),
   };
 }
 

@@ -8,6 +8,9 @@
 //   search-index.{es,en}.json (derived from the above, no extra requests)
 //   machines.json (move -> [item, version group] pairs, language-independent:
 //     labels are joined at runtime from items.{lang}.json / versionGroups.ts)
+//   move-flags.json (move -> curated factual Showdown flags — contact,
+//     sound, punch, etc. — PokeAPI has none; matched by move id, Showdown's
+//     own `num` field; see src/utils/moveFlags.ts for the exact set)
 //   learnsets/{move}.json + learnsets/manifest.json (move -> Pokémon learnset
 //     relations, inverted offline from pokemon/{id}.moves — opt-in, see below)
 //   manifest.json (counts, content hashes, generation date)
@@ -16,15 +19,18 @@
 //                                             move-learnsets, see below) and
 //                                             rewrite the files
 //   npm run data:catalogs -- --check       -> no writes: full re-fetch + compare for
-//                                             moves/abilities/items/pokemon; machines
-//                                             and learnsets get a lightweight count-only
-//                                             staleness check instead (see `check()`
-//                                             below) — it does NOT re-fetch and diff
-//                                             machines' 2372 rows or learnsets' 638k+
-//                                             relations one by one. A real
-//                                             `--only=move-learnsets` run is the only
-//                                             way to confirm the relations themselves
-//                                             haven't changed.
+//                                             moves/abilities/items/pokemon AND
+//                                             move-flags (cheap enough — one move
+//                                             list + one Showdown request — to fully
+//                                             rebuild and diff, not just count).
+//                                             machines and learnsets get a lightweight
+//                                             count-only staleness check instead (see
+//                                             `check()` below) — it does NOT re-fetch
+//                                             and diff machines' 2372 rows or
+//                                             learnsets' 638k+ relations one by one. A
+//                                             real `--only=move-learnsets` run is the
+//                                             only way to confirm those relations
+//                                             themselves haven't changed.
 //   npm run data:catalogs -- --only=moves,abilities
 //   npm run data:catalogs -- --only=move-learnsets   -> NOT in the default set:
 //                                             ~1351 full pokemon/{id} fetches,
@@ -70,6 +76,7 @@ import { buildSearchIndex, validateSearchIndex } from '../src/data/catalogs/sear
 import { computeStaleLearnsetFiles, pruneManifestHashes } from '../src/data/catalogs/learnsetPruning';
 import { isRealItem } from '../src/utils/pokemon';
 import { LEARN_METHOD_ORDER, learnMethodIndex } from '../src/utils/moveLearnMethods';
+import { MOVE_FLAG_ORDER } from '../src/utils/moveFlags';
 import { VERSION_GROUP_ORDER, versionGroupRank } from '../src/services/versionGroups';
 
 const API = 'https://pokeapi.co/api/v2';
@@ -82,7 +89,7 @@ const args = process.argv.slice(2);
 const flag = (name: string) => args.find((a) => a === `--${name}` || a.startsWith(`--${name}=`));
 const CHECK = Boolean(flag('check'));
 const CACHE_DIR = flag('cache-dir')?.split('=')[1];
-const ONLY = new Set((flag('only')?.split('=')[1] ?? 'moves,abilities,items,pokemon,machines').split(','));
+const ONLY = new Set((flag('only')?.split('=')[1] ?? 'moves,abilities,items,pokemon,machines,move-flags').split(','));
 
 const log = (msg: string) => console.log(msg);
 
@@ -203,6 +210,26 @@ async function check() {
     const learnsetManifest = JSON.parse(await readFile(new URL('learnsets/manifest.json', OUT_DIR), 'utf8'));
     if (learnsetManifest.apiCount !== variants.apiCount) fail(`learnsets: apiCount ${learnsetManifest.apiCount} vs live ${variants.apiCount}`);
   }
+  if (existsSync(new URL('move-flags.json', OUT_DIR))) {
+    // A REAL check, not count-only: move-flags.json is cheap enough to
+    // fully reconstruct (the move list — already fetched above as
+    // `lists.moves` — plus one Showdown `moves.json` request) and compare
+    // byte-for-byte. Unlike machines/learnsets, there is no lighter proxy
+    // worth using here; rebuilding is barely more expensive than a count
+    // check would have been.
+    const committed = JSON.parse(await readFile(new URL('move-flags.json', OUT_DIR), 'utf8'));
+    const fresh = await buildMoveFlags();
+    if (committed.apiCount !== fresh.apiCount) fail(`move-flags: apiCount ${committed.apiCount} vs live ${fresh.apiCount}`);
+    if (committed.count !== fresh.count) fail(`move-flags: count ${committed.count} vs live ${fresh.count}`);
+    const orderMatches = Array.isArray(committed.flagOrder) && committed.flagOrder.length === MOVE_FLAG_ORDER.length && committed.flagOrder.every((f: string, i: number) => f === MOVE_FLAG_ORDER[i]);
+    if (!orderMatches) fail(`move-flags: committed flagOrder [${committed.flagOrder}] does not match current MOVE_FLAG_ORDER [${MOVE_FLAG_ORDER}]`);
+    else {
+      // Sorted entries, not a raw object compare: byMove's *content* is
+      // what matters, never incidental key-insertion order.
+      const normalize = (byMove: Record<string, number[]>) => JSON.stringify(Object.entries(byMove).sort(([a], [b]) => a.localeCompare(b)));
+      if (normalize(committed.byMove) !== normalize(fresh.byMove)) fail('move-flags: byMove content differs from a live rebuild (Showdown\'s flags changed for at least one move)');
+    }
+  }
   for (const lang of CATALOG_LANGS) {
     const text = await readFile(new URL(`search-index.${lang}.json`, OUT_DIR), 'utf8');
     validateSearchIndex(JSON.parse(text));
@@ -261,6 +288,44 @@ async function buildMachines(): Promise<{ apiCount: number; count: number; byMov
     resolved++;
   }
   return { apiCount: total, count: resolved, byMove };
+}
+
+interface ShowdownMove {
+  num: number;
+  flags?: Record<string, number>;
+}
+
+/**
+ * A curated, factual subset of Showdown's per-move `flags` (see
+ * `src/utils/moveFlags.ts` for the exact list and why each one was kept or
+ * excluded) — PokeAPI has no such field at all. One request for the whole
+ * dataset (`moves.json`, ~490 KB, 954 moves — Showdown's format, not
+ * PokeAPI's, and it includes CAP/glitch entries this generator was never
+ * going to show, hence the count difference from `list.apiCount`), never
+ * per-move. Matched to PokeAPI moves by Showdown's own `num` field, which
+ * is PokeAPI's numeric move id (verified live: Tackle #33, Earthquake #89
+ * match on both sides) — never guessed from name spelling, which differs
+ * between the two sources (PokeAPI's `acid-spray` vs Showdown's
+ * `acidspray`).
+ */
+async function buildMoveFlags(): Promise<{ apiCount: number; count: number; byMove: Record<string, number[]> }> {
+  const list = await listResource('move');
+  const slugById = new Map(list.entries.map((e) => [idFromUrl(e.url), e.name]));
+  const showdownMoves = await getJson<Record<string, ShowdownMove>>('https://play.pokemonshowdown.com/data/moves.json');
+
+  const byMove: Record<string, number[]> = {};
+  let resolved = 0;
+  for (const raw of Object.values(showdownMoves)) {
+    if (!raw.num || raw.num <= 0) continue; // CAP/glitch entries: no real PokeAPI id
+    const slug = slugById.get(raw.num);
+    if (!slug) continue; // unresolved id: skip, never guessed
+    const flagObj = raw.flags ?? {};
+    const indices = MOVE_FLAG_ORDER.map((f, i) => (flagObj[f] ? i : -1)).filter((i) => i >= 0);
+    if (indices.length === 0) continue; // no factual flag from the curated set: no entry, not an empty one
+    byMove[slug] = indices;
+    resolved++;
+  }
+  return { apiCount: list.apiCount, count: resolved, byMove };
 }
 
 interface RawPokemonMoves {
@@ -410,6 +475,20 @@ async function generate() {
       apiCount: machines.apiCount,
       count: machines.count,
       byMove: machines.byMove,
+    });
+  }
+
+  if (ONLY.has('move-flags')) {
+    const moveFlags = await buildMoveFlags();
+    log(`move-flags: ${moveFlags.count} moves with a factual flag (of ${moveFlags.apiCount} PokeAPI moves)`);
+    counts.moveFlagMoves = moveFlags.count;
+    emit('move-flags.json', {
+      schema: 1,
+      source: 'Showdown moves.json (flags), matched to PokeAPI by move id (Showdown\'s own `num` field)',
+      apiCount: moveFlags.apiCount,
+      count: moveFlags.count,
+      flagOrder: MOVE_FLAG_ORDER,
+      byMove: moveFlags.byMove,
     });
   }
 

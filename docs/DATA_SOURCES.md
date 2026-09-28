@@ -255,17 +255,30 @@ remain intentionally version-independent listings.
 experience, capture rate, base happiness, growth rate, EV yield, egg
 groups, gender ratio, egg cycles, baby/legendary/mythical) from the
 `pokemon`/`pokemon-species` objects the Pokémon page already fetches — no
-new request. Several of these fields have real historical variance across
-games/generations (base friendship, EV yield, capture rate and base
-experience have all changed for some species) that PokeAPI does not
-expose a per-version-group history for; Pokepedia shows today's single
-value, not a claim that it held for every game — see
+new request. Base friendship, capture rate and base experience have real
+historical variance across games/generations that PokeAPI does not
+expose a per-version-group history for anywhere in its schema (re-verified
+live 2026-09-28); Pokepedia shows today's single value for these three,
+not a claim that it held for every game — see
 [`docs/architecture/pokemon-entity.md`](./architecture/pokemon-entity.md)
-§8 for the historical-facts debt this leaves for a future phase.
+§8 for detail. **EV yield (and base stats) is different**: PokeAPI's
+`pokemon.past_stats` is a real, generation-scoped history (Fase 2F,
+2026-09-28) — the same mechanism moves' `past_values` already used —
+surfaced via `pastStatChanges()` as a "Cambios históricos" section, same
+pattern as the move page's own historical changes.
+
 `src/services/pokedexes.ts` is the hand-verified table (all 35 PokeAPI
 `pokedex` resources, real ES/EN names, checked live) behind the regional
 Pokédex numbers section; PokeAPI's own `is_main_series` flag excludes the
 Conquest and Champions dexes, not name guessing.
+
+**Encounters/locations/real availability were investigated and
+deferred** (Fase 2F, 2026-09-28) — not built, with evidence: `/pokemon/{id}/encounters`
+payloads range up to ~957 KB per Pokémon (Magikarp), `location-area` (1539
+resources) and `encounter-method` (66) have zero Spanish translations in
+PokeAPI at all, and encounters are keyed by `version` rather than
+`version_group`, needing a mapping layer that doesn't exist yet. Full
+write-up: `docs/architecture/pokemon-entity.md` §10.
 
 ## Move and ability mechanics, machines, relations
 
@@ -282,9 +295,26 @@ catalog and `versionGroups.ts`, never duplicated. `PokemonRelationList`
 both pages: lighter per row, no competitive tier badge (kept off these
 factual pages), and the ability page's Pokémon counter now reports the
 real total instead of the previously-capped count. Full write-up,
-including what was investigated and deliberately not built (move flags,
-a per-Pokémon learn-method/level relation dataset):
+including what was investigated and deliberately not built at the time
+(a per-Pokémon learn-method/level relation dataset — since built in
+Fase 2D, and move flags — since built in Fase 2F, both below):
 [`docs/architecture/move-ability-entities.md`](./architecture/move-ability-entities.md).
+
+`src/data/generated/move-flags.json` (Fase 2F, built by
+`scripts/generate-catalogs.ts`'s move-flags step, one Showdown `moves.json`
+request, matched to PokeAPI moves by id) gives a curated factual flag set
+per move (contact, sound, punch, blocked-by-Protect, etc. — PokeAPI has
+none of these) with zero runtime requests; `src/utils/moveFlags.ts` has
+the exact set and ES/EN labels, and why the more competitive/mechanic
+Showdown flags were excluded. 711 of 937 moves have at least one, 12.8 KB.
+These are Showdown's **current** properties for each move, not a
+historical or per-Game-Context record — see `src/utils/moveFlags.ts`.
+
+**Item → Generation** (Fase 2F): `introducedGeneration` on the items
+catalog (`ItemEntry`) and computed directly on the item detail page from
+`item.game_indices` — already fetched either way, zero new requests. The
+earliest generation among an item's own game indices; 0 (badge omitted)
+when it has none.
 
 ## Move learnset relations (Pokémon ↔ move, method/level/game)
 
@@ -409,12 +439,25 @@ centralized; don't try to unify the two into one cache.
 
 Any `dict[lang] || dict.es` / `entries.find(lang) || entries.find('en')`
 pattern in this codebase is a **language** fallback (show a different
-language if the requested one is missing) — normal and expected, not an
-error. It is unrelated to the **source-selection** fallback described
-above (which entry, of possibly several in the *same* language, to trust).
-`ProvenancedText.fallbackUsed` only reports the language fallback; when
-`true`, item pages show a small "shown in the original language" note
-(`item_effect_en_fallback`).
+language if the requested one is missing) — normal and expected in most
+places, not an error. It is unrelated to the **source-selection**
+fallback described above (which entry, of possibly several in the *same*
+language, to trust).
+
+**Item effect/flavor text is a deliberate exception** (fixed 2026-09-28,
+post-review of Fase 2F): `selectItemEffect`/`selectItemFlavor` accept a
+`fallbackLangs` argument forwarded straight to
+`selectLocalizedEffect`/`selectLocalizedFlavor`
+(`services/localizedText.ts`) — no second selection policy — and the item
+page passes `[]` for both. A visible "Efecto / Mecánica" card in a
+language the visitor didn't ask for (even labelled "shown in its original
+language") isn't acceptable UX for `/es/objetos/`: the page falls through
+to the real flavor text in the requested language, or the localized
+factual summary, rather than showing English as the main visible text.
+`ProvenancedText.fallbackUsed` still exists and still reports a language
+fallback where one is allowed (every *other* caller of these selectors
+keeps the default `['en']`); it simply can never be `true` for items,
+since this surface's own ladder is one rung long.
 
 ## When a data field can't be resolved at all
 

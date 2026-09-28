@@ -16,6 +16,7 @@
 // invented for this project.
 
 import { isMainSeriesPokedex, pokedexRank, pokedexVersionGroups, isGlobalPokedex } from '../services/pokedexes';
+import { idFromResourceUrl } from '../services/pokeapi';
 import type { PokemonDetail, PokemonSpecies } from '../services/pokeapi';
 
 export interface GenderInfo {
@@ -185,6 +186,39 @@ export function regionalDexEntriesForContext(entries: readonly RegionalDexEntry[
     if (!versionGroups) return true;
     return versionGroups.some((vg) => revisionSet.has(vg));
   });
+}
+
+export interface PastStatEntry {
+  /** National-generation-number id (1-9), resolved from PokeAPI's own resource URL — never parsed from the slug string. */
+  generationId: number;
+  /** The historical stats PokeAPI itself lists for this entry — passed through as-is, never assumed to be "every stat" or "only the changed ones" by this code. */
+  changes: { statName: string; baseStat: number; effort: number }[];
+}
+
+/**
+ * Real historical stat/EV-yield changes from PokeAPI's own `past_stats`
+ * (verified live 2026-09-28: unlike `base_happiness`/`capture_rate`/
+ * `base_experience` — flat scalars with no per-generation breakdown
+ * anywhere in PokeAPI's schema, see `docs/architecture/pokemon-entity.md`
+ * §8 — `pokemon.past_stats` is a real, generation-scoped history, the
+ * same shape Fase 2C already used for a move's `past_values`). PokeAPI's
+ * own docs describe `generation` here as the *last* generation in which
+ * the listed stats applied (i.e. "this, through this generation"), and in
+ * every real entry observed so far `stats` has held only the ones that
+ * actually differed from the current value — but that "only the changed
+ * ones" behavior is an observation about the data, not a documented API
+ * contract, so this function passes `stats` through exactly as PokeAPI
+ * returns it rather than asserting either property itself. Order is
+ * whatever PokeAPI returns (oldest-affecting-generation entries first in
+ * every case observed); never invented or reconstructed by rule.
+ */
+export function pastStatChanges(
+  pastStats: readonly { generation: { url: string }; stats: { base_stat: number; effort: number; stat: { name: string } }[] }[] | undefined
+): PastStatEntry[] {
+  return (pastStats ?? []).map((p) => ({
+    generationId: idFromResourceUrl(p.generation.url),
+    changes: p.stats.map((s) => ({ statName: s.stat.name, baseStat: s.base_stat, effort: s.effort })),
+  }));
 }
 
 /** Localized genus ("Mach Pokémon" / "Pokémon Mach"), falling back across languages. */

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import FuentesPage from './[lang]/fuentes/index.astro';
+import FuentesPage from '../pages/[lang]/fuentes/index.astro';
 import { uiTranslations } from '../utils/pokemon';
 import { SITE_URL } from '../utils/seo';
 

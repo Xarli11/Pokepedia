@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import ItemPage from './[lang]/objetos/[name].astro';
+import ItemPage from '../pages/[lang]/objetos/[name].astro';
 import { SITE_URL } from '../utils/seo';
-import { renderRoute } from '../testing/renderRoute';
+import { renderRoute } from './renderRoute';
 
 // Phase 4: item pages — robots by policy, canonical, localized factual meta,
 // machine -> move (latest version group), placeholders never shown, and the
@@ -92,6 +92,25 @@ const FIXTURES: Record<string, unknown> = {
     names: [es('Baya Prueba'), en('Test Berry')],
     attributes: [{ name: 'consumable' }],
     effect_entries: [{ effect: 'Restores 10 HP.', short_effect: 'Restores 10 HP.', language: { name: 'en' } }],
+  }),
+  // A real Spanish effect: the effect card must show it, not an English one.
+  '/item/effect-es-real': item({
+    name: 'effect-es-real',
+    category: { name: 'medicine' },
+    names: [es('Poción Real'), en('Real Potion')],
+    effect_entries: [
+      { effect: 'Restaura 20 PS.', short_effect: 'Restaura 20 PS.', language: { name: 'es' } },
+      { effect: 'Restores 20 HP.', short_effect: 'Restores 20 HP.', language: { name: 'en' } },
+    ],
+  }),
+  // No Spanish effect, but a real Spanish flavor: must show the flavor,
+  // never the English effect (not even flagged as "original language").
+  '/item/effect-en-flavor-es': item({
+    name: 'effect-en-flavor-es',
+    category: { name: 'medicine' },
+    names: [es('Baya Flavor'), en('Flavor Berry')],
+    effect_entries: [{ effect: 'Restores 15 HP.', short_effect: 'Restores 15 HP.', language: { name: 'en' } }],
+    flavor_text_entries: [flavor('es', 'Una baya que restaura algo de salud.')],
   }),
   '/item/psyduck-down': item({
     name: 'psyduck-down',
@@ -235,21 +254,38 @@ describe('item metadata (SSR)', () => {
     expect(esHtml).not.toContain('Tu enciclopedia Pokémon técnica y definitiva.');
   });
 
-  it('ES page whose only real text is English: Spanish factual meta + visible sentence, English text kept in the body with its notice', async () => {
+  it('ES page whose only real text is English: Spanish factual meta + visible sentence, NO English text anywhere in the body (fixed post-review, Fase 2F)', async () => {
     const html = await (await renderItem('es', 'oran-en-only')).text();
     const description = meta(html, 'description')!;
     expect(description).toBe('Baya Prueba es un objeto Pokémon de la categoría Medicina. Propiedades: Consumible.');
     expect(description).not.toContain('Restores');
     // The meta sentence is on the page (no SEO-only content).
     expect(html).toMatch(/data-item-summary[^>]*>\s*Baya Prueba es un objeto Pokémon de la categoría Medicina\./);
-    // Real (English) effect is still shown, flagged as such.
-    expect(html).toContain('Restores 10 HP.');
-    expect(html).toContain('PokeAPI no ofrece este texto en español');
+    // No English effect card, no fallback disclaimer — an English effect is
+    // never shown as the main visible text on a Spanish page, not even
+    // labelled as such. Only the localized factual summary above.
+    expect(html).not.toContain('Restores 10 HP.');
+    expect(html).not.toContain('PokeAPI no ofrece este texto en español');
+    expect(html).not.toContain('Efecto / Mecánica'); // the effect card's own heading never renders
   });
 
   it('EN page with an English effect uses it', async () => {
     const html = await (await renderItem('en', 'oran-en-only')).text();
     expect(meta(html, 'description')).toBe('Test Berry: Restores 10 HP.');
+  });
+
+  it('ES page with a real Spanish effect shows it in the effect card', async () => {
+    const html = await (await renderItem('es', 'effect-es-real')).text();
+    expect(html).toContain('Efecto / Mecánica');
+    expect(html).toContain('Restaura 20 PS.');
+    expect(html).not.toContain('Restores 20 HP.');
+  });
+
+  it('ES page with no Spanish effect but a real Spanish flavor: shows the flavor, never the English effect', async () => {
+    const html = await (await renderItem('es', 'effect-en-flavor-es')).text();
+    expect(html).not.toContain('Efecto / Mecánica');
+    expect(html).not.toContain('Restores 15 HP.');
+    expect(html).toContain('Una baya que restaura algo de salud.');
   });
 
   it('an item with nothing but a name and category gets a factual sentence, not the "no effect available" box', async () => {
@@ -288,7 +324,7 @@ describe('machine items -> moves (SSR)', () => {
   it('costs one machine + one move request, as before (bounded)', async () => {
     // pokeapi.ts caches per module instance: load fresh ones so the calls are observable.
     vi.resetModules();
-    const Fresh = (await import('./[lang]/objetos/[name].astro')).default;
+    const Fresh = (await import('../pages/[lang]/objetos/[name].astro')).default;
     const { renderRoute: freshRender } = await import('../testing/renderRoute');
     await freshRender(Fresh, { routePattern: '/[lang]/objetos/[name]', params: { lang: 'es', name: 'tm26' }, path: '/es/objetos/tm26/' });
     const machineCalls = fetchCalls.filter((u) => u.includes('/machine/') || u.includes('/move/'));
@@ -296,7 +332,7 @@ describe('machine items -> moves (SSR)', () => {
   });
 
   it('the linked move page answers 200', async () => {
-    const MovePage = (await import('./[lang]/movimientos/[name].astro')).default;
+    const MovePage = (await import('../pages/[lang]/movimientos/[name].astro')).default;
     const response = await renderRoute(MovePage, {
       routePattern: '/[lang]/movimientos/[name]',
       params: { lang: 'es', name: 'energy-ball' },
@@ -312,7 +348,7 @@ describe('items index (SSR)', () => {
 
   async function renderIndex(lang: string) {
     vi.resetModules(); // fresh pokeapi.ts cache, so the list requests are observable
-    const Index = (await import('./[lang]/objetos/index.astro')).default;
+    const Index = (await import('../pages/[lang]/objetos/index.astro')).default;
     const container = await AstroContainer.create();
     return container.renderToString(Index, { params: { lang }, request: new Request(`${SITE_URL}/${lang}/objetos/`) });
   }

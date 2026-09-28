@@ -10,7 +10,7 @@ import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
-import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus, regionalDexEntriesForContext } from '../../../utils/pokemonFacts';
+import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus, regionalDexEntriesForContext, pastStatChanges } from '../../../utils/pokemonFacts';
 import { pokedexLabel } from '../../../services/pokedexes';
 import { versionGroupsFromMoveDetails, jsonForScript } from '../../../utils/movesPayload';
 import { availableContextsForPokemon, defaultGameContextForPokemon } from '../../../services/gameContext';
@@ -255,6 +255,13 @@ const pokemonGenNum = pokemonGenNumRaw ? String(pokemonGenNumRaw) : null;
 const facts = buildPokemonFacts(detail, species);
 const genus = localizedGenus(species?.genera || [], lang as string);
 
+// Fase 2F: real historical stat/EV-yield changes (PokeAPI's past_stats —
+// see utils/pokemonFacts.ts and docs/architecture/pokemon-entity.md §8 for
+// why base_happiness/capture_rate/base_experience have no equivalent and
+// stay as the current-only values shown above). Already in `detail`, no
+// extra request.
+const statHistory = pastStatChanges(detail.past_stats);
+
 // Game Context (Fase 2E): computed once, here, from this Pokémon's own
 // moves — the SAME derivation MovesTable uses internally — and handed
 // down to it as props so the page has exactly one Game Context
@@ -397,7 +404,7 @@ const breadcrumbItems = [
                         <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.view_types_on_poketypes}</span>
                     </a>
                 </div>
-                <h2 class="text-5xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4">{localizedName}</h2>
+                <h2 class="text-3xl sm:text-4xl md:text-6xl font-black text-slate-900 dark:text-white capitalize mb-4 break-words">{localizedName}</h2>
                 <p class="text-xl text-slate-600 dark:text-slate-400 leading-relaxed italic">"{description}"</p>
 
                 <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
@@ -512,6 +519,20 @@ const breadcrumbItems = [
                             contexts: availableContexts.map((a) => ({ id: a.context.id, revisions: a.availableRevisions })),
                             initialContext: defaultContext.contextId,
                         })} />
+                    </div>
+                )}
+
+                {statHistory.length > 0 && (
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm">
+                        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{t.move_history}</h2>
+                        <ul class="space-y-3 text-sm list-none p-0 m-0">
+                            {statHistory.map((entry) => (
+                                <li class="text-slate-600 dark:text-slate-400">
+                                    <span class="font-black text-slate-900 dark:text-white">{t.generation_label} {GENERATION_ROMAN[`gen${entry.generationId}`] ?? entry.generationId}{lang === 'es' ? ' y anteriores' : ' and earlier'}:</span>{' '}
+                                    {entry.changes.map((c) => `${t[c.statName] || c.statName} ${c.baseStat}${c.effort ? ` (${c.effort} EV)` : ''}`).join(', ')}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 
