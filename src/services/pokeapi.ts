@@ -45,10 +45,13 @@ export interface PokemonDetail {
         };
     }[];
     /**
-     * Real, PokeAPI-sourced historical stat changes: only the stats that
-     * actually differed in an older generation are listed per entry (e.g.
+     * Real, PokeAPI-sourced historical stat changes, per generation (e.g.
      * Gen I's single unified `special` stat before the physical/special
-     * split) — never every stat repeated unchanged. See
+     * split). In every real entry observed so far, `stats` lists only the
+     * ones that actually differed from the current value — but that is an
+     * observation, not a documented API guarantee; treat it as "the
+     * historical stats PokeAPI lists for that period", not as "PokeAPI
+     * promises this is always exactly the changed subset". See
      * `utils/pokemonFacts.ts`'s `pastStatChanges` and
      * `docs/architecture/pokemon-entity.md` §8 for why this exists and
      * `base_happiness`/`capture_rate`/`base_experience` don't: this is the

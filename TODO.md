@@ -111,12 +111,15 @@ no descartado por pereza ni por falta de tiempo:
   cubre razonablemente los casos comunes. Ver
   `docs/architecture/pokemon-entity.md` §9.
 - [ ] **`npm run data:catalogs:check` en CI**: evaluado y descartado por
-  ahora — necesita red hacia PokeAPI en cada ejecución de CI, lo que
-  introduciría fragilidad externa al pipeline (un fallo de PokeAPI, no del
-  código, rompería builds). Además, para `learnsets`/`move-flags` el
-  check es deliberadamente ligero (solo cuenta), no una revalidación
-  completa — ver `docs/architecture/move-learnset-relations.md` §2. Se
-  mantiene como comando manual (`npm run data:catalogs:check`).
+  ahora — necesita red hacia PokeAPI (y hacia Showdown, para move-flags)
+  en cada ejecución de CI, lo que introduciría fragilidad externa al
+  pipeline (un fallo de esa red, no del código, rompería builds). El
+  check en sí tiene dos niveles reales, no uno: para `machines`/
+  `learnsets` es deliberadamente ligero (solo cuenta, ver
+  `docs/architecture/move-learnset-relations.md` §2); para `move-flags`
+  es una reconstrucción y comparación completas (barato: una lista de
+  movimientos + un fetch de Showdown), no solo un conteo. Se mantiene como
+  comando manual (`npm run data:catalogs:check`).
 - [ ] **Objetos ↔ tipos ↔ generaciones**: la relación Item → Generación SÍ
   se materializó (Fase 2F, arriba, vía `game_indices`). Objeto ↔ Tipo no
   tiene un campo estructurado real en PokeAPI (los objetos no tienen

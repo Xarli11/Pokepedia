@@ -6,6 +6,18 @@
 // has no such field, verified against Earthquake) — Showdown is the only
 // source already used by this project that has them.
 //
+// IMPORTANT — these are CURRENT properties, not a historical, per-Game-
+// Context record: `moves.json` reflects the move as it works in
+// Showdown's latest supported generation. Showdown itself models older
+// generations separately (its own per-gen mods), which this project does
+// not fetch. A flag can in principle have differed in an older game — this
+// dataset makes no claim either way for any specific past generation, and
+// nothing here is wired to Game Context. Do not build a historical
+// flags dataset or a Game-Context-aware flags selector on top of this
+// without first re-auditing Showdown's per-generation data for real
+// differences (the same live-verification discipline used everywhere
+// else in this project) — out of scope for now, kept deliberately small.
+//
 // Only flags a factual encyclopedia entry would state as a property of the
 // move itself are kept — contact, protect (blocked by Protect), sound,
 // powder, punch, bite, pulse, bullet, dance, slicing, wind. Deliberately

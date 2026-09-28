@@ -307,6 +307,8 @@ per move (contact, sound, punch, blocked-by-Protect, etc. — PokeAPI has
 none of these) with zero runtime requests; `src/utils/moveFlags.ts` has
 the exact set and ES/EN labels, and why the more competitive/mechanic
 Showdown flags were excluded. 711 of 937 moves have at least one, 12.8 KB.
+These are Showdown's **current** properties for each move, not a
+historical or per-Game-Context record — see `src/utils/moveFlags.ts`.
 
 **Item → Generation** (Fase 2F): `introducedGeneration` on the items
 catalog (`ItemEntry`) and computed directly on the item detail page from

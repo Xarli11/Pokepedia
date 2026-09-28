@@ -145,8 +145,13 @@ assuming any of these could or couldn't be done:**
   split, `effort` included. Implemented: `pastStatChanges()`
   (`utils/pokemonFacts.ts`), rendered as a "Cambios históricos" section on
   the Pokémon page, same heading/style as the move page's own historical
-  changes. No historical value is invented — only what PokeAPI's
-  `past_stats` actually lists, only the stats that differed.
+  changes. No historical value is invented — the section shows exactly
+  what PokeAPI's `past_stats` lists, no more. PokeAPI documents
+  `generation` here as the last generation the listed values applied
+  through; in every real entry seen so far, `stats` holds only what
+  actually differed from the current value, but that's an observation
+  about the data, not a documented API contract — `pastStatChanges()`
+  passes it through as-is rather than asserting either property itself.
 - **Base friendship, capture rate, base experience: confirmed, still no
   historical source.** Re-verified live 2026-09-28 against
   `pokemon-species` (`base_happiness`, `capture_rate` are flat scalars,

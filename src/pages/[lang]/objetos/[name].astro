@@ -4,11 +4,10 @@ import PokemonCard from '../../../components/PokemonCard.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import { getLocalizedName, getItemDetail, getMachineMove, getPokemonCards, GENERATION_ROMAN } from '../../../services/pokeapi';
-import { generationNumber } from '../../../data/catalogs/build';
 import { selectItemEffect, selectItemFlavor } from '../../../utils/items';
 import { uiTranslations, formatName, itemTranslations, getItemSuperCategory, typeTranslations } from '../../../utils/pokemon';
 import { pagePath } from '../../../utils/seo';
-import { buildItemTitle, resolveItemDescription, machineKind, pickLatestMachine, machineVersionLabel, teraShardType, type ItemFacts } from '../../../utils/itemMeta';
+import { buildItemTitle, resolveItemDescription, machineKind, pickLatestMachine, machineVersionLabel, teraShardType, itemIntroducedGeneration, type ItemFacts } from '../../../utils/itemMeta';
 import { itemRobots } from '../../../utils/itemIndexing';
 
 const { lang, name } = Astro.params;
@@ -63,11 +62,11 @@ const teraTypeLabel = teraType ? typeTranslations[lang as string]?.[teraType] ||
 
 // Item --introducedIn--> Generation (Fase 2F): earliest generation among
 // PokeAPI's own game_indices (already in `itemData`, zero extra request).
-// 0 means no game_indices at all — the badge is simply omitted, never a guess.
-const introducedGenerations = (itemData.game_indices ?? [])
-    .map((g: { generation?: { name: string } }) => generationNumber(g.generation?.name))
-    .filter((n: number) => n > 0);
-const itemGenNum: number | null = introducedGenerations.length > 0 ? Math.min(...introducedGenerations) : null;
+// 0 means no game_indices at all — the badge is simply omitted, never a
+// guess. itemIntroducedGeneration is the SAME function the catalog
+// generator calls (see utils/itemMeta.ts), never a second implementation.
+const introducedGeneration = itemIntroducedGeneration(itemData.game_indices);
+const itemGenNum: number | null = introducedGeneration > 0 ? introducedGeneration : null;
 const itemGenRoman = itemGenNum ? GENERATION_ROMAN[`gen${itemGenNum}`] : null;
 
 const localizedAttributes = (itemData.attributes || []).map((a: any) => i18nItems[a.name]).filter(Boolean) as string[];

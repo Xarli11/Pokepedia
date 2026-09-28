@@ -11,6 +11,14 @@
 import { versionGroupRank } from '../services/versionGroups';
 import { typeColors } from './pokemon';
 
+// Re-exported, not reimplemented: `itemIntroducedGeneration` (Item -->
+// Generation, from `game_indices`) is a catalog-generator fact just like
+// everything else in this file, so the item page reaches it through this
+// module — its actual facts layer — rather than importing the catalog
+// builder directly. One implementation either way (data/catalogs/build.ts,
+// also used by the generator itself), never two.
+export { itemIntroducedGeneration } from '../data/catalogs/build';
+
 export type ItemLang = 'es' | 'en';
 
 const safeLang = (lang: string): ItemLang => (lang === 'en' ? 'en' : 'es');

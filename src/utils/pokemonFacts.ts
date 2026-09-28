@@ -191,7 +191,7 @@ export function regionalDexEntriesForContext(entries: readonly RegionalDexEntry[
 export interface PastStatEntry {
   /** National-generation-number id (1-9), resolved from PokeAPI's own resource URL — never parsed from the slug string. */
   generationId: number;
-  /** Only the stats that actually differed in this generation — never every stat repeated unchanged. */
+  /** The historical stats PokeAPI itself lists for this entry — passed through as-is, never assumed to be "every stat" or "only the changed ones" by this code. */
   changes: { statName: string; baseStat: number; effort: number }[];
 }
 
@@ -201,7 +201,14 @@ export interface PastStatEntry {
  * `base_experience` — flat scalars with no per-generation breakdown
  * anywhere in PokeAPI's schema, see `docs/architecture/pokemon-entity.md`
  * §8 — `pokemon.past_stats` is a real, generation-scoped history, the
- * same shape Fase 2C already used for a move's `past_values`). Order is
+ * same shape Fase 2C already used for a move's `past_values`). PokeAPI's
+ * own docs describe `generation` here as the *last* generation in which
+ * the listed stats applied (i.e. "this, through this generation"), and in
+ * every real entry observed so far `stats` has held only the ones that
+ * actually differed from the current value — but that "only the changed
+ * ones" behavior is an observation about the data, not a documented API
+ * contract, so this function passes `stats` through exactly as PokeAPI
+ * returns it rather than asserting either property itself. Order is
  * whatever PokeAPI returns (oldest-affecting-generation entries first in
  * every case observed); never invented or reconstructed by rule.
  */

@@ -85,6 +85,16 @@ move data needed exactly the same one-time, offline, generated-dataset
 treatment `machines.json` already used for MT/HM/TR — not a live
 integration at all.
 
+**These are current properties, not a historical or per-Game-Context
+record.** `moves.json` reflects Showdown's latest supported generation;
+Showdown itself keeps older generations as separate per-gen data this
+project doesn't fetch, so a flag could in principle have differed in an
+older game — this dataset makes no claim either way for any specific past
+generation. Nothing here is wired to Game Context, and building a
+historical version (or a Game-Context-aware selector on top of it) is
+explicitly out of scope for now, not attempted, and not assumed easy —
+see `src/utils/moveFlags.ts`'s own header.
+
 ## 4. `target` labels
 
 16 `move-target` values. PokeAPI has **no** Spanish names for any of them

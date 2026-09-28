@@ -7,7 +7,7 @@ import {
 } from './schema';
 import {
   applyOverrides, buildAbilityEntry, buildItemEntry, buildMoveEntry, buildPokemonEntries,
-  generationNumber, pickDescription, resolveName, summarize, DESCRIPTION_MAX,
+  generationNumber, itemIntroducedGeneration, pickDescription, resolveName, summarize, DESCRIPTION_MAX,
 } from './build';
 import { buildSearchIndex, validateSearchIndex } from './searchIndex';
 
@@ -97,6 +97,12 @@ describe('catalog builders (pure)', () => {
     };
     expect(buildItemEntry(withIndices, 'es').introducedGeneration).toBe(1);
     expect(buildItemEntry({ name: 'no-indices', names: [], category: { name: 'other' } }, 'es').introducedGeneration).toBe(0);
+    // buildItemEntry delegates to this directly — same function, not a
+    // second computation — verified here at the unit level too.
+    expect(itemIntroducedGeneration(withIndices.game_indices)).toBe(1);
+    expect(itemIntroducedGeneration(undefined)).toBe(0);
+    expect(itemIntroducedGeneration([])).toBe(0);
+    expect(itemIntroducedGeneration([{ generation: { name: 'not-a-real-generation' } }])).toBe(0);
   });
 
   it('Pokémon: species row plus one row per non-default form, named in the page language', () => {
@@ -193,6 +199,19 @@ describe('committed catalogs (src/data/generated)', () => {
     const pokemon = toEntries(catalog('pokemon', 'es') as CatalogFile<'pokemon'>);
     expect(pokemon.find((p) => p.slug === 'garchomp')).toMatchObject({ id: 445, generation: 4, form: false });
     expect(pokemon.filter((p) => !p.form).length).toBeGreaterThanOrEqual(1025);
+  });
+
+  it('Item --introducedIn--> Generation: real anchors against the committed catalog, never a silent regression', () => {
+    const items = toEntries(catalog('items', 'es') as CatalogFile<'items'>);
+    const gen = (slug: string) => items.find((i) => i.slug === slug)?.introducedGeneration;
+    // Verified against the real committed dataset before writing this test
+    // (2026-09-28) — a failure here means the relation actually broke, not
+    // that these anchors were guessed.
+    expect(gen('master-ball')).toBe(1);
+    expect(gen('leftovers')).toBe(2);
+    expect(gen('choice-band')).toBe(3);
+    expect(gen('ability-capsule')).toBe(6);
+    expect(gen('booster-energy')).toBe(9);
   });
 
   it('no description is longer than the cap, and a cut is always marked', () => {

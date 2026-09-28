@@ -19,15 +19,18 @@
 //                                             move-learnsets, see below) and
 //                                             rewrite the files
 //   npm run data:catalogs -- --check       -> no writes: full re-fetch + compare for
-//                                             moves/abilities/items/pokemon; machines
-//                                             and learnsets get a lightweight count-only
-//                                             staleness check instead (see `check()`
-//                                             below) — it does NOT re-fetch and diff
-//                                             machines' 2372 rows or learnsets' 638k+
-//                                             relations one by one. A real
-//                                             `--only=move-learnsets` run is the only
-//                                             way to confirm the relations themselves
-//                                             haven't changed.
+//                                             moves/abilities/items/pokemon AND
+//                                             move-flags (cheap enough — one move
+//                                             list + one Showdown request — to fully
+//                                             rebuild and diff, not just count).
+//                                             machines and learnsets get a lightweight
+//                                             count-only staleness check instead (see
+//                                             `check()` below) — it does NOT re-fetch
+//                                             and diff machines' 2372 rows or
+//                                             learnsets' 638k+ relations one by one. A
+//                                             real `--only=move-learnsets` run is the
+//                                             only way to confirm those relations
+//                                             themselves haven't changed.
 //   npm run data:catalogs -- --only=moves,abilities
 //   npm run data:catalogs -- --only=move-learnsets   -> NOT in the default set:
 //                                             ~1351 full pokemon/{id} fetches,
@@ -206,6 +209,26 @@ async function check() {
     // "a Pokémon's learnset itself changed" — the latter needs a real run.
     const learnsetManifest = JSON.parse(await readFile(new URL('learnsets/manifest.json', OUT_DIR), 'utf8'));
     if (learnsetManifest.apiCount !== variants.apiCount) fail(`learnsets: apiCount ${learnsetManifest.apiCount} vs live ${variants.apiCount}`);
+  }
+  if (existsSync(new URL('move-flags.json', OUT_DIR))) {
+    // A REAL check, not count-only: move-flags.json is cheap enough to
+    // fully reconstruct (the move list — already fetched above as
+    // `lists.moves` — plus one Showdown `moves.json` request) and compare
+    // byte-for-byte. Unlike machines/learnsets, there is no lighter proxy
+    // worth using here; rebuilding is barely more expensive than a count
+    // check would have been.
+    const committed = JSON.parse(await readFile(new URL('move-flags.json', OUT_DIR), 'utf8'));
+    const fresh = await buildMoveFlags();
+    if (committed.apiCount !== fresh.apiCount) fail(`move-flags: apiCount ${committed.apiCount} vs live ${fresh.apiCount}`);
+    if (committed.count !== fresh.count) fail(`move-flags: count ${committed.count} vs live ${fresh.count}`);
+    const orderMatches = Array.isArray(committed.flagOrder) && committed.flagOrder.length === MOVE_FLAG_ORDER.length && committed.flagOrder.every((f: string, i: number) => f === MOVE_FLAG_ORDER[i]);
+    if (!orderMatches) fail(`move-flags: committed flagOrder [${committed.flagOrder}] does not match current MOVE_FLAG_ORDER [${MOVE_FLAG_ORDER}]`);
+    else {
+      // Sorted entries, not a raw object compare: byMove's *content* is
+      // what matters, never incidental key-insertion order.
+      const normalize = (byMove: Record<string, number[]>) => JSON.stringify(Object.entries(byMove).sort(([a], [b]) => a.localeCompare(b)));
+      if (normalize(committed.byMove) !== normalize(fresh.byMove)) fail('move-flags: byMove content differs from a live rebuild (Showdown\'s flags changed for at least one move)');
+    }
   }
   for (const lang of CATALOG_LANGS) {
     const text = await readFile(new URL(`search-index.${lang}.json`, OUT_DIR), 'utf8');
