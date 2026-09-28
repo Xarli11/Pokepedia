@@ -211,7 +211,7 @@ const breadcrumbItems = [
                             </a>
                         )}
                     </div>
-                    <h1 class="text-6xl font-black text-slate-900 dark:text-white mb-2 capitalize leading-tight tracking-tighter">{localizedName}</h1>
+                    <h1 class="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white mb-2 capitalize leading-tight tracking-tighter break-words">{localizedName}</h1>
                     <div class="mb-6"><ReportDataIssue entityType="move" entitySlug={moveData.name} lang={lang as string} /></div>
                     <div class="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-3xl p-8 border border-emerald-100/50 dark:border-emerald-900/20">
                         <p class="text-xl text-slate-700 dark:text-slate-300 leading-relaxed italic font-medium">
@@ -360,8 +360,8 @@ const breadcrumbItems = [
         )}
 
         <div class="flex flex-wrap items-center justify-between gap-4 mb-10 px-4">
-            <h2 class="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-4">
-                <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
+            <h2 class="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white flex flex-wrap items-center gap-3 md:gap-4 min-w-0">
+                <span class="w-2 h-8 bg-emerald-500 rounded-full shrink-0"></span>
                 {t.pokemon_with_move}
                 <span id="learnset-count" class="text-sm font-bold text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">{defaultRelationEntries.length}</span>
                 <!--
@@ -379,10 +379,10 @@ const breadcrumbItems = [
                 <span id="learnset-historical" class:list={['text-xs font-bold text-slate-400 dark:text-slate-600', { hidden: distinctHistoricalCount <= defaultRelationEntries.length }]}>{t.learnset_total_historical}: {distinctHistoricalCount}</span>
             </h2>
             {availableContexts.length > 0 && (
-                <div class="flex flex-wrap items-center gap-3">
-                    <div class="relative">
+                <div class="flex flex-wrap items-center gap-3 min-w-0">
+                    <div class="relative min-w-0">
                         <label for="learnset-context" class="sr-only">{t.game}</label>
-                        <select id="learnset-context" aria-label={t.game} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
+                        <select id="learnset-context" aria-label={t.game} class="max-w-full px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
                             {availableContexts.map((a) => (
                                 <option value={a.context.id} selected={a.context.id === defaultContext.contextId}>{gameContextLabel(a.context.id, lang as string)}</option>
                             ))}
@@ -399,9 +399,9 @@ const breadcrumbItems = [
                       its own (already localized) label; the script re-reads
                       it rather than hard-coding the text a second time.
                     -->
-                    <div id="learnset-method-wrapper" class:list={['relative', { hidden: availableMethods.length <= 1 }]}>
+                    <div id="learnset-method-wrapper" class:list={['relative min-w-0', { hidden: availableMethods.length <= 1 }]}>
                         <label for="learnset-method" class="sr-only">{t.learnset_method_filter}</label>
-                        <select id="learnset-method" aria-label={t.learnset_method_filter} class="px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
+                        <select id="learnset-method" aria-label={t.learnset_method_filter} class="max-w-full px-5 py-2 rounded-xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer appearance-none dark:text-slate-300">
                             <option value="all">{t.learnset_all_methods}</option>
                             {availableMethods.map((m) => (
                                 <option value={m}>{learnMethodLabel(m, lang as string)}</option>
