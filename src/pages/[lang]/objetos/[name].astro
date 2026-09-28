@@ -30,8 +30,15 @@ const i18nItems = itemTranslations[lang as string] || itemTranslations.es;
 // flavor_text_entries (in-game flavor) is secondary and must never be
 // presented as the exact mechanical effect — see src/utils/items.ts for why.
 // Placeholder text ("[VAR (0000)]", "Unknown.", "XXX new effect…") never gets here.
-const effect = selectItemEffect(itemData.effect_entries, lang as string);
-const flavor = selectItemFlavor(itemData.flavor_text_entries, lang as string);
+//
+// fallbackLangs: [] — no English-language fallback for either card. An
+// English effect/flavor shown as the main visible text on /es/objetos/
+// (even labelled "shown in its original language") is not acceptable UX;
+// the page falls through to the real Spanish flavor, or failing that the
+// localized factual summary, instead. Never a silent "closest available
+// language" substitute presented as if it were the requested one.
+const effect = selectItemEffect(itemData.effect_entries, lang as string, []);
+const flavor = selectItemFlavor(itemData.flavor_text_entries, lang as string, []);
 const categoryKey = itemData.category?.name;
 const superCategoryKey = getItemSuperCategory(categoryKey || '');
 const categoryName = i18nItems[superCategoryKey] || i18nItems[categoryKey] || formatName(categoryKey || '---');
@@ -175,9 +182,6 @@ const breadcrumbItems = [
                     <p class="text-xl md:text-2xl text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                         {effect.text}
                     </p>
-                    {effect?.fallbackUsed && (
-                        <p class="text-xs text-slate-400 dark:text-slate-500 italic mt-3">{t.item_effect_en_fallback}</p>
-                    )}
                     <p class="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mt-4">{t.source_pokeapi}</p>
                 </div>
                 )}

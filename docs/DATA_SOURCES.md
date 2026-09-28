@@ -439,12 +439,25 @@ centralized; don't try to unify the two into one cache.
 
 Any `dict[lang] || dict.es` / `entries.find(lang) || entries.find('en')`
 pattern in this codebase is a **language** fallback (show a different
-language if the requested one is missing) — normal and expected, not an
-error. It is unrelated to the **source-selection** fallback described
-above (which entry, of possibly several in the *same* language, to trust).
-`ProvenancedText.fallbackUsed` only reports the language fallback; when
-`true`, item pages show a small "shown in the original language" note
-(`item_effect_en_fallback`).
+language if the requested one is missing) — normal and expected in most
+places, not an error. It is unrelated to the **source-selection**
+fallback described above (which entry, of possibly several in the *same*
+language, to trust).
+
+**Item effect/flavor text is a deliberate exception** (fixed 2026-09-28,
+post-review of Fase 2F): `selectItemEffect`/`selectItemFlavor` accept a
+`fallbackLangs` argument forwarded straight to
+`selectLocalizedEffect`/`selectLocalizedFlavor`
+(`services/localizedText.ts`) — no second selection policy — and the item
+page passes `[]` for both. A visible "Efecto / Mecánica" card in a
+language the visitor didn't ask for (even labelled "shown in its original
+language") isn't acceptable UX for `/es/objetos/`: the page falls through
+to the real flavor text in the requested language, or the localized
+factual summary, rather than showing English as the main visible text.
+`ProvenancedText.fallbackUsed` still exists and still reports a language
+fallback where one is allowed (every *other* caller of these selectors
+keeps the default `['en']`); it simply can never be `true` for items,
+since this surface's own ladder is one rung long.
 
 ## When a data field can't be resolved at all
 
