@@ -61,7 +61,14 @@ function load(): Promise<Map<string, string[]>> {
   return cached;
 }
 
-/** Factual flags for a move (see utils/moveFlags.ts for the curated set). Empty when the move has none, or the dataset hasn't been generated yet — never a fetch, never a thrown error. */
+/**
+ * Factual flags for a move (see utils/moveFlags.ts for the curated set).
+ * `[]` when the move has none, or the dataset hasn't been generated yet
+ * — never a fetch. Does throw (see `assertFlagOrderMatches` above) if the
+ * committed dataset's `flagOrder` doesn't match the current
+ * `MOVE_FLAG_ORDER`: that specific case is a real data/code mismatch, not
+ * something a caller should silently degrade through.
+ */
 export async function getMoveFlags(moveSlug: string): Promise<string[]> {
   const map = await load();
   return map.get(moveSlug) ?? [];

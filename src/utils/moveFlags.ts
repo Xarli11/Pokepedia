@@ -29,8 +29,12 @@
 // not a competitive-analysis surface.
 //
 // Order is arbitrary but fixed: it is the shared index table
-// scripts/generate-catalogs.ts's move-flags builder encodes against and
-// this module's own `moveFlagByIndex` decodes with. Treat it as
+// scripts/generate-catalogs.ts's move-flags builder encodes against, and
+// the contract `src/services/moveFlagsData.ts` validates a committed
+// dataset's own stored `flagOrder` against before ever decoding with it
+// (never against this constant directly, and never via
+// `moveFlagByIndex` — that helper exists for this file's own index
+// round-trip test, not as the runtime decode path). Treat it as
 // append-only.
 export const MOVE_FLAG_ORDER = [
   'contact',
