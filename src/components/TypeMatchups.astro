@@ -1,0 +1,98 @@
+---
+// Type matchups of a Pokémon: what its TYPING alone implies (F6 Experiment 1).
+//
+// Server-rendered, no client script, no network: the data is the static
+// matrix in utils/typeMatchups.ts. It is reference data — abilities, items
+// and Terastallization are explicitly out of scope and the note says so; the
+// interactive analysis lives in PokeTypes (docs/DATA_SOURCES.md).
+import { MATCHUP_LEVELS, formatMultiplier, type TypeMatchups } from '../utils/typeMatchups';
+import { typeColors, typeTranslations, uiTranslations } from '../utils/pokemon';
+import { pagePath } from '../utils/seo';
+
+interface Props {
+    /** Localized Pokémon name, used in the heading and the table caption. */
+    name: string;
+    matchups: TypeMatchups;
+    /** Plain-language summary (utils/matchupCopy.ts), already localized. */
+    summary: string;
+    lang: string;
+    /** Deep link to PokeTypes for this Pokémon (utils/pokemon.ts: buildPokeTypesUrl). */
+    pokeTypesHref: string;
+}
+
+const { name, matchups, summary, lang, pokeTypesHref } = Astro.props;
+const l = lang === 'es' ? 'es' : 'en';
+const t = uiTranslations[l];
+const fill = (template: string) => template.replace('{name}', name);
+
+const rows = MATCHUP_LEVELS
+    .map((level) => ({ ...level, types: matchups[level.key] }))
+    .filter((row) => row.types.length > 0);
+
+// Badge colour by outcome. Never the only cue: each row also carries the
+// multiplier and a text label.
+const badgeClass: Record<string, string> = {
+    x4: 'bg-red-600 text-white',
+    x2: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+    x05: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+    x025: 'bg-emerald-200 text-emerald-800 dark:bg-emerald-500/25 dark:text-emerald-200',
+    x0: 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900',
+};
+---
+
+<section aria-labelledby="matchups-heading" data-matchups class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm mb-12">
+    <h2 id="matchups-heading" class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">{fill(t.matchups_heading)}</h2>
+    <p class="text-base text-slate-600 dark:text-slate-300 leading-relaxed mb-8">{summary}</p>
+
+    <!-- The chip look is applied once, here, through descendant variants, instead of
+         repeating the same ~150-character class list on every link (HTML weight). -->
+    <table class="w-full text-sm [&_a]:inline-block [&_a]:px-4 [&_a]:py-1.5 [&_a]:rounded-xl [&_a]:text-xs [&_a]:font-black [&_a]:uppercase [&_a]:tracking-widest [&_a]:text-white [&_a]:shadow-sm [&_a]:no-underline [&_a]:transition-opacity [&_a:hover]:opacity-90">
+        <caption class="sr-only">{fill(t.matchups_caption)}</caption>
+        <thead class="sr-only">
+            <tr>
+                <th scope="col">{t.matchups_col_multiplier}</th>
+                <th scope="col">{t.matchups_col_types}</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.map((row) => (
+                <tr data-matchup-level={row.key}>
+                    <th scope="row" class="py-4 pr-4 text-left align-top font-normal whitespace-nowrap">
+                        <span class={`inline-flex min-w-[2.75rem] justify-center rounded-lg px-2 py-1 text-xs font-black ${badgeClass[row.key]}`}>{formatMultiplier(row.multiplier)}</span>
+                        <span class="ml-2 font-bold text-slate-500 dark:text-slate-400">{t[`matchups_level_${row.key}`]}</span>
+                    </th>
+                    <td class="py-4 align-top">
+                        <ul class="flex flex-wrap gap-2" role="list">
+                            {row.types.map((type) => (
+                                <li>
+                                    <a
+                                        href={pagePath(lang, 'tipo', type)}
+                                        data-track-event="internal_entity_click"
+                                        data-entity-type="type"
+                                        data-entity-slug={type}
+                                        data-source-surface="pokemon_matchups"
+                                        style={`background-color: ${typeColors[type]}`}
+                                    >{typeTranslations[l][type]}</a>
+                                </li>
+                            ))}
+                        </ul>
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </table>
+
+    <p class="mt-6 text-xs text-slate-500 dark:text-slate-400">{t.matchups_neutral}</p>
+    <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{t.matchups_note}</p>
+    <a
+        href={pokeTypesHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-track-event="cross_site_click"
+        data-track-target="poketypes"
+        data-source-surface="pokemon_matchups"
+        class="mt-6 inline-flex items-center gap-3 px-5 py-2 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/20 hover:border-emerald-500 transition-all no-underline"
+    >
+        <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{t.matchups_poketypes_cta}</span>
+    </a>
+</section>

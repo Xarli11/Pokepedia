@@ -1,0 +1,225 @@
+{
+ "source": "Pokémon Showdown data/pokedex.json (default form types)",
+ "snapshotDate": "2026-11-21",
+ "typings": {
+  "corviknight": [
+   "flying",
+   "steel"
+  ],
+  "muk": [
+   "poison"
+  ],
+  "lucario": [
+   "fighting",
+   "steel"
+  ],
+  "slowbro": [
+   "water",
+   "psychic"
+  ],
+  "grimmsnarl": [
+   "dark",
+   "fairy"
+  ],
+  "gyarados": [
+   "water",
+   "flying"
+  ],
+  "shuckle": [
+   "bug",
+   "rock"
+  ],
+  "alakazam": [
+   "psychic"
+  ],
+  "scrafty": [
+   "dark",
+   "fighting"
+  ],
+  "flygon": [
+   "ground",
+   "dragon"
+  ],
+  "malamar": [
+   "dark",
+   "psychic"
+  ],
+  "ursaluna": [
+   "ground",
+   "normal"
+  ],
+  "flamigo": [
+   "flying",
+   "fighting"
+  ],
+  "yveltal": [
+   "dark",
+   "flying"
+  ],
+  "gliscor": [
+   "ground",
+   "flying"
+  ],
+  "hatterene": [
+   "psychic",
+   "fairy"
+  ],
+  "raichu": [
+   "electric"
+  ],
+  "floette": [
+   "fairy"
+  ],
+  "aggron": [
+   "steel",
+   "rock"
+  ],
+  "regieleki": [
+   "electric"
+  ],
+  "dragonite": [
+   "dragon",
+   "flying"
+  ],
+  "falinks": [
+   "fighting"
+  ],
+  "nidoqueen": [
+   "poison",
+   "ground"
+  ],
+  "steelix": [
+   "steel",
+   "ground"
+  ],
+  "baxcalibur": [
+   "dragon",
+   "ice"
+  ],
+  "skuntank": [
+   "poison",
+   "dark"
+  ],
+  "pinsir": [
+   "bug"
+  ],
+  "abra": [
+   "psychic"
+  ],
+  "dragapult": [
+   "dragon",
+   "ghost"
+  ],
+  "scovillain": [
+   "grass",
+   "fire"
+  ],
+  "archaludon": [
+   "steel",
+   "dragon"
+  ],
+  "gardevoir": [
+   "psychic",
+   "fairy"
+  ],
+  "froslass": [
+   "ice",
+   "ghost"
+  ],
+  "tyranitar": [
+   "rock",
+   "dark"
+  ],
+  "machamp": [
+   "fighting"
+  ],
+  "persian": [
+   "normal"
+  ],
+  "hitmonlee": [
+   "fighting"
+  ],
+  "ludicolo": [
+   "water",
+   "grass"
+  ],
+  "clefable": [
+   "fairy"
+  ],
+  "charizard": [
+   "fire",
+   "flying"
+  ],
+  "weavile": [
+   "dark",
+   "ice"
+  ],
+  "exeggutor": [
+   "grass",
+   "psychic"
+  ],
+  "hydreigon": [
+   "dark",
+   "dragon"
+  ],
+  "iron-hands": [
+   "fighting",
+   "electric"
+  ],
+  "goodra": [
+   "dragon"
+  ],
+  "onix": [
+   "rock",
+   "ground"
+  ],
+  "haxorus": [
+   "dragon"
+  ],
+  "gengar": [
+   "ghost",
+   "poison"
+  ],
+  "mightyena": [
+   "dark"
+  ],
+  "tentacruel": [
+   "water",
+   "poison"
+  ],
+  "electrode": [
+   "electric"
+  ],
+  "mawile": [
+   "steel",
+   "fairy"
+  ],
+  "golem": [
+   "rock",
+   "ground"
+  ],
+  "noivern": [
+   "flying",
+   "dragon"
+  ],
+  "kadabra": [
+   "psychic"
+  ],
+  "blastoise": [
+   "water"
+  ],
+  "drampa": [
+   "normal",
+   "dragon"
+  ],
+  "weezing": [
+   "poison"
+  ],
+  "regirock": [
+   "rock"
+  ],
+  "koffing": [
+   "poison"
+  ]
+ }
+}

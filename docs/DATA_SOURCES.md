@@ -106,8 +106,40 @@ them instead of duplicating them:
 
 | Product | Owns | In Pokepedia |
 |---|---|---|
-| **PokeTypes** | weaknesses, resistances, immunities, multipliers, coverage | a deep link (`buildPokeTypesUrl`) from Pokémon pages and the comparator. No inline calculator, no iframe |
+| **PokeTypes** | the specialised type analysis: interactive tools, advanced calculation (abilities, items, Terastallization, three-type and coverage analysis, team matchups) | a deep link (`buildPokeTypesUrl`) from Pokémon pages and the comparator, plus the basic typing matchups below as reference data. No inline calculator, no iframe |
 | **PokeStudio** | sets, team building, strategy, optimization, damage calculation | nothing yet. `src/utils/ecosystem.ts` holds the single switch (`POKESTUDIO_BASE_URL`, `null`): while there is no public, stable URL no link is rendered; once it is set, the CTA in `SmogonTier.astro` appears |
+
+### Type matchups: reference data in Pokepedia, analysis in PokeTypes
+
+Approved policy (F6 Experiment 1, supersedes the earlier "PokeTypes owns
+weaknesses, resistances, immunities and multipliers, Pokepedia only links"):
+
+> Pokepedia exposes each Pokémon's basic weaknesses, resistances and
+> immunities as reference data. PokeTypes keeps the specialised analysis, the
+> interactive tools and the advanced calculations.
+
+What "reference data" means in code:
+
+- `src/utils/typeMatchups.ts`: a static 18×18 table, **the modern chart in
+  force since Generation VI** (Fairy exists; Steel does not resist Ghost or
+  Dark). No network, no PokeAPI request. Verified cell by cell (all 324
+  interactions) against a frozen PokeAPI snapshot in
+  `src/utils/__fixtures__/types/type-chart.json`.
+- **Typing only.** The result is what a Pokémon's types alone imply. It never
+  includes abilities (Levitate, Flash Fire, Thick Fat…), held items,
+  Terastallization, weather or moves that change type, and the page says so.
+  An immunity is only ever stated when the TYPES grant it.
+- `src/components/TypeMatchups.astro` renders it server-side (no client
+  script) and links each type to its canonical `/{lang}/tipo/{type}/` page and
+  the Pokémon to its PokeTypes deep link for everything beyond this.
+- Everything else stays in PokeTypes: interactive and three-type analysis,
+  ability/item/Tera effects, offensive coverage, team analysis. PokeStudio
+  still owns sets, team building, strategy and damage calculation.
+
+Rollout: the block is currently rendered ONLY on the 30 treatment species of
+the F6 pilot (`src/utils/matchupPilot.ts`; protocol, dates and metrics in
+`docs/experiments/f6-matchups-pilot.md`). Generalising it to every Pokémon page
+is a separate decision taken after the observation period.
 
 What stays on a Pokémon page from the competitive side is one attributed
 reference fact: the Smogon tier (from Showdown's `pokedex.json`) with its

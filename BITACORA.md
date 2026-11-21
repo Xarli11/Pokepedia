@@ -2,6 +2,52 @@
 
 ---
 
+## 2026-11-21 (Sesión 16 — F6 Experimento 1: piloto de debilidades en la ficha de Pokémon)
+
+**Objetivo:** implementar el piloto aprobado (docs/audits/f6-experiment-1-design-2026-11-21.md)
+sobre `feature/f6-pokemon-matchups-pilot` (desde `develop` v0.15.0), sin
+desplegar. Solo las 30 especies de tratamiento reciben el cambio; las 30 de
+control y el resto de la web no cambian.
+
+**Cambios técnicos:**
+
+- `src/utils/typeMatchups.ts`: matriz estática 18×18 (tabla moderna, Gen VI+),
+  `matchupsFor(types)` → ×4/×2/×½/×¼/×0; sin red. Escrita atacante-primero y
+  verificada celda a celda (324) contra un snapshot de PokeAPI
+  defensor-primero (`__fixtures__/types/type-chart.json`).
+- `src/utils/matchupPilot.ts`: asignación fija (30 tratamiento / 30 control).
+- `src/utils/matchupCopy.ts`: resumen, título y descripción ES/EN generados con
+  datos; `pokemonSeoCopy()` devuelve exactamente el texto anterior fuera del
+  tratamiento.
+- `src/components/TypeMatchups.astro`: bloque SSR (H2 contextual, resumen,
+  tabla, enlaces `/tipo/`, nota de alcance, enlace a PokeTypes).
+- Página de Pokémon: solo cambia el origen de `seoTitle`/`seoDescription` y la
+  inserción condicional del bloque.
+- `docs/DATA_SOURCES.md`: política aprobada (Pokepedia expone la matriz básica
+  como dato de referencia; PokeTypes conserva el análisis especializado).
+
+**Decisiones de diseño:**
+
+- El cálculo es solo por tipos; nunca se afirma una inmunidad que dependa de
+  habilidades, objetos o Teracristalización (y la página lo declara).
+- El incremento de HTML medido es +6,8 KB sin comprimir / +1,3 KB gzip (el
+  diseño estimaba < 3 KB sin comprimir; se documenta la desviación y se acota
+  con tests).
+- Ventana de evaluación ampliada a semanas 5–10; umbrales absolutos escalados
+  ×1,5 (fijados antes del despliegue).
+
+**Validación:** tests de matriz, textos, componente (accesibilidad/semántica),
+página (control idéntico byte a byte, sin peticiones nuevas, canonical y
+hreflang intactos), build. Nota de entorno: en este checkout de Windows
+(`core.autocrlf=true`) 16 tests preexistentes de `develop` fallan por CRLF
+(catálogos JSON y regex de scripts); no son de este cambio y pasan en un
+checkout LF.
+
+**Pendiente:** merge del PR, fin del core update, T0 y seguimiento semanal
+(ver TODO.md).
+
+---
+
 ## 2026-09-28 (Sesión 15 — Fase 2F: cierre de Phase 2, enciclopedia factual)
 
 **Objetivo:** cerrar Phase 2 definitivamente sobre
