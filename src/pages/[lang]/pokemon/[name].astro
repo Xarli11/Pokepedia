@@ -5,11 +5,13 @@ import EvolutionChain from '../../../components/EvolutionChain.astro';
 import SmogonTier from '../../../components/SmogonTier.astro';
 import ReportDataIssue from '../../../components/ReportDataIssue.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import TypeMatchups from '../../../components/TypeMatchups.astro';
 import { getPokemonByName, getLocalizedName, getEvolutionChain, getAbilityDetail, getAllAbilities, getPokemonDetailByUrl, getPokemonSummaryByUrl, getSpeciesNamesById, idFromResourceUrl, GENERATION_ROMAN, type PokemonDetail } from '../../../services/pokeapi';
 import { getShowdownPokemon } from '../../../services/smogon';
 import { buildAbilityIndex, abilitySlugOrNull, type AbilityIndex } from '../../../utils/abilitySlug';
 import { uiTranslations, typeTranslations, typeColors, formatPokemonNumber, formatName, buildPokeTypesUrl } from '../../../utils/pokemon';
 import { canonicalPokemonSlug, pagePath } from '../../../utils/seo';
+import { pokemonSeoCopy } from '../../../utils/matchupCopy';
 import { buildPokemonFacts, growthRateLabel, eggGroupLabel, localizedGenus, regionalDexEntriesForContext, pastStatChanges } from '../../../utils/pokemonFacts';
 import { pokedexLabel } from '../../../services/pokedexes';
 import { versionGroupsFromMoveDetails, jsonForScript } from '../../../utils/movesPayload';
@@ -212,12 +214,18 @@ const points = statsValues.map((stat: number, i: number) => {
 
 const statLabels = [t.stat_hp, t.stat_atk, t.stat_def, t.stat_spatk, t.stat_spdef, t.stat_spd];
 const gridLevels = [0.25, 0.5, 0.75, 1];
-const seoTitle = lang === 'es'
-    ? `${localizedName}: Stats, Movimientos y Habilidades`
-    : `${localizedName}: Stats, Moves & Abilities`;
-const seoDescription = lang === 'es'
-    ? `Ficha de ${localizedName}: tipos, estadísticas base (${totalStats}), habilidades, evolución y movimientos que aprende.`
-    : `${localizedName} profile: types, base stats (${totalStats}), abilities, evolution and the moves it learns.`;
+// F6 Experiment 1 (docs/experiments/f6-matchups-pilot.md): only the treatment
+// species get the type-matchup block and its facts-first title/description;
+// every other page gets the legacy copy, unchanged.
+const seoCopy = pokemonSeoCopy({
+    slug: canonicalSlug,
+    lang: lang as string,
+    name: localizedName,
+    types: detail.types.map((ty: any) => ty.type.name),
+    totalStats,
+});
+const seoTitle = seoCopy.title;
+const seoDescription = seoCopy.description;
 
 // Type theming
 const primaryType = detail.types[0]?.type.name || 'normal';
@@ -444,6 +452,16 @@ const breadcrumbItems = [
                         </div>
                     </div>
                 </div>
+
+                {seoCopy.matchups && seoCopy.summary && (
+                    <TypeMatchups
+                        name={localizedName}
+                        matchups={seoCopy.matchups}
+                        summary={seoCopy.summary}
+                        lang={lang as string}
+                        pokeTypesHref={buildPokeTypesUrl(detail.types, detail.name)}
+                    />
+                )}
 
                 <div class="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-10">
                     <section>

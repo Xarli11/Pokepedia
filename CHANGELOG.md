@@ -4,6 +4,14 @@ All notable changes to Pokepedia are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- F6 Experiment 1 (pilot, 30 treatment species only): server-rendered
+  "weaknesses and resistances" block on the Pokémon page, computed from a
+  static modern (Gen VI+) type chart, plus matching title and description.
+  Control and all other species are unchanged. Protocol:
+  `docs/experiments/f6-matchups-pilot.md`.
+
 ## [0.15.0] - 2026-09-28
 
 Closes Phase 2 (the factual encyclopedia): entity relations, Game Context,

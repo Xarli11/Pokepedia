@@ -2,7 +2,18 @@
 
 ## En Progreso
 
-_ninguna_
+- **F6 Experimento 1 — piloto de debilidades y resistencias** (PR hacia
+  `develop`, **sin desplegar**). Implementado y probado en
+  `feature/f6-pokemon-matchups-pilot`; pendiente de revisión/merge y de
+  confirmar que el November 2026 Core Update ha terminado antes de
+  desplegar (T0). Protocolo, calendario, métricas y criterios:
+  `docs/experiments/f6-matchups-pilot.md`. Diseño:
+  `docs/audits/f6-experiment-1-design-2026-11-21.md`.
+  - [ ] Revisar y mergear el PR (no antes de decidir T0).
+  - [ ] Confirmar fin del core update en el Search Status Dashboard.
+  - [ ] Registrar fecha real de despliegue (T0) en el documento del experimento.
+  - [ ] Congelar línea base (Search Console 28 d + HTML previo de las 120 URLs).
+  - [ ] Seguimiento semanal (≈ 10 semanas) y decisión en T0 + 70 días.
 
 ---
 
