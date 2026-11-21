@@ -109,9 +109,9 @@ function matchupHeadline(m: TypeMatchups, lang: Lang): string {
   const weak: string[] = [];
   if (m.x4.length) weak.push(`${joinList(names(m.x4, lang), lang)} (${formatMultiplier(4)})`);
   if (m.x2.length) weak.push(`${joinList(names(m.x2, lang), lang)} (${formatMultiplier(2)})`);
-  const and = lang === 'es' ? ' y ' : ' and ';
+  // Groups are comma-separated so "Hielo (×4), Dragón y Hada (×2)" never reads as one run of "y … y".
   const weakText = weak.length
-    ? `${lang === 'es' ? 'débil a' : 'weak to'} ${weak.join(and)}`
+    ? `${lang === 'es' ? 'débil a' : 'weak to'} ${weak.join(', ')}`
     : (lang === 'es' ? 'sin debilidades por tipo' : 'no type weaknesses');
   const immune = m.x0.length
     ? `, ${lang === 'es' ? 'inmune a' : 'immune to'} ${joinList(names(m.x0, lang), lang)}`

@@ -137,7 +137,10 @@ describe('title and description', () => {
   });
 
   it('description — x4 and x2 are both stated with their multiplier', () => {
-    expect(matchupDescription('Gyarados', ['water', 'flying'], GYARADOS, 540, 'es')).toContain('débil a Eléctrico (×4) y Roca (×2)');
+    expect(matchupDescription('Gyarados', ['water', 'flying'], GYARADOS, 540, 'es')).toContain('débil a Eléctrico (×4), Roca (×2)');
+    expect(matchupDescription('Gyarados', ['water', 'flying'], GYARADOS, 540, 'en')).toContain('weak to Electric (×4), Rock (×2)');
+    // two lists never read as a run of "y … y": Flygon (ground/dragon) is x4 Ice and x2 Dragon+Fairy
+    expect(matchupDescription('Flygon', ['ground', 'dragon'], matchupsFor(['ground', 'dragon'])!, 520, 'es')).toContain('débil a Hielo (×4), Dragón y Hada (×2)');
   });
 
   it('description is never longer than 160 characters, for every typing and a worst-case name', () => {
